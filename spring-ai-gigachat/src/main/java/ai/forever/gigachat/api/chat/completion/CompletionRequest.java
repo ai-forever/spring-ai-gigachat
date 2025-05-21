@@ -1,6 +1,5 @@
 package ai.forever.gigachat.api.chat.completion;
 
-import ai.forever.gigachat.api.chat.GigaChatApi;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonRawValue;
@@ -21,7 +20,7 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class CompletionRequest {
     @JsonProperty("model")
-    private GigaChatApi.ChatModel model;
+    private String model;
 
     @JsonProperty("messages")
     private List<Message> messages;
@@ -51,6 +50,12 @@ public class CompletionRequest {
     @JsonProperty("update_interval")
     private Double updateInterval;
 
+    /**
+     * Флаг для включения/отключения цензуры
+     * */
+    @JsonProperty("profanity_check")
+    private Boolean profanityCheck;
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -72,18 +77,24 @@ public class CompletionRequest {
         @JsonProperty("function_call")
         private CompletionResponse.FunctionCall functionCall;
 
+        @JsonProperty("attachments")
+        private List<?> attachments;
+
         /**
          * Название вызванной функции. Только при role = function
          */
         @JsonProperty("name")
         private String name;
 
-        @JsonProperty("data_for_context")
-        private String dataForContext;
-
         public Message(Role role, String content) {
             this.role = role;
             this.content = content;
+        }
+
+        public Message(Role role, String content, List<?> attachments) {
+            this.role = role;
+            this.content = content;
+            this.attachments = attachments;
         }
     }
 
@@ -104,7 +115,8 @@ public class CompletionRequest {
             @JsonProperty("few_shot_examples") List<FewShotExample> fewShotExamples,
             @JsonProperty("return_parameters") @JsonRawValue String returnParameters) {}
 
-    public record FewShotExample(@JsonProperty("request") String request, @JsonProperty("params") Object params) {}
+    public record FewShotExample(
+            @JsonProperty("request") String request, @JsonProperty("params") @JsonRawValue String params) {}
 
     public enum Role {
         system,

@@ -1,33 +1,25 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: -1
+      max-request-size: -1
   application:
-    name: spring-ai-gigachat-exmaple
+    name: spring-ai-gigachat-example
   profiles:
-    active: default,secret
+    active: default
   ai:
     retry:
       max-attempts: 3
     gigachat:
-      client-id: ${SPRING_AI_GIGACHAT_CLIENT_ID}
-      client-secret: ${SPRING_AI_GIGACHAT_CLIENT_SECRET}
-      scope: gigachat_api_corp
+      scope: ${GIGACHAT_API_SCOPE}
+      client-id: ${GIGACHAT_API_CLIENT_ID}
+      client-secret: ${GIGACHAT_API_CLIENT_SECRET}
       unsafe-ssl: true
       chat:
         options:
-          model: GIGA_CHAT
-
-management:
-  tracing:
-    sampling:
-      probability: 1.0
-  endpoints:
-    web:
-      exposure:
-        include: '*'
-  observations:
-    annotations:
-      enabled: true
+          model: GigaChat-2
 
 logging:
   level:
     org.springframework.ai.chat.client.advisor: DEBUG
-    ai.forever.gigachat: DEBUG
+    ai.forever.gigachat.api.chat: DEBUG

@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: spring-ai-gigachat-test-agent
+  ai:
+    retry:
+      max-attempts: 3
+    gigachat:
+      chat:
+        options:
+          model: GigaChat-2
+      embedding:
+        options:
+          model: Embeddings
+          dimensions: 1024

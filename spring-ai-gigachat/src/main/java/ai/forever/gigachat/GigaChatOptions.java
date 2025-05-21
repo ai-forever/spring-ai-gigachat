@@ -1,32 +1,26 @@
 package ai.forever.gigachat;
 
 import ai.forever.gigachat.api.chat.GigaChatApi;
+import ai.forever.gigachat.api.chat.param.FunctionCallParam;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Getter;
 import org.springframework.ai.chat.prompt.ChatOptions;
-import org.springframework.ai.model.function.FunctionCallback;
-import org.springframework.ai.model.function.FunctionCallingOptions;
+import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 @Data
-@Builder(toBuilder = true)
-@NoArgsConstructor
-@AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class GigaChatOptions implements FunctionCallingOptions, ChatOptions {
+public class GigaChatOptions implements ToolCallingChatOptions {
 
     @JsonProperty("model")
-    private GigaChatApi.ChatModel model;
+    private String model;
 
     @JsonProperty("temperature")
     private Double temperature;
@@ -43,38 +37,65 @@ public class GigaChatOptions implements FunctionCallingOptions, ChatOptions {
     @JsonProperty("update_interval")
     private Double updateInterval;
 
+    /**
+     * Collection of {@link ToolCallback}s to be used for tool calling in the chat
+     * completion requests.
+     */
     @JsonIgnore
-    private Map<String, Object> toolContext;
+    private List<ToolCallback> toolCallbacks = new ArrayList<>();
+
+    /**
+     * Collection of tool names to be resolved at runtime and used for tool calling in the
+     * chat completion requests.
+     */
+    @JsonIgnore
+    private Set<String> toolNames = new HashSet<>();
+
+    /**
+     * Whether to enable the tool execution lifecycle internally in ChatModel.
+     */
+    @JsonIgnore
+    private Boolean internalToolExecutionEnabled;
 
     @JsonIgnore
-    private List<FunctionCallback> functionCallbacks = new ArrayList<>();
+    private Map<String, Object> toolContext = new HashMap<>();
 
-    @JsonIgnore
-    private Set<String> functions = new HashSet<>();
-
+    @JsonProperty("function_call_mode")
     private FunctionCallMode functionCallMode;
+
+    @JsonProperty("function_call_param")
+    private FunctionCallParam functionCallParam;
+
+    /**
+     * Флаг для включения/отключения цензуры
+     */
+    @JsonProperty("profanity_check")
+    private Boolean profanityCheck;
 
     @Override
     public String getModel() {
-        return model.getName();
+        return model;
     }
 
     @Override
     @JsonIgnore
     public Double getFrequencyPenalty() {
-        throw new UnsupportedOperationException("Unimplemented method 'getFrequencyPenalty'");
+        // Гигачат не поддерживает данный параметр
+        return null;
     }
 
     @Override
     @JsonIgnore
     public Double getPresencePenalty() {
-        throw new UnsupportedOperationException("Unimplemented method 'getPresencePenalty'");
+        // Гигачат не поддерживает данный параметр
+        return null;
     }
 
     @Override
     @JsonIgnore
     public List<String> getStopSequences() {
-        throw new UnsupportedOperationException("Unimplemented method 'getStopSequences'");
+        // Гигачат не поддерживает данный параметр
+        return null;
     }
 
     @Override
@@ -95,29 +116,8 @@ public class GigaChatOptions implements FunctionCallingOptions, ChatOptions {
     @Override
     @JsonIgnore
     public Integer getTopK() {
-        throw new UnsupportedOperationException("Unimplemented method 'getTopK'");
-    }
-
-    @Override
-    public List<FunctionCallback> getFunctionCallbacks() {
-        return this.functionCallbacks;
-    }
-
-    @Override
-    public void setFunctionCallbacks(List<FunctionCallback> functionCallbacks) {
-        Assert.notNull(functionCallbacks, "FunctionCallbacks must not be null");
-        this.functionCallbacks = functionCallbacks;
-    }
-
-    @Override
-    public Set<String> getFunctions() {
-        return this.functions;
-    }
-
-    @Override
-    public void setFunctions(Set<String> functions) {
-        Assert.notNull(functions, "Function must not be null");
-        this.functions = functions;
+        // Гигачат не поддерживает данный параметр
+        return null;
     }
 
     @Override
@@ -138,10 +138,174 @@ public class GigaChatOptions implements FunctionCallingOptions, ChatOptions {
         this.functionCallMode = functionCallMode;
     }
 
+    @Override
+    @JsonIgnore
+    public List<ToolCallback> getToolCallbacks() {
+        return this.toolCallbacks;
+    }
+
+    @Override
+    @JsonIgnore
+    public void setToolCallbacks(List<ToolCallback> toolCallbacks) {
+        Assert.notNull(toolCallbacks, "toolCallbacks cannot be null");
+        Assert.noNullElements(toolCallbacks, "toolCallbacks cannot contain null elements");
+        this.toolCallbacks = toolCallbacks;
+    }
+
+    @Override
+    @JsonIgnore
+    public Set<String> getToolNames() {
+        return this.toolNames;
+    }
+
+    @Override
+    @JsonIgnore
+    public void setToolNames(Set<String> toolNames) {
+        Assert.notNull(toolNames, "toolNames cannot be null");
+        Assert.noNullElements(toolNames, "toolNames cannot contain null elements");
+        toolNames.forEach(tool -> Assert.hasText(tool, "toolNames cannot contain empty elements"));
+        this.toolNames = toolNames;
+    }
+
+    @Override
+    @Nullable
+    @JsonIgnore
+    public Boolean getInternalToolExecutionEnabled() {
+        return internalToolExecutionEnabled;
+    }
+
+    @Override
+    @JsonIgnore
+    public void setInternalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
+        this.internalToolExecutionEnabled = internalToolExecutionEnabled;
+    }
+
+    @Getter
+    @AllArgsConstructor
     public enum FunctionCallMode {
         /** GigaChat не будет вызывать функции. */
-        NONE,
+        NONE("none"),
         /** В зависимости от содержимого запроса, модель решает сгенерировать сообщение или вызвать функцию. */
-        AUTO
+        AUTO("auto"),
+        /** Все запросы будут вызывать функцию, указанную в functionCallParam. */
+        CUSTOM_FUNCTION(null);
+
+        private final String value;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public Builder toBuilder() {
+        return new Builder()
+                .model(this.model)
+                .temperature(this.temperature)
+                .topP(this.topP)
+                .maxTokens(this.maxTokens)
+                .repetitionPenalty(this.repetitionPenalty)
+                .updateInterval(this.updateInterval)
+                .toolCallbacks(this.toolCallbacks)
+                .toolNames(this.toolNames)
+                .internalToolExecutionEnabled(this.internalToolExecutionEnabled)
+                .toolContext(this.toolContext)
+                .functionCallMode(this.functionCallMode)
+                .functionCallParam(this.functionCallParam)
+                .profanityCheck(this.profanityCheck);
+    }
+
+    public static class Builder {
+        private final GigaChatOptions options = new GigaChatOptions();
+
+        public Builder model(GigaChatApi.ChatModel model) {
+            Assert.notNull(model, "model cannot be null");
+            this.options.setModel(model.getName());
+            return this;
+        }
+
+        public Builder model(String model) {
+            this.options.setModel(model);
+            return this;
+        }
+
+        public Builder temperature(Double temperature) {
+            this.options.setTemperature(temperature);
+            return this;
+        }
+
+        public Builder topP(Double topP) {
+            this.options.setTopP(topP);
+            return this;
+        }
+
+        public Builder maxTokens(Integer maxTokens) {
+            this.options.setMaxTokens(maxTokens);
+            return this;
+        }
+
+        public Builder repetitionPenalty(Double repetitionPenalty) {
+            this.options.setRepetitionPenalty(repetitionPenalty);
+            return this;
+        }
+
+        public Builder updateInterval(Double updateInterval) {
+            this.options.setUpdateInterval(updateInterval);
+            return this;
+        }
+
+        public Builder toolCallbacks(ToolCallback... toolCallbacks) {
+            Assert.notNull(toolCallbacks, "toolCallbacks cannot be null");
+            this.options.toolCallbacks.addAll(Arrays.asList(toolCallbacks));
+            return this;
+        }
+
+        public Builder toolCallbacks(List<ToolCallback> toolCallbacks) {
+            this.options.setToolCallbacks(toolCallbacks);
+            return this;
+        }
+
+        public Builder toolNames(String... toolNames) {
+            Assert.notNull(toolNames, "toolNames cannot be null");
+            this.options.toolNames.addAll(Arrays.asList(toolNames));
+            return this;
+        }
+
+        public Builder toolNames(Set<String> toolNames) {
+            this.options.setToolNames(toolNames);
+            return this;
+        }
+
+        public Builder internalToolExecutionEnabled(Boolean internalToolExecutionEnabled) {
+            this.options.setInternalToolExecutionEnabled(internalToolExecutionEnabled);
+            return this;
+        }
+
+        public Builder toolContext(Map<String, Object> toolContext) {
+            if (this.options.toolContext == null) {
+                this.options.toolContext = toolContext;
+            } else {
+                this.options.toolContext.putAll(toolContext);
+            }
+            return this;
+        }
+
+        public Builder functionCallMode(FunctionCallMode functionCallMode) {
+            this.options.setFunctionCallMode(functionCallMode);
+            return this;
+        }
+
+        public Builder functionCallParam(FunctionCallParam functionCallParam) {
+            this.options.setFunctionCallParam(functionCallParam);
+            return this;
+        }
+
+        public Builder profanityCheck(Boolean profanityCheck) {
+            this.options.setProfanityCheck(profanityCheck);
+            return this;
+        }
+
+        public GigaChatOptions build() {
+            return this.options;
+        }
     }
 }

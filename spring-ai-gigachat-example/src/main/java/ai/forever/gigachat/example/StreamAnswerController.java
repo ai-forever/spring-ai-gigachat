@@ -23,6 +23,6 @@ public class StreamAnswerController {
     public Flux<String> answer(@RequestBody String question) {
         return chatClient.prompt(question).stream().chatResponse().log().map(rs -> rs.getResult()
                 .getOutput()
-                .getContent());
+                .getText());
     }
 }

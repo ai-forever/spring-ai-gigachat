@@ -2,29 +2,26 @@ package ai.forever.gigachat;
 
 import static ai.forever.gigachat.api.chat.GigaChatApi.X_REQUEST_ID;
 
+import ai.forever.gigachat.api.auth.GigaChatInternalProperties;
 import ai.forever.gigachat.api.chat.GigaChatApi;
 import ai.forever.gigachat.api.chat.completion.CompletionRequest;
 import ai.forever.gigachat.api.chat.completion.CompletionResponse;
-import ai.forever.gigachat.function.GigaChatFunctionCallback;
-import ai.forever.gigachat.metadata.GigaChatUsage;
+import ai.forever.gigachat.api.chat.models.ModelDescription;
+import ai.forever.gigachat.tool.definition.GigaToolDefinition;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
-import org.springframework.ai.chat.metadata.ChatResponseMetadata;
-import org.springframework.ai.chat.metadata.EmptyUsage;
-import org.springframework.ai.chat.metadata.Usage;
-import org.springframework.ai.chat.model.AbstractToolCallSupport;
+import org.springframework.ai.chat.metadata.*;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
@@ -36,22 +33,23 @@ import org.springframework.ai.chat.observation.DefaultChatModelObservationConven
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.ModelOptionsUtils;
-import org.springframework.ai.model.function.FunctionCallback;
-import org.springframework.ai.model.function.FunctionCallbackResolver;
-import org.springframework.ai.model.function.FunctionCallingOptions;
+import org.springframework.ai.model.tool.*;
 import org.springframework.ai.retry.RetryUtils;
+import org.springframework.ai.support.UsageCalculator;
+import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.http.ResponseEntity;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Slf4j
-public class GigaChatModel extends AbstractToolCallSupport implements ChatModel {
-    public static final GigaChatApi.ChatModel DEFAULT_MODEL_NAME = GigaChatApi.ChatModel.GIGA_CHAT;
-    public static final DefaultChatModelObservationConvention DEFAULT_OBSERVATION_CONVENTION =
+public class GigaChatModel implements ChatModel {
+    public static final String DEFAULT_MODEL_NAME = GigaChatApi.ChatModel.GIGA_CHAT.getName();
+    public static final ChatModelObservationConvention DEFAULT_OBSERVATION_CONVENTION =
             new DefaultChatModelObservationConvention();
+    private static final ToolCallingManager DEFAULT_TOOL_CALLING_MANAGER =
+            ToolCallingManager.builder().build();
 
     /**
      * The lower-level API for the GigaChat service.
@@ -73,70 +71,60 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
      */
     private final ObservationRegistry observationRegistry;
 
+    private final ToolCallingManager toolCallingManager;
+
+    private final GigaChatInternalProperties internalProperties;
+
+    /**
+     * The tool execution eligibility predicate used to determine if a tool can be
+     * executed.
+     */
+    private final ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate;
+
     /**
      * Conventions to use for generating observations.
      */
     @Setter
     private ChatModelObservationConvention observationConvention = DEFAULT_OBSERVATION_CONVENTION;
 
-    public GigaChatModel(GigaChatApi gigaChatApi) {
-        this(gigaChatApi, GigaChatOptions.builder().model(DEFAULT_MODEL_NAME).build());
-    }
-
-    public GigaChatModel(GigaChatApi gigaChatApi, GigaChatOptions defaultOptions) {
-        this(gigaChatApi, defaultOptions, null, RetryUtils.DEFAULT_RETRY_TEMPLATE);
-    }
-
     public GigaChatModel(
             GigaChatApi gigaChatApi,
             GigaChatOptions defaultOptions,
-            FunctionCallbackResolver functionCallbackResolver,
-            RetryTemplate retryTemplate) {
-        this(gigaChatApi, defaultOptions, functionCallbackResolver, List.of(), retryTemplate);
-    }
-
-    public GigaChatModel(
-            GigaChatApi gigaChatApi,
-            GigaChatOptions defaultOptions,
-            FunctionCallbackResolver functionCallbackResolver,
-            List<FunctionCallback> toolFunctionCallbacks,
-            RetryTemplate retryTemplate) {
-        this(
-                gigaChatApi,
-                defaultOptions,
-                functionCallbackResolver,
-                toolFunctionCallbacks,
-                retryTemplate,
-                ObservationRegistry.NOOP);
-    }
-
-    public GigaChatModel(
-            GigaChatApi gigaChatApi,
-            GigaChatOptions options,
-            FunctionCallbackResolver functionCallbackResolver,
-            List<FunctionCallback> toolFunctionCallbacks,
+            ToolCallingManager toolCallingManager,
             RetryTemplate retryTemplate,
-            ObservationRegistry observationRegistry) {
-        super(functionCallbackResolver, options, toolFunctionCallbacks);
-        Assert.notNull(gigaChatApi, "gigaChatApi must not be null");
-        Assert.notNull(options, "options must not be null");
-        Assert.notNull(retryTemplate, "retryTemplate must not be null");
-        Assert.notNull(observationRegistry, "observationRegistry must not be null");
-
+            ObservationRegistry observationRegistry,
+            GigaChatInternalProperties internalProperties,
+            ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate) {
+        Assert.notNull(gigaChatApi, "gigaChatApi cannot be null");
+        Assert.notNull(defaultOptions, "defaultOptions cannot be null");
+        Assert.notNull(toolCallingManager, "toolCallingManager cannot be null");
+        Assert.notNull(retryTemplate, "retryTemplate cannot be null");
+        Assert.notNull(observationRegistry, "observationRegistry cannot be null");
+        Assert.notNull(internalProperties, "internalProperties must not be null");
+        Assert.notNull(toolExecutionEligibilityPredicate, "toolExecutionEligibilityPredicate cannot be null");
         this.gigaChatApi = gigaChatApi;
-        this.defaultOptions = options;
+        this.defaultOptions = defaultOptions;
+        this.toolCallingManager = toolCallingManager;
         this.retryTemplate = retryTemplate;
         this.observationRegistry = observationRegistry;
+        this.internalProperties = internalProperties;
+        this.toolExecutionEligibilityPredicate = toolExecutionEligibilityPredicate;
     }
 
     @Override
     public ChatResponse call(Prompt prompt) {
+        // Before moving any further, build the final request Prompt,
+        // merging runtime and default options.
+        Prompt requestPrompt = buildRequestPrompt(prompt);
+        return this.internalCall(requestPrompt, null);
+    }
+
+    public ChatResponse internalCall(Prompt prompt, ChatResponse previousChatResponse) {
         CompletionRequest request = createRequest(prompt, false);
 
         ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                 .prompt(prompt)
                 .provider(GigaChatApi.PROVIDER_NAME)
-                .requestOptions(buildRequestOptions(request))
                 .build();
 
         ChatResponse response = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION
@@ -148,18 +136,33 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
                 .observe(() -> {
                     ResponseEntity<CompletionResponse> completionEntity =
                             this.retryTemplate.execute(ctx -> this.gigaChatApi.chatCompletionEntity(request));
+
                     CompletionResponse completionResponse = completionEntity.getBody();
                     completionResponse.setId(completionEntity.getHeaders().getFirst(X_REQUEST_ID));
-                    ChatResponse chatResponse = toChatResponse(completionResponse, false);
+
+                    Usage currentChatResponseUsage = buildUsage(completionResponse.getUsage());
+                    Usage accumulatedUsage =
+                            UsageCalculator.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
+
+                    ChatResponse chatResponse = toChatResponse(completionResponse, accumulatedUsage, false);
                     observationContext.setResponse(chatResponse);
+
                     return chatResponse;
                 });
 
-        if (!isProxyToolCalls(prompt, this.defaultOptions)
-                && response != null
-                && this.isToolCall(response, Set.of(CompletionResponse.FinishReason.FUNCTION_CALL))) {
-            var toolCallConversation = handleToolCalls(prompt, response);
-            return this.call(new Prompt(toolCallConversation, prompt.getOptions()));
+        if (this.toolExecutionEligibilityPredicate.isToolExecutionRequired(prompt.getOptions(), response)) {
+            var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
+            if (toolExecutionResult.returnDirect()) {
+                // Return tool execution result directly to the client.
+                return ChatResponse.builder()
+                        .from(response)
+                        .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
+                        .build();
+            } else {
+                // Send the tool execution result back to the model.
+                return this.internalCall(
+                        new Prompt(toolExecutionResult.conversationHistory(), prompt.getOptions()), response);
+            }
         }
 
         return response;
@@ -167,13 +170,19 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
 
     @Override
     public Flux<ChatResponse> stream(Prompt prompt) {
+        // Before moving any further, build the final request Prompt,
+        // merging runtime and default options.
+        Prompt requestPrompt = buildRequestPrompt(prompt);
+        return this.internalStream(requestPrompt, null).log();
+    }
+
+    public Flux<ChatResponse> internalStream(Prompt prompt, ChatResponse previousChatResponse) {
         return Flux.deferContextual(contextView -> {
             CompletionRequest request = createRequest(prompt, true);
 
             ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                     .prompt(prompt)
                     .provider(GigaChatApi.PROVIDER_NAME)
-                    .requestOptions(buildRequestOptions(request))
                     .build();
 
             Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION
@@ -189,15 +198,30 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
                     this.retryTemplate.execute(ctx -> this.gigaChatApi.chatCompletionStream(request));
 
             Flux<ChatResponse> chatResponseFlux = response.switchMap(completionResponse -> {
-                        ChatResponse chatResponse = toChatResponse(completionResponse, true);
+                        Usage currentChatResponseUsage = buildUsage(completionResponse.getUsage());
+                        Usage accumulatedUsage =
+                                UsageCalculator.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
 
-                        // if (!isProxyToolCalls(prompt, this.defaultOptions) &&
-                        //         this.isToolCall(chatResponse, Set.of("tool_use"))) {
-                        //     var toolCallConversation = handleToolCalls(prompt, chatResponse);
-                        //     return this.stream(new Prompt(toolCallConversation, prompt.getOptions()));
-                        // }
+                        ChatResponse chatResponse = toChatResponse(completionResponse, accumulatedUsage, true);
 
-                        return Mono.just(chatResponse);
+                        if (this.toolExecutionEligibilityPredicate.isToolExecutionRequired(
+                                prompt.getOptions(), chatResponse)) {
+                            var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, chatResponse);
+                            if (toolExecutionResult.returnDirect()) {
+                                // Return tool execution result directly to the client.
+                                return Flux.just(ChatResponse.builder()
+                                        .from(chatResponse)
+                                        .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
+                                        .build());
+                            } else {
+                                // Send the tool execution result back to the model.
+                                return this.internalStream(
+                                        new Prompt(toolExecutionResult.conversationHistory(), prompt.getOptions()),
+                                        chatResponse);
+                            }
+                        }
+
+                        return Flux.just(chatResponse);
                     })
                     .doOnError(observation::error)
                     .doFinally(s -> observation.stop())
@@ -207,19 +231,76 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
         });
     }
 
+    @SuppressWarnings("DataFlowIssue")
+    public List<ModelDescription> models() {
+        return gigaChatApi.models().getBody().getData();
+    }
+
+    Prompt buildRequestPrompt(Prompt prompt) {
+        // Process runtime options
+        GigaChatOptions runtimeOptions = null;
+        if (prompt.getOptions() != null) {
+            if (prompt.getOptions() instanceof ToolCallingChatOptions toolCallingChatOptions) {
+                runtimeOptions = ModelOptionsUtils.copyToTarget(
+                        toolCallingChatOptions, ToolCallingChatOptions.class, GigaChatOptions.class);
+            } else {
+                runtimeOptions =
+                        ModelOptionsUtils.copyToTarget(prompt.getOptions(), ChatOptions.class, GigaChatOptions.class);
+            }
+        }
+
+        // Define request options by merging runtime options and default options
+        GigaChatOptions requestOptions =
+                ModelOptionsUtils.merge(runtimeOptions, this.defaultOptions, GigaChatOptions.class);
+
+        // Merge @JsonIgnore-annotated options explicitly since they are ignored by
+        // Jackson, used by ModelOptionsUtils.
+        if (runtimeOptions != null) {
+            requestOptions.setInternalToolExecutionEnabled(ModelOptionsUtils.mergeOption(
+                    runtimeOptions.getInternalToolExecutionEnabled(),
+                    this.defaultOptions.getInternalToolExecutionEnabled()));
+            requestOptions.setToolNames(ToolCallingChatOptions.mergeToolNames(
+                    runtimeOptions.getToolNames(), this.defaultOptions.getToolNames()));
+            requestOptions.setToolCallbacks(ToolCallingChatOptions.mergeToolCallbacks(
+                    runtimeOptions.getToolCallbacks(), this.defaultOptions.getToolCallbacks()));
+            requestOptions.setToolContext(ToolCallingChatOptions.mergeToolContext(
+                    runtimeOptions.getToolContext(), this.defaultOptions.getToolContext()));
+        } else {
+            requestOptions.setInternalToolExecutionEnabled(this.defaultOptions.getInternalToolExecutionEnabled());
+            requestOptions.setToolNames(this.defaultOptions.getToolNames());
+            requestOptions.setToolCallbacks(this.defaultOptions.getToolCallbacks());
+            requestOptions.setToolContext(this.defaultOptions.getToolContext());
+        }
+
+        ToolCallingChatOptions.validateToolCallbacks(requestOptions.getToolCallbacks());
+
+        return new Prompt(prompt.getInstructions(), requestOptions);
+    }
+
     private CompletionRequest createRequest(Prompt prompt, boolean stream) {
         List<CompletionRequest.Message> messages = prompt.getInstructions().stream()
                 .map(message -> {
                     if (message instanceof UserMessage userMessage) {
+                        if (!CollectionUtils.isEmpty(userMessage.getMedia())) {
+                            List<UUID> filesIds = userMessage.getMedia().stream()
+                                    .map(media -> gigaChatApi
+                                            .uploadFile(media)
+                                            .getBody()
+                                            .id())
+                                    .toList();
+
+                            return List.of(new CompletionRequest.Message(
+                                    CompletionRequest.Role.user, userMessage.getText(), filesIds));
+                        }
                         return List.of(
-                                new CompletionRequest.Message(CompletionRequest.Role.user, userMessage.getContent()));
+                                new CompletionRequest.Message(CompletionRequest.Role.user, userMessage.getText()));
                     } else if (message instanceof SystemMessage systemMessage) {
-                        return List.of(new CompletionRequest.Message(
-                                CompletionRequest.Role.system, systemMessage.getContent()));
+                        return List.of(
+                                new CompletionRequest.Message(CompletionRequest.Role.system, systemMessage.getText()));
                     } else if (message instanceof AssistantMessage assistantMessage) {
                         CompletionRequest.Message.MessageBuilder messageBuilder = CompletionRequest.Message.builder()
                                 .role(CompletionRequest.Role.assistant)
-                                .content(assistantMessage.getContent());
+                                .content(assistantMessage.getText());
                         if (!CollectionUtils.isEmpty(assistantMessage.getToolCalls())) {
                             if (assistantMessage.getToolCalls().size() > 1) {
                                 log.warn(
@@ -249,61 +330,72 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
                     }
                 })
                 .flatMap(List::stream)
-                .toList();
+                .collect(Collectors.toList());
+
+        makeSystemPromptMessageFirst(messages);
 
         var request =
                 CompletionRequest.builder().messages(messages).stream(stream).build();
 
-        Set<String> functionsForThisRequest = new HashSet<>();
+        GigaChatOptions requestOptions = (GigaChatOptions) prompt.getOptions();
+        request = ModelOptionsUtils.merge(requestOptions, request, CompletionRequest.class);
 
-        if (!CollectionUtils.isEmpty(this.defaultOptions.getFunctions())) {
-            functionsForThisRequest.addAll(this.defaultOptions.getFunctions());
-        }
+        // Add the tool definitions to the request's tools parameter.
+        List<ToolDefinition> toolDefinitions = this.toolCallingManager.resolveToolDefinitions(requestOptions);
 
-        request = ModelOptionsUtils.merge(request, this.defaultOptions, CompletionRequest.class);
-
-        if (prompt.getOptions() != null) {
-            GigaChatOptions updatedRuntimeOptions;
-
-            if (prompt.getOptions() instanceof FunctionCallingOptions functionCallingOptions) {
-                updatedRuntimeOptions = ModelOptionsUtils.copyToTarget(
-                        functionCallingOptions, FunctionCallingOptions.class, GigaChatOptions.class);
-            } else {
-                updatedRuntimeOptions =
-                        ModelOptionsUtils.copyToTarget(prompt.getOptions(), ChatOptions.class, GigaChatOptions.class);
-            }
-
-            functionsForThisRequest.addAll(this.runtimeFunctionCallbackConfigurations(updatedRuntimeOptions));
-
-            request = ModelOptionsUtils.merge(updatedRuntimeOptions, request, CompletionRequest.class);
-        }
-
+        request.setFunctionCall(getFunctionCall(requestOptions, toolDefinitions));
         // Add the enabled functions definitions to the request's tools parameter.
-        if (!CollectionUtils.isEmpty(functionsForThisRequest)) {
-            request.setFunctionCall("auto");
-            request.setFunctions(this.getFunctionDescriptions(functionsForThisRequest));
+        if (!CollectionUtils.isEmpty(toolDefinitions)) {
+            request.setFunctions(this.getFunctionDescriptions(toolDefinitions));
         }
         return request;
     }
 
-    private List<CompletionRequest.FunctionDescription> getFunctionDescriptions(Set<String> functionNames) {
-        return this.resolveFunctionCallbacks(functionNames).stream()
-                .map(functionCallback -> {
-                    if (functionCallback instanceof GigaChatFunctionCallback gigaChatFunctionCallback) {
+    private Object getFunctionCall(GigaChatOptions requestOptions, List<ToolDefinition> toolDefinitions) {
+        var callMode = requestOptions.getFunctionCallMode();
+
+        if (callMode == GigaChatOptions.FunctionCallMode.CUSTOM_FUNCTION
+                && requestOptions.getFunctionCallParam() != null) {
+            var functionCallName = requestOptions.getFunctionCallParam().getName();
+
+            if (functionCallName != null
+                    && toolDefinitions.stream().noneMatch(it -> it.name().equals(functionCallName))) {
+
+                log.warn("Specified function '{}' not found among available functions", functionCallName);
+            }
+
+            return requestOptions.getFunctionCallParam();
+        }
+
+        if (callMode == null) {
+            if (!CollectionUtils.isEmpty(toolDefinitions)) {
+                return GigaChatOptions.FunctionCallMode.AUTO.getValue();
+            } else {
+                return null;
+            }
+        }
+
+        return callMode.getValue();
+    }
+
+    private List<CompletionRequest.FunctionDescription> getFunctionDescriptions(List<ToolDefinition> toolDefinitions) {
+        return toolDefinitions.stream()
+                .map(toolDefinition -> {
+                    if (toolDefinition instanceof GigaToolDefinition gigaToolDefinition) {
                         return new CompletionRequest.FunctionDescription(
-                                gigaChatFunctionCallback.getName(),
-                                gigaChatFunctionCallback.getDescription(),
-                                gigaChatFunctionCallback.getInputTypeSchema(),
-                                gigaChatFunctionCallback.getFewShotExamples().stream()
+                                gigaToolDefinition.name(),
+                                gigaToolDefinition.description(),
+                                gigaToolDefinition.inputSchema(),
+                                gigaToolDefinition.fewShotExamples().stream()
                                         .map(fewShotExample -> new CompletionRequest.FewShotExample(
-                                                fewShotExample.request(), fewShotExample.params()))
+                                                fewShotExample.getRequest(), fewShotExample.getParams()))
                                         .toList(),
-                                gigaChatFunctionCallback.getOutputTypeSchema());
+                                gigaToolDefinition.outputSchema());
                     } else {
                         return new CompletionRequest.FunctionDescription(
-                                functionCallback.getName(),
-                                functionCallback.getDescription(),
-                                functionCallback.getInputTypeSchema(),
+                                toolDefinition.name(),
+                                toolDefinition.description(),
+                                toolDefinition.inputSchema(),
                                 null,
                                 null);
                     }
@@ -311,7 +403,7 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
                 .toList();
     }
 
-    private ChatResponse toChatResponse(CompletionResponse completionResponse, boolean streaming) {
+    private ChatResponse toChatResponse(CompletionResponse completionResponse, Usage usage, boolean streaming) {
         if (completionResponse == null) {
             log.warn("Null completion response");
             return new ChatResponse(List.of());
@@ -320,7 +412,7 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
         List<Generation> generations = completionResponse.getChoices().stream()
                 .map(choice -> buildGeneration(completionResponse.getId(), choice, streaming))
                 .toList();
-        return new ChatResponse(generations, extractMetadataFrom(completionResponse));
+        return new ChatResponse(generations, from(completionResponse, usage));
     }
 
     private Generation buildGeneration(String id, CompletionResponse.Choice choice, boolean streaming) {
@@ -354,11 +446,12 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
         return new Generation(assistantMessage, generationMetadata);
     }
 
-    private ChatResponseMetadata extractMetadataFrom(CompletionResponse completionResponse) {
+    private ChatResponseMetadata from(CompletionResponse completionResponse) {
+        return from(completionResponse, buildUsage(completionResponse.getUsage()));
+    }
+
+    private ChatResponseMetadata from(CompletionResponse completionResponse, Usage usage) {
         Assert.notNull(completionResponse, "GigaChat CompletionResponse must not be null");
-        Usage usage = (completionResponse.getUsage() != null)
-                ? GigaChatUsage.from(completionResponse.getUsage())
-                : new EmptyUsage();
         return ChatResponseMetadata.builder()
                 .id(completionResponse.getId())
                 .model(completionResponse.getModel())
@@ -373,13 +466,119 @@ public class GigaChatModel extends AbstractToolCallSupport implements ChatModel 
         return this.defaultOptions.copy();
     }
 
-    private ChatOptions buildRequestOptions(CompletionRequest request) {
-        return ChatOptions.builder()
-                .model(request.getModel().getName())
-                .maxTokens(request.getMaxTokens())
-                .temperature(request.getTemperature())
-                .topP(request.getTopP())
-                .frequencyPenalty(request.getRepetitionPenalty())
+    private Usage buildUsage(CompletionResponse.Usage usage) {
+        return usage != null ? this.getDefaultUsage(usage) : new EmptyUsage();
+    }
+
+    private DefaultUsage getDefaultUsage(CompletionResponse.Usage usage) {
+        return new DefaultUsage(usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens(), usage);
+    }
+
+    // Ставит сообщение с системным промптом на первое место в списке сообщений (Из-за требований GigaChat API)
+    // удалить когда исправят на стороне GigaChat
+    private void makeSystemPromptMessageFirst(List<CompletionRequest.Message> messages) {
+        if (messages.size() < 2) return;
+        long systemMessageCount = messages.stream()
+                .filter(it -> it.getRole() == CompletionRequest.Role.system)
+                .count();
+        if (systemMessageCount > 1) throw new IllegalStateException("System prompt message must be the only one");
+
+        if (!internalProperties.isMakeSystemPromptFirstMessageInMemory()) return;
+
+        for (int i = 0; i < messages.size(); i++) {
+            CompletionRequest.Message currentMessage = messages.get(i);
+            if (i == 0 && currentMessage.getRole() == CompletionRequest.Role.system) return;
+            if (currentMessage.getRole() != CompletionRequest.Role.system) continue;
+
+            // Помещаем сообщение с сист. промптом в начало списка сообщений
+            messages.remove(i);
+            messages.add(0, currentMessage);
+            log.warn("Sorting has been applied to make the system prompt the first message");
+            return;
+        }
+    }
+
+    public static GigaChatModel.Builder builder() {
+        return new GigaChatModel.Builder();
+    }
+
+    public static class Builder {
+
+        private GigaChatApi gigaChatApi;
+
+        private GigaChatOptions defaultOptions = GigaChatOptions.builder()
+                .model(GigaChatModel.DEFAULT_MODEL_NAME)
                 .build();
+
+        private ToolCallingManager toolCallingManager;
+
+        private RetryTemplate retryTemplate = RetryUtils.DEFAULT_RETRY_TEMPLATE;
+
+        private ObservationRegistry observationRegistry = ObservationRegistry.NOOP;
+
+        private GigaChatInternalProperties internalProperties;
+
+        private ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate =
+                new DefaultToolExecutionEligibilityPredicate();
+
+        private Builder() {}
+
+        public GigaChatModel.Builder gigaChatApi(GigaChatApi gigaChatApi) {
+            this.gigaChatApi = gigaChatApi;
+            return this;
+        }
+
+        public GigaChatModel.Builder defaultOptions(GigaChatOptions defaultOptions) {
+            this.defaultOptions = defaultOptions;
+            return this;
+        }
+
+        public GigaChatModel.Builder toolCallingManager(ToolCallingManager toolCallingManager) {
+            this.toolCallingManager = toolCallingManager;
+            return this;
+        }
+
+        public GigaChatModel.Builder retryTemplate(RetryTemplate retryTemplate) {
+            this.retryTemplate = retryTemplate;
+            return this;
+        }
+
+        public GigaChatModel.Builder observationRegistry(ObservationRegistry observationRegistry) {
+            this.observationRegistry = observationRegistry;
+            return this;
+        }
+
+        public GigaChatModel.Builder internalProperties(GigaChatInternalProperties internalProperties) {
+            this.internalProperties = internalProperties;
+            return this;
+        }
+
+        public GigaChatModel.Builder toolExecutionEligibilityPredicate(
+                ToolExecutionEligibilityPredicate toolExecutionEligibilityPredicate) {
+            this.toolExecutionEligibilityPredicate = toolExecutionEligibilityPredicate;
+            return this;
+        }
+
+        public GigaChatModel build() {
+            if (toolCallingManager != null) {
+                return new GigaChatModel(
+                        gigaChatApi,
+                        defaultOptions,
+                        toolCallingManager,
+                        retryTemplate,
+                        observationRegistry,
+                        internalProperties,
+                        toolExecutionEligibilityPredicate);
+            }
+
+            return new GigaChatModel(
+                    gigaChatApi,
+                    defaultOptions,
+                    DEFAULT_TOOL_CALLING_MANAGER,
+                    retryTemplate,
+                    observationRegistry,
+                    internalProperties,
+                    toolExecutionEligibilityPredicate);
+        }
     }
 }

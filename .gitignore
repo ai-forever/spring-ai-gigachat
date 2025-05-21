@@ -27,3 +27,5 @@ build/
 
 ### VS Code ###
 .vscode/
+
+.gigaide/

@@ -1,10 +1,10 @@
 package ai.forever.gigachat.api.chat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
@@ -14,27 +14,77 @@ import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.util.StreamUtils;
 
-@RequiredArgsConstructor
 @Slf4j
+@SuppressWarnings("NullableProblems")
 public class GigachatLoggingInterceptor implements ClientHttpRequestInterceptor {
+
+    private final ObjectMapper objectMapper;
+
+    public GigachatLoggingInterceptor() {
+        this.objectMapper = new ObjectMapper();
+    }
 
     @Override
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution)
             throws IOException {
-        if (log.isDebugEnabled()) {
-            log.debug("Request body: {}", new String(body));
-            ClientHttpResponse response = execution.execute(request, body);
-            response = new BufferingClientHttpResponseWrapper(response);
-            String requestId = response.getHeaders().getFirst(GigaChatApi.X_REQUEST_ID);
-            log.debug(
-                    "Response body ({}={}): {}",
-                    GigaChatApi.X_REQUEST_ID,
-                    requestId,
-                    new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8));
-            return response;
-        } else {
-            return execution.execute(request, body);
+        if (!log.isDebugEnabled()) return execution.execute(request, body);
+
+        final ClientHttpResponse response = new BufferingClientHttpResponseWrapper(execution.execute(request, body));
+        log.debug(
+                """
+                        \n\tRequest URL:\s
+                        {} \
+
+                        \tRequest headers:\s
+                        {} \
+
+                        \tRequest body:\s
+                        {} \
+
+                        \tResponse headers:\s
+                        {} \
+
+                        \tResponse body:\s
+                        {}
+                        """,
+                request.getURI(),
+                formatHeaders(request.getHeaders()),
+                formatJson(new String(body)),
+                formatHeaders(response.getHeaders()),
+                formatJson(new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8)));
+
+        return response;
+    }
+
+    /**
+     * Функция форматирования json через object mapper, не очень производительно, зато не тащим в проект доп библиотеки
+     *
+     * @param json json для форматирования
+     * @return отформатированный json, или json без форматирования в случае некорректной структуры
+     */
+    private String formatJson(String json) {
+        try {
+            final Object validJson = objectMapper.readValue(json, Object.class);
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(validJson);
+        } catch (Exception ignored) {
+            return json;
         }
+    }
+
+    /**
+     * Функция форматирования HttpHeaders в виде строки
+     *
+     * @param headers хедеры для форматирования
+     * @return строка с отформатированными хедерами
+     */
+    private String formatHeaders(HttpHeaders headers) {
+        final StringBuilder stringBuilder = new StringBuilder();
+        headers.forEach((k, v) -> stringBuilder.append(k).append(": ").append(v).append("\n"));
+        String string = stringBuilder.toString();
+        if (string.endsWith("\n")) {
+            string = string.substring(0, string.length() - 1);
+        }
+        return string;
     }
 
     /**

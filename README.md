@@ -1,4 +1,19 @@
-# spring-ai-starter-gigachat
+# spring-ai-gigachat
+
+Данная библиотека позволяет интегрироваться с GigaChat API с использованием фреймворка [Spring AI](https://docs.spring.io/spring-ai/reference/index.html).
+
+Реализованы:
+* Вызов Chat модели, включая:
+* * потоковую обработку (streaming)
+* * вызов внешних функций, в том числе доп.возможности GigaChat (`fewShotExample`/`returnParameters` и т.д.) - подробнее в **[tools.md](docs/tools.md)**
+* работу с файлами и изображениями
+* Вызов Embedding модели
+* [Observability](https://docs.spring.io/spring-ai/reference/observability/index.html)
+
+## Требования
+
+* Java 17+
+* Spring Boot 3.4.x
 
 ## Быстрый старт
 
@@ -13,57 +28,46 @@
 Этот ключ отображается только один раз и не хранится в личном кабинете.
 При компрометации или утере ключа авторизации вы можете сгенерировать его повторно.
 
-1) Добавьте в ваш pom.xml или settings.xml репозиторий [Spring Milestones](https://repo.spring.io/milestone/)
-для доступа к Spring AI.
-
-```xml
-<repositories>
-    <repository>
-        <id>spring-milestones</id>
-        <name>Spring Milestones</name>
-        <url>https://repo.spring.io/milestone/</url>
-    </repository>
-</repositories>
-```
-
-2) Подключите в ваш pom.xml зависимость
+1) Подключите в ваш pom.xml зависимость
 
 ```xml
 <dependency>
     <groupId>ai.forever.gigachat</groupId>
-    <artifactId>spring-ai-gigachat-spring-boot-starter</artifactId>
-    <version>1.0.0-M5-SNAPSHOT</version>
+    <artifactId>spring-ai-starter-model-gigachat</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
-3) Пропишите параметры подключения к GigaChat в application.yml:
+2) Пропишите параметры подключения к GigaChat в application.yml:
 
 ```yaml
 spring:
   ai:
     gigachat:
-      client-id: <ваш_client_id>  # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
-      client-secret: <ваш_client_secret>  # Ваш Client Secret
-      scope: GIGACHAT_API_PERS  # доступны также GIGACHAT_API_B2B, GIGACHAT_API_CORP
-      unsafe-ssl: true
+      scope: GIGACHAT_API_PERS             # доступны также GIGACHAT_API_B2B, GIGACHAT_API_CORP
+      client-id: <ваш_client_id>           # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
+      client-secret: <ваш_client_secret>   # Ваш Client Secret
+      unsafe-ssl: true                     # отключает проверку не рекомендуется использовать в production
 ```
 
-4) Добавьте в код:
+3) Создайте Main-класс:
 
 ```java
-@Component
-public class TestGigachat {
-    private ChatClient chatClient;
+@SpringBootApplication
+public class Main {
+    public static void main(String[] args) {
+        SpringApplication.run(Main.class, args);
+    }
 
-    @Autowired
-    public TestGigachat(ChatClient.Builder chatClientBuilder) {
-        this.chatClient = chatClientBuilder.build();
-        this.helloGigachat();
+    @Bean
+    public CommandLineRunner runner(ChatClient.Builder builder) {
+        return args -> {
+            ChatClient chatClient = builder.build();
+            String response = chatClient.prompt("Расскажи шутку").call().content();
+            System.out.println(response);
+        };
     }
-    
-    public void helloGigachat() {
-        System.out.println(chatClient.prompt().user("Привет, Гигачат!").call().content());
-    }
+}
 ```
 
 ## Конфигурация
@@ -77,21 +81,19 @@ public class TestGigachat {
 spring:
   ai:
     gigachat:
-      base-url: <url для доступа к GigaChat>          # По дефолту используется https://gigachat.devices.sberbank.ru/api/v1/
-      auth-url: <url для авторизации запросов к API>  # По дефолту используется https://ngw.devices.sberbank.ru:9443/api/v2/oauth
-      client-id: <ваш_client_id>                      # Ваш Client ID. Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
-      client-secret: <ваш_client_secret>              # Ваш Client Secret.
-      scope: GIGACHAT_API_PERS                        # Доступны также GIGACHAT_API_B2B, GIGACHAT_API_CORP
-      unsafe-ssl: true                                # Отключение проверки ssl-сертификатов. Для обращения к GigaChat API нужно установить корневой сертификат НУЦ Минцифры.
       chat:
         options:
           # дефолтные параметры для обращения к API GigaChat.
-          model: GIGA_CHAT       # еще доступны GIGA_CHAT_PREVIEW, GIGA_CHAT_PLUS, GIGA_CHAT_PLUS_PREVIEW, GIGA_CHAT_PRO, GIGA_CHAT_PRO_PREVIEW, GIGA_CHAT_MAX, GIGA_CHAT_MAX_PREVIEW
+          model: GigaChat        # GigaChat по дефолту, список доступных моделей - https://developers.sber.ru/docs/ru/gigachat/models
           temperature: 0.5       # null по дефолту
           top-p: 0.5             # null по дефолту
           max-tokens: 200        # null по дефолту
           repetition-penalty: 1  # null по дефолту 
           update-interval: 0     # null по дефолту
+      embedding:
+        options:
+          model: Embeddings      # Embeddings по дефолту
+          dimensions: 1024       # null по дефолту, вычисляется при первом обращении к Embedding-модели
 ```
 
 ## Способы авторизации
@@ -117,10 +119,11 @@ spring:
 spring:
   ai:
     gigachat:
-      scope: GIGACHAT_API_CORP
+      scope: GIGACHAT_API_PERS
       client-key: file:/path/to/tls.key         # Путь до вашего сертификата. Если у вас терминация TLS настроена на Egress-gateway, то можно пропустить этот параметр
       client-certificate: file:/path/to/tls.crt # Путь до вашего сертификата. Если у вас терминация TLS настроена на Egress-gateway, то можно пропустить этот параметр
 ```
 
-## [Примеры](./spring-ai-gigachat-example/README.md)
+## Примеры
 
+Примеры работы с библиотекой - в отдельном модуле [spring-ai-gigachat-example](./spring-ai-gigachat-example/README.md).

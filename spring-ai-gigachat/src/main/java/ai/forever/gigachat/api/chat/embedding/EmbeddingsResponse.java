@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.ai.chat.metadata.Usage;
 
 @Data
 @Builder
@@ -27,17 +28,27 @@ public class EmbeddingsResponse {
         @Builder.Default
         private String object = "embedding";
 
-        private List<Double> embedding;
+        private float[] embedding;
         private Integer index;
-        private Usage usage;
+        private GigaChatEmbeddingsUsage usage;
     }
 
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class Usage {
+    public static class GigaChatEmbeddingsUsage implements Usage {
         @JsonProperty("prompt_tokens")
         private Integer promptTokens;
+
+        @Override
+        public Integer getCompletionTokens() {
+            return promptTokens;
+        }
+
+        @Override
+        public Object getNativeUsage() {
+            return null;
+        }
     }
 }

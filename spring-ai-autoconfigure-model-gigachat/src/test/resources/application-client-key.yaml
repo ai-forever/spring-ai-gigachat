@@ -1,0 +1,7 @@
+spring:
+  ai:
+    gigachat:
+      scope: ${GIGACHAT_API_SCOPE:gigachat_api_pers}
+      client-id: ${GIGACHAT_API_CLIENT_ID:unknown}
+      client-secret: ${GIGACHAT_API_CLIENT_SECRET:unknown}
+      unsafe-ssl: true

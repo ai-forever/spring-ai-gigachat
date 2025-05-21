@@ -6,31 +6,15 @@
 
     <groupId>ai.forever.gigachat</groupId>
     <artifactId>spring-ai-gigachat-parent</artifactId>
-    <version>1.0.0-M5-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
         <module>spring-ai-gigachat</module>
-        <module>spring-ai-gigachat-autoconfigure</module>
-        <module>spring-ai-gigachat-spring-boot-starter</module>
+        <module>spring-ai-autoconfigure-model-gigachat</module>
+        <module>spring-ai-starter-model-gigachat</module>
         <module>spring-ai-gigachat-example</module>
     </modules>
-
-    <licenses>
-        <license>
-            <name>Apache License, Version 2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
-
-    <repositories>
-        <repository>
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/milestone/</url>
-        </repository>
-    </repositories>
 
     <properties>
         <java.version>17</java.version>
@@ -39,8 +23,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.26.0</allure-bom.version>
         <aspectj.version>1.9.22</aspectj.version>
-        <spring-boot.version>3.3.4</spring-boot.version>
-        <spring-ai.version>1.0.0-M5</spring-ai.version>
+        <spring-boot.version>3.4.5</spring-boot.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
         <sslcontext-kickstart>8.3.5</sslcontext-kickstart>
     </properties>
 
@@ -74,12 +58,12 @@
             </dependency>
             <dependency>
                 <groupId>ai.forever.gigachat</groupId>
-                <artifactId>spring-ai-gigachat-autoconfigure</artifactId>
+                <artifactId>spring-ai-autoconfigure-model-gigachat</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>ai.forever.gigachat</groupId>
-                <artifactId>spring-ai-gigachat-spring-boot-starter</artifactId>
+                <artifactId>spring-ai-starter-model-gigachat</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -89,6 +73,19 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <finalName>${project.artifactId}</finalName>
@@ -141,6 +138,9 @@
                         <includes>
                             <include>**/*.md</include>
                         </includes>
+                        <excludes>
+                            <exclude>**/target/**/*</exclude>
+                        </excludes>
                         <flexmark/>
                     </markdown>
                 </configuration>
@@ -150,6 +150,35 @@
                             <goal>check</goal>
                         </goals>
                         <phase>compile</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <doclint>none</doclint>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -9,16 +9,22 @@ import ai.forever.gigachat.api.chat.completion.CompletionRequest;
 import ai.forever.gigachat.api.chat.completion.CompletionResponse;
 import ai.forever.gigachat.api.chat.embedding.EmbeddingsRequest;
 import ai.forever.gigachat.api.chat.embedding.EmbeddingsResponse;
+import ai.forever.gigachat.api.chat.file.UploadFileResponse;
+import ai.forever.gigachat.api.chat.models.ModelsResponse;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.function.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.content.Media;
 import org.springframework.ai.model.ChatModelDescription;
 import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.retry.RetryUtils;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.client.reactive.JdkClientHttpConnector;
 import org.springframework.util.Assert;
 import org.springframework.web.client.ResponseErrorHandler;
@@ -68,35 +74,12 @@ public class GigaChatApi {
      */
     @AllArgsConstructor
     public enum ChatModel implements ChatModelDescription {
-        /**
-         * Модели подойдут для решения более простых задач, требующих при этом
-         * максимальной скорости работы.
-         */
         GIGA_CHAT("GigaChat"),
-        GIGA_CHAT_PREVIEW("GigaChat-preview"),
-        /**
-         * Модели подойдут для задач, в которых нужно обрабатывать большой объем данных.
-         * Например: суммаризация статьей или транскрибаций звонков, извлечение информации из документов
-         */
-        GIGA_CHAT_PLUS("GigaChat-Plus"),
-        GIGA_CHAT_PLUS_PREVIEW("GigaChat-Plus-preview"),
-        /**
-         * GigaChat Pro лучше следует сложным инструкциям и может выполнять более комплексные задачи: значительно
-         * повышено качество суммаризации, переписывания и редактирования текстов, ответов на различные вопросы.
-         * Модель хорошо ориентируется во многих прикладных направлениях — в частности, в экономических и
-         * юридических вопросах
-         */
         GIGA_CHAT_PRO("GigaChat-Pro"),
-        GIGA_CHAT_PRO_PREVIEW("GigaChat-Pro-preview"),
-        /**
-         * Модель предназначена для решения сложных задач, требующих максимальной точности и производительности.
-         * Показывает лучшие результаты в области биологии, химии и физики.
-         * Качество решения математических задач выше на 25%.
-         * Модель лучше запоминает контекст в многошаговых диалогах, связывая новые вопросы с предыдущей информацией.
-         * В русскоязычных диалогах пользователи могут работать с текстами на 15% длиннее, а сами ответы генерируются быстрее.
-         */
         GIGA_CHAT_MAX("GigaChat-Max"),
-        GIGA_CHAT_MAX_PREVIEW("GigaChat-Max-preview");
+        GIGA_CHAT_2("GigaChat-2"),
+        GIGA_CHAT_2_MAX("GigaChat-2-Max"),
+        GIGA_CHAT_2_PRO("GigaChat-2-Pro");
 
         public final String value;
 
@@ -151,5 +134,36 @@ public class GigaChatApi {
                 .body(embeddingRequest)
                 .retrieve()
                 .toEntity(EmbeddingsResponse.class);
+    }
+
+    public ResponseEntity<UploadFileResponse> uploadFile(Media media) {
+        Assert.notNull(media, "Media can not be null.");
+        Assert.notNull(media.getData(), "Media data can not be null.");
+
+        MultipartBodyBuilder builder = new MultipartBodyBuilder();
+
+        builder.part("file", new ByteArrayResource(media.getDataAsByteArray()) {
+                    @Override
+                    public String getFilename() {
+                        return media.getName();
+                    }
+                })
+                .contentType(MediaType.valueOf(media.getMimeType().toString()))
+                .header("Content-Disposition", "form-data; name=file; filename=" + media.getName());
+
+        builder.part("purpose", "general", MediaType.TEXT_PLAIN);
+
+        return this.restClient
+                .post()
+                .uri("/files")
+                .header(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT)
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(builder.build())
+                .retrieve()
+                .toEntity(UploadFileResponse.class);
+    }
+
+    public ResponseEntity<ModelsResponse> models() {
+        return this.restClient.get().uri("/models").retrieve().toEntity(ModelsResponse.class);
     }
 }

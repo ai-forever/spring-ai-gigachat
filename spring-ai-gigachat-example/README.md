@@ -52,12 +52,62 @@ curl -N "localhost:8080/stream/answer" -d "Как интегрироваться
 Функция определения температуры описана в нашем коде (для простоты выдает рандомную температуру).
 
 Гигачат определяет, что надо вызвать эту функцию, и в ответе передает параметры для её вызова;
-затем Гигачат на основе результатов вызова функции генерирует ответ.
+затем Гигачат на основе результатов вызова функции генерирует ответ
+(также есть возможность возвращать результат функции напрямую пользователю).
 
-Различия во внутренней работе api версий v1 и v2 описаны в [коде WeatherFunctionController](src/main/java/ai/forever/gigachat/example/WeatherFunctionController.java).
+Различия во внутренней работе api версий v1/v2/v3/v4 описаны в [коде WeatherToolController](src/main/java/ai/forever/gigachat/example/WeatherToolController.java).
 
 ```shell
-curl localhost:8080/function/v1/weather -d "Какая температура в Казани?" -H "content-type:application/json"
-curl localhost:8080/function/v2/weather -d "Сколько градусов в Спб?" -H "content-type:application/json"
+curl localhost:8080/tool/v1/weather -d "Какая температура в Казани?" -H "content-type:application/json"
+curl localhost:8080/tool/v2/weather -d "Сколько градусов в Спб?" -H "content-type:application/json"
+curl localhost:8080/tool/v3/weather -d "Сколько градусов в Москве?" -H "content-type:application/json"
+curl localhost:8080/tool/v4/weather -d "Сколько градусов в Сочи будет завтра?" -H "content-type:application/json"
+curl localhost:8080/tool/v4/weather -d "Какое давление в Сочи будет завтра?" -H "content-type:application/json"
 ```
 
+## Примеры использования RAG
+
+[RagController](src/main/java/ai/forever/gigachat/example/RagController.java)
+
+### !!! Внимание При инициализации VectorStore и вызове API тратятся токены для модели Embeddings[]() !!!
+
+В данном примере используется SimpleVectorStore(in-memory). При первичном вызове API происходит инициализация Vector store
+в соответствии с [ETL процессом](https://docs.spring.io/spring-ai/reference/api/etl-pipeline.html). Для контекста используется
+выдуманная история про программиста Джона, которая лежит в docx файле [rag.docx](src/main/resources/rag/rag.docx)
+
+Для включения RAG при вызове к цепочке chatClient добавляется QuestionAnswerAdvisor. !!! При каждом вызове выполняется
+дополнительное обращение к GigaChat для построения embeddings.
+
+```shell
+curl localhost:8080/rag -d "Какую платформу создал Джон?" -H "content-type:application/json"
+curl localhost:8080/rag -d "В какой компании работал Джон?" -H "content-type:application/json"
+```
+
+## Примеры использования мультимодальности (работа с файлами)
+
+[MultimodalityController.java](src/main/java/ai/forever/gigachat/example/MultimodalityController.java)
+
+Перед работой с мультимодальностью проверьте, поддерживает ли конкретная модель GigaChat работу с файлами
+
+Пример работы с изображениями
+
+```shell
+curl -X POST \
+  http://localhost:8080/multimodality/chat \
+  -F "userMessage=Что ты видишь на картинке?" \
+  -F "file=@src/main/resources/multimodality/cat.png;type=image/png"
+```
+
+Пример работы с текстовыми файлами
+
+```shell
+curl -X POST \
+  http://localhost:8080/multimodality/chat \
+  -F "userMessage=Кто автор произведения?" \
+  -F "file=@src/main/resources/multimodality/poem.txt;type=text/plain"
+```
+
+## Внешние примеры
+
+Еще больше примеров Вы можете найти в официальном репозитории Spring
+https://github.com/spring-projects/spring-ai-examples

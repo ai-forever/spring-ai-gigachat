@@ -16,6 +16,7 @@ import lombok.experimental.Accessors;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Accessors(chain = true)
 public class CompletionResponse {
     @JsonIgnore
     private String id = ""; // проставляется из http-заголовка 'x-request-id' ответа модели
@@ -26,13 +27,15 @@ public class CompletionResponse {
     private Usage usage;
     private String object; // Название вызываемого метода.
 
-    public void setId(String id) {
+    public CompletionResponse setId(String id) {
         this.id = Objects.toString(id, "");
+        return this;
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @Accessors(chain = true)
     public static class Choice {
         /**
          * Только для non-stream-сообщений
@@ -62,6 +65,7 @@ public class CompletionResponse {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @Accessors(chain = true)
     public static class Usage {
         @JsonProperty("prompt_tokens")
         private Integer promptTokens;
@@ -71,11 +75,15 @@ public class CompletionResponse {
 
         @JsonProperty("total_tokens")
         private Integer totalTokens;
+
+        @JsonProperty("precached_prompt_tokens")
+        private Integer precachedPromptTokens;
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    @Accessors(chain = true)
     public static class MessagesRes {
         /** Роль автора сообщения. */
         private Role role;
@@ -97,17 +105,12 @@ public class CompletionResponse {
          * Возвращается в ответе модели (сообщение с "role": "assistant") при вызове встроенных или собственных функций.
          * Позволяет сохранить контекст вызова функции и повысить качество работы модели.
          * Для этого нужно передать идентификатор в запросе на генерацию в сообщении с ролью assistant.
-         *
-         * Поле заменяет массив data_for_context и является целевым решением для работы с функциями.
          */
         @JsonProperty("functions_state_id")
         private String functionsStateId;
 
         @JsonProperty("function_call")
         private FunctionCall functionCall;
-
-        @JsonProperty("data_for_context")
-        private List<Object> dataForContext;
     }
 
     /**
