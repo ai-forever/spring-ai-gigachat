@@ -32,7 +32,7 @@
 
 ```xml
 <dependency>
-    <groupId>ai.forever.gigachat</groupId>
+    <groupId>chat.giga</groupId>
     <artifactId>spring-ai-starter-model-gigachat</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>

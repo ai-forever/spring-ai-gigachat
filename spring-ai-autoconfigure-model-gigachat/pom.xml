@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>ai.forever.gigachat</groupId>
+        <groupId>chat.giga</groupId>
         <artifactId>spring-ai-gigachat-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
     </parent>
@@ -14,7 +14,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>ai.forever.gigachat</groupId>
+            <groupId>chat.giga</groupId>
             <artifactId>spring-ai-gigachat</artifactId>
         </dependency>
 

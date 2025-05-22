@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>ai.forever.gigachat</groupId>
+    <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -52,17 +52,17 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
-                <groupId>ai.forever.gigachat</groupId>
+                <groupId>chat.giga</groupId>
                 <artifactId>spring-ai-gigachat</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>ai.forever.gigachat</groupId>
+                <groupId>chat.giga</groupId>
                 <artifactId>spring-ai-autoconfigure-model-gigachat</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>ai.forever.gigachat</groupId>
+                <groupId>chat.giga</groupId>
                 <artifactId>spring-ai-starter-model-gigachat</artifactId>
                 <version>${project.version}</version>
             </dependency>

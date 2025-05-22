@@ -1,0 +1,293 @@
+package chat.giga.springai;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import chat.giga.springai.api.auth.GigaChatInternalProperties;
+import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.api.chat.completion.CompletionRequest;
+import chat.giga.springai.api.chat.completion.CompletionResponse;
+import chat.giga.springai.api.chat.param.FunctionCallParam;
+import chat.giga.springai.tool.GigaTools;
+import chat.giga.springai.tool.annotation.GigaTool;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
+
+@ExtendWith(MockitoExtension.class)
+public class GigaChatModelTest {
+    @Mock
+    private GigaChatApi gigaChatApi;
+
+    @Mock
+    private GigaChatInternalProperties gigaChatInternalProperties;
+
+    @Mock
+    private CompletionResponse response;
+
+    private GigaChatModel gigaChatModel;
+
+    @BeforeEach
+    void setUp() {
+        gigaChatModel = GigaChatModel.builder()
+                .gigaChatApi(gigaChatApi)
+                .internalProperties(gigaChatInternalProperties)
+                .build();
+    }
+
+    @Test
+    void testGigaChatOptions_withFunctionCallParam() {
+        var functionCallback = GigaTools.from(new TestTool());
+
+        var functionCallParam = FunctionCallParam.builder()
+                .name("testToolName")
+                .partialArguments(Map.of("arg1", "DEFAULT"))
+                .build();
+
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .functionCallMode(GigaChatOptions.FunctionCallMode.CUSTOM_FUNCTION)
+                        .functionCallParam(functionCallParam)
+                        .toolCallbacks(List.of(functionCallback))
+                        .build());
+
+        when(gigaChatApi.chatCompletionEntity(any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        gigaChatModel.internalCall(prompt, null);
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture());
+
+        assertInstanceOf(FunctionCallParam.class, requestCaptor.getValue().getFunctionCall());
+
+        var requestFunctionCallParam =
+                (FunctionCallParam) requestCaptor.getValue().getFunctionCall();
+
+        assertEquals(functionCallParam, requestFunctionCallParam);
+    }
+
+    @Test
+    void testGigaChatOptions_withFunctionCallEmptyAndTool() {
+        var functionCallback = GigaTools.from(new TestTool());
+
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .toolCallbacks(List.of(functionCallback))
+                        .build());
+
+        when(gigaChatApi.chatCompletionEntity(any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        gigaChatModel.internalCall(prompt, null);
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture());
+
+        assertEquals("auto", requestCaptor.getValue().getFunctionCall());
+    }
+
+    @ParameterizedTest
+    @EnumSource(GigaChatOptions.FunctionCallMode.class)
+    void testGigaChatOptions_withFunctionCallMode(GigaChatOptions.FunctionCallMode callMode) {
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .functionCallMode(callMode)
+                        .build());
+
+        when(gigaChatApi.chatCompletionEntity(any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        gigaChatModel.internalCall(prompt, null);
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture());
+
+        assertEquals(callMode.getValue(), requestCaptor.getValue().getFunctionCall());
+    }
+
+    @ParameterizedTest
+    @EnumSource(GigaChatOptions.FunctionCallMode.class)
+    void testGigaChatOptions_withFunctionCallModeAndTool(GigaChatOptions.FunctionCallMode callMode) {
+        var functionCallback = GigaTools.from(new TestTool());
+
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .functionCallMode(callMode)
+                        .toolCallbacks(List.of(functionCallback))
+                        .build());
+
+        when(gigaChatApi.chatCompletionEntity(any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        gigaChatModel.internalCall(prompt, null);
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture());
+
+        assertEquals(callMode.getValue(), requestCaptor.getValue().getFunctionCall());
+    }
+
+    @Test
+    void testGigaChatOptions_withDefault() {
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder().model(GigaChatApi.ChatModel.GIGA_CHAT).build());
+
+        when(gigaChatApi.chatCompletionEntity(any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        gigaChatModel.internalCall(prompt, null);
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture());
+
+        assertNull(requestCaptor.getValue().getFunctionCall());
+    }
+
+    @Test
+    void testStream_withToolCall() {
+        var spyTestTool = Mockito.spy(new TestTool());
+
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello, test!")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .toolCallbacks(GigaTools.from(spyTestTool))
+                        .build());
+
+        var functionCallResponse = new CompletionResponse()
+                .setId(UUID.randomUUID().toString())
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(1)
+                        .setFinishReason(CompletionResponse.FinishReason.FUNCTION_CALL)
+                        .setDelta(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("")
+                                .setFunctionsStateId(UUID.randomUUID().toString())
+                                .setFunctionCall(new CompletionResponse.FunctionCall("testMethod", "{}")))));
+
+        // Для первого запроса в гигачат - имитируем вызов функции
+        Mockito.when(gigaChatApi.chatCompletionStream(ArgumentMatchers.argThat(
+                        rq -> rq != null && rq.getMessages().size() == 1)))
+                .thenReturn(Flux.just(functionCallResponse));
+
+        var finalResponsePart1 = new CompletionResponse()
+                .setId(UUID.randomUUID().toString())
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(2)
+                        .setDelta(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("Final test response"))));
+
+        var finalResponsePart2 = new CompletionResponse()
+                .setId(UUID.randomUUID().toString())
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(2)
+                        .setDelta(new CompletionResponse.MessagesRes().setContent(""))
+                        .setFinishReason(CompletionResponse.FinishReason.STOP)));
+
+        // Для второго запроса в гигачат - имитируем обработку результата вызова функции
+        Mockito.when(gigaChatApi.chatCompletionStream(
+                        ArgumentMatchers.argThat(rq -> rq.getMessages().size() == 3)))
+                .thenReturn(Flux.just(finalResponsePart1, finalResponsePart2));
+
+        Flux<ChatResponse> chatResponseFlux = gigaChatModel.stream(prompt);
+
+        // проверяем финальный результат
+        StepVerifier.create(chatResponseFlux)
+                .assertNext(chatResponse -> {
+                    assertNotNull(chatResponse);
+                    assertEquals(1, chatResponse.getResults().size());
+                    assertEquals(
+                            "Final test response",
+                            chatResponse.getResults().get(0).getOutput().getText());
+                })
+                .assertNext(chatResponse -> {
+                    assertNotNull(chatResponse);
+                    assertEquals(1, chatResponse.getResults().size());
+                    assertEquals(
+                            "", chatResponse.getResults().get(0).getOutput().getText());
+                    assertEquals(
+                            "stop",
+                            chatResponse.getResults().get(0).getMetadata().getFinishReason());
+                })
+                .verifyComplete();
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi, times(2)).chatCompletionStream(requestCaptor.capture());
+
+        // Первый запрос в гигачат - с сообщением пользователя и описанием функции testMethod
+        var completionRequest1 = requestCaptor.getAllValues().get(0);
+        assertEquals(1, completionRequest1.getMessages().size());
+        assertEquals(
+                CompletionRequest.Role.user,
+                completionRequest1.getMessages().get(0).getRole());
+        assertEquals("Hello, test!", completionRequest1.getMessages().get(0).getContent());
+        assertEquals("auto", completionRequest1.getFunctionCall());
+        assertEquals(1, completionRequest1.getFunctions().size());
+        assertEquals("testMethod", completionRequest1.getFunctions().get(0).name());
+
+        // Второй запрос в гигачат - с результатом выполнения функции
+        var completionRequest2 = requestCaptor.getAllValues().get(1);
+        assertEquals(3, completionRequest2.getMessages().size());
+        // 1. Сообщение пользователя
+        assertEquals(
+                CompletionRequest.Role.user,
+                completionRequest2.getMessages().get(0).getRole());
+        assertEquals("Hello, test!", completionRequest2.getMessages().get(0).getContent());
+        // 2. Сообщение ассистента с аргументами для вызова функции
+        assertEquals(
+                CompletionRequest.Role.assistant,
+                completionRequest2.getMessages().get(1).getRole());
+        assertEquals("", completionRequest2.getMessages().get(1).getContent());
+        assertNotNull(completionRequest2.getMessages().get(1).getFunctionCall());
+        // 3. Сообщение с результатом вызова функции
+        assertEquals(
+                CompletionRequest.Role.function,
+                completionRequest2.getMessages().get(2).getRole());
+        assertEquals("\"test\"", completionRequest2.getMessages().get(2).getContent());
+        assertEquals("auto", completionRequest2.getFunctionCall());
+        assertEquals(1, completionRequest2.getFunctions().size());
+        assertEquals("testMethod", completionRequest2.getFunctions().get(0).name());
+
+        // Проверяем, что был вызов функции
+        verify(spyTestTool).testMethod();
+    }
+
+    private static class TestTool {
+        @GigaTool
+        public String testMethod() {
+            return "test";
+        }
+    }
+}

@@ -22,4 +22,4 @@ spring:
 logging:
   level:
     org.springframework.ai.chat.client.advisor: DEBUG
-    ai.forever.gigachat.api.chat: DEBUG
+    chat.giga.springai.api.chat: DEBUG
