@@ -12,6 +12,10 @@
 
     <artifactId>spring-ai-starter-model-gigachat</artifactId>
 
+    <name>Spring AI model - GigaChat - Spring Boot Starter</name>
+    <description>GigaChat models support Spring Boot Starter</description>
+    <url>https://github.com/ai-forever/spring-ai-gigachat</url>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>

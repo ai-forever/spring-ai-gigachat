@@ -12,6 +12,10 @@
 
     <artifactId>spring-ai-gigachat</artifactId>
 
+    <name>Spring AI model - GigaChat</name>
+    <description>GigaChat models support</description>
+    <url>https://github.com/ai-forever/spring-ai-gigachat</url>
+
     <dependencies>
         <dependency>
             <groupId>io.github.hakky54</groupId>

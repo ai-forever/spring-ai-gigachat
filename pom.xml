@@ -9,8 +9,8 @@
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
-    <name>Spring AI model - GigaChat</name>
-    <description>GigaChat models support</description>
+    <name>Spring AI model - GigaChat - Parent</name>
+    <description>GigaChat models support parent</description>
     <url>https://github.com/ai-forever/spring-ai-gigachat</url>
 
     <modules>

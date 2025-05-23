@@ -12,6 +12,10 @@
 
     <artifactId>spring-ai-autoconfigure-model-gigachat</artifactId>
 
+    <name>Spring AI model - GigaChat - Autoconfiguration</name>
+    <description>GigaChat models support autoconfiguration</description>
+    <url>https://github.com/ai-forever/spring-ai-gigachat</url>
+
     <dependencies>
         <dependency>
             <groupId>chat.giga</groupId>
