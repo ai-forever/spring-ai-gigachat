@@ -1,5 +1,7 @@
 package chat.giga.springai;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,6 +27,8 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -282,6 +287,21 @@ public class GigaChatModelTest {
 
         // Проверяем, что был вызов функции
         verify(spyTestTool).testMethod();
+    }
+
+    @Test
+    @DisplayName(
+            "Тест проверяет, что при вызове чата, если в истории есть два системных промпта, выбрасывается исключение")
+    void givenMessagesChatHistoryWithTwoSystemPropmpt_whenSystemPromptSorting_thenThrowIllegalStateException() {
+        Prompt prompt = new Prompt(List.of(
+                new UserMessage("Какая версия java сейчас актуальна?"),
+                new AssistantMessage("23"),
+                new SystemMessage("Ты эксперт по работе с  kotlin. Отвечай на вопросы одним словом"),
+                new UserMessage("Кто создал Java?"),
+                new SystemMessage("Ты эксперт по работе с  java. Отвечай на вопросы одним словом")));
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> gigaChatModel.call(prompt));
+
+        assertThat(exception.getMessage(), containsStringIgnoringCase("System prompt message must be the only one"));
     }
 
     private static class TestTool {

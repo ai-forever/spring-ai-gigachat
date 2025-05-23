@@ -7,14 +7,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.net.http.HttpClient;
 import java.util.List;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
+@Slf4j
 public class GigaChatBearerAuthApi {
 
     private final GigaChatApiProperties properties;
@@ -35,25 +36,32 @@ public class GigaChatBearerAuthApi {
                 .sslContext(sslFactory.getSslContext())
                 .build();
         this.properties = properties;
-        this.restClient = builder.baseUrl(properties.getAuthUrl())
+        this.restClient = builder.clone()
+                .baseUrl(properties.getAuthUrl())
                 .requestFactory(new JdkClientHttpRequestFactory(jdkHttpClient))
+                .defaultStatusHandler(httpStatusCode -> {
+                    log.debug("AuthApi status code:{}", httpStatusCode);
+                    return false; // Игнорируем 4xx/5xx статусы, т.к. access token все равно может быть в теле ответа
+                })
                 .build();
     }
 
+    public record GigaChatAccessTokenResponse(
+            @JsonProperty("access_token") String accessToken, @JsonProperty("expires_at") Long expiresAt) {}
+
     private GigaChatBearerToken requestToken() {
-        final ResponseEntity<GigaChatAccessTokenResponse> tokenResponseEntity = this.restClient
+        GigaChatAccessTokenResponse tokenResponse = this.restClient
                 .post()
                 .headers(this::getAuthHeaders)
                 .body("scope=" + properties.getScope())
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(GigaChatAccessTokenResponse.class);
-
-        Assert.notNull(tokenResponseEntity.getBody(), "Failed to get access token, response is null");
-        final String token = tokenResponseEntity.getBody().accessToken();
+                .body(GigaChatAccessTokenResponse.class);
+        Assert.notNull(tokenResponse, "Failed to get access token, response is null");
+        final String token = tokenResponse.accessToken();
         Assert.notNull(token, "Failed to get access token, access token is null in the response");
-        final Long expiresAt = tokenResponseEntity.getBody().expiresAt();
+        final Long expiresAt = tokenResponse.expiresAt();
         Assert.notNull(expiresAt, "Failed to get access token, expiresAt in is null the response");
 
         return new GigaChatBearerToken(token, expiresAt);
@@ -73,7 +81,4 @@ public class GigaChatBearerAuthApi {
         }
         return this.token.getAccessToken();
     }
-
-    public record GigaChatAccessTokenResponse(
-            @JsonProperty("access_token") String accessToken, @JsonProperty("expires_at") Long expiresAt) {}
 }

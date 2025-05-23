@@ -20,5 +20,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with Maven (clean verify)
-        run: mvn clean verify
+      - name: Build with Maven (+ unit tests only)
+        run: mvn clean test
+
+      - name: Integration tests
+        run: mvn verify -Pci

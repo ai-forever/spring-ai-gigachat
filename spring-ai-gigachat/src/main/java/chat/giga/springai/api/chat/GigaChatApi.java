@@ -58,12 +58,14 @@ public class GigaChatApi {
             webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
         }
         this.restClient = restClientBuilder
+                .clone()
                 .requestFactory(new JdkClientHttpRequestFactory(HttpClientUtils.build(properties)))
                 .requestInterceptor(new GigachatLoggingInterceptor())
                 .defaultStatusHandler(responseErrorHandler)
                 .baseUrl(properties.getBaseUrl())
                 .build();
         this.webClient = webClientBuilder
+                .clone()
                 .clientConnector(new JdkClientHttpConnector(HttpClientUtils.build(properties)))
                 .baseUrl(properties.getBaseUrl())
                 .build();

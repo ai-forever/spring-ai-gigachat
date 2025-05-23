@@ -46,7 +46,7 @@ import reactor.core.publisher.Flux;
 
 @Slf4j
 public class GigaChatModel implements ChatModel {
-    public static final String DEFAULT_MODEL_NAME = GigaChatApi.ChatModel.GIGA_CHAT.getName();
+    public static final String DEFAULT_MODEL_NAME = GigaChatApi.ChatModel.GIGA_CHAT_2.getName();
     public static final ChatModelObservationConvention DEFAULT_OBSERVATION_CONVENTION =
             new DefaultChatModelObservationConvention();
     private static final ToolCallingManager DEFAULT_TOOL_CALLING_MANAGER =
@@ -494,7 +494,7 @@ public class GigaChatModel implements ChatModel {
             // Помещаем сообщение с сист. промптом в начало списка сообщений
             messages.remove(i);
             messages.add(0, currentMessage);
-            log.warn("Sorting has been applied to make the system prompt the first message");
+            log.info("Sorting has been applied to make the system prompt the first message");
             return;
         }
     }

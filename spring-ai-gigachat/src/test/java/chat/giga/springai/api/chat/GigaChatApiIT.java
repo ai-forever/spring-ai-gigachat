@@ -1,48 +1,50 @@
-package chat.giga.springai.api.auth;
+package chat.giga.springai.api.chat;
 
+import static chat.giga.springai.GigaChatModel.DEFAULT_MODEL_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.emptyOrNullString;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.hamcrest.Matchers.*;
 
-import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.api.auth.GigaChatApiProperties;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
-import chat.giga.springai.extension.GigaChatTestPropertiesExtension;
+import chat.giga.springai.api.chat.models.ModelsResponse;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
 @Slf4j
-@ExtendWith(GigaChatTestPropertiesExtension.class)
-@EnabledIfEnvironmentVariable(named = "GIGACHAT_API_CLIENT_SECRET", matches = ".*")
-public class AuthTest {
+public class GigaChatApiIT {
+    private static final GigaChatApi gigaChatApi;
 
-    @EnumSource(GigaChatApi.ChatModel.class)
-    @DisplayName("Авторизация и проверка /chat/completions")
-    @ParameterizedTest(name = "{0}")
-    void authThenChatTest(GigaChatApi.ChatModel model, GigaChatApiProperties properties) {
-        assertDoesNotThrow(() -> check(properties, model));
+    static {
+        GigaChatApiProperties apiProperties = GigaChatApiProperties.builder()
+                .scope(GigaChatApiProperties.GigaChatApiScope.valueOf(System.getenv("GIGACHAT_API_SCOPE")))
+                .clientId(System.getenv("GIGACHAT_API_CLIENT_ID"))
+                .clientSecret(System.getenv("GIGACHAT_API_CLIENT_SECRET"))
+                .unsafeSsl(true)
+                .build();
+        gigaChatApi = new GigaChatApi(apiProperties);
     }
 
-    /**
-     * Основное тело теста
-     *
-     * @param authProperties авторизационные параметры
-     */
-    private void check(GigaChatApiProperties authProperties, GigaChatApi.ChatModel chatModel) {
-        final GigaChatApi gigaChatApi = new GigaChatApi(authProperties);
+    @Test
+    @DisplayName("Тест проверяет корректное получение списка моделей")
+    void modelsTest() {
+        final ResponseEntity<ModelsResponse> response = gigaChatApi.models();
 
+        assertThat(response.getStatusCode().value(), is(200));
+        assertThat(response.getBody(), is(not(nullValue())));
+        assertThat(response.getBody().getData(), is(not(nullValue())));
+        assertThat(response.getBody().getData(), is(not(empty())));
+        assertThat(response.getBody().getData(), everyItem(hasProperty("id")));
+    }
+
+    @Test
+    @DisplayName("Авторизация и проверка /chat/completions")
+    void authAndChatTest() {
         final CompletionRequest chatRequest = CompletionRequest.builder()
-                .model(chatModel.getName())
+                .model(DEFAULT_MODEL_NAME)
                 .messages(List.of(CompletionRequest.Message.builder()
                         .role(CompletionRequest.Role.user)
                         .content("Расскажи, как дела?")
@@ -63,7 +65,7 @@ public class AuthTest {
                 "Model sync response: {}",
                 response.getBody().getChoices().get(0).getMessage().getContent());
 
-        final CompletionRequest asyncChatRequest = CompletionRequest.builder().model(chatModel.getName()).stream(true)
+        final CompletionRequest asyncChatRequest = CompletionRequest.builder().model(DEFAULT_MODEL_NAME).stream(true)
                 .messages(List.of(CompletionRequest.Message.builder()
                         .role(CompletionRequest.Role.user)
                         .content("Расскажи, как дела?")
