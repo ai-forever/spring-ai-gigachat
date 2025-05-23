@@ -9,6 +9,8 @@
     <version>1.0.0</version>
     <packaging>pom</packaging>
 
+    <name>Spring AI model - GigaChat</name>
+
     <modules>
         <module>spring-ai-gigachat</module>
         <module>spring-ai-autoconfigure-model-gigachat</module>
@@ -29,16 +31,6 @@
         <system>Github Actions</system>
         <url>https://github.com/ai-forever/spring-ai-gigachat/actions</url>
     </ciManagement>
-    <distributionManagement>
-        <snapshotRepository>
-            <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-    </distributionManagement>
     <licenses>
         <license>
             <name>Apache 2.0</name>
@@ -46,6 +38,13 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+    <developers>
+        <developer>
+            <name>Linar Abzaltdinov</name>
+            <email>abzaltdinov@gmail.com</email>
+            <url>https://github.com/linarkou</url>
+        </developer>
+    </developers>
 
     <properties>
         <java.version>17</java.version>
@@ -297,6 +296,18 @@
                         <version>${maven.deploy.plugin.version}</version>
                         <configuration>
                             <skip>false</skip>
+                        </configuration>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.7.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>maven-central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
                         </configuration>
                     </plugin>
                 </plugins>

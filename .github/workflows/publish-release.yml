@@ -2,6 +2,9 @@ name: Publish package to the Maven Central Repository
 on:
   release:
     types: [created]
+  push:
+    branches:
+      - publish
 
 jobs:
   publish:
@@ -16,7 +19,7 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          server-id: ossrh
+          server-id: maven-central
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
