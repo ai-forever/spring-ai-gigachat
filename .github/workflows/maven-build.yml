@@ -24,7 +24,7 @@ jobs:
         run: mvn clean test
 
       - name: Integration tests
-        run: mvn verify -Pci
+        run: mvn verify -P integration-tests
         env:
           GIGACHAT_API_CLIENT_ID: ${{ secrets.GIGACHAT_API_CLIENT_ID }}
           GIGACHAT_API_CLIENT_SECRET: ${{ secrets.GIGACHAT_API_CLIENT_SECRET }}
