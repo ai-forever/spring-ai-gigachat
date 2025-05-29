@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 
 public class GigaChatAutoConfigurationTest {
 
@@ -81,6 +83,37 @@ public class GigaChatAutoConfigurationTest {
                     assertThat(embeddingProperties.isEnabled()).isTrue();
                     assertThat(embeddingProperties.getOptions().getModel()).isEqualTo("Embeddings-2");
                     assertThat(embeddingProperties.getOptions().getDimensions()).isEqualTo(1024);
+                });
+    }
+
+    @Test
+    @DisplayName("Тест проверяет сборку всех бинов автоконфигурации при использовании web application context")
+    void webAutoConfigurationTest() {
+        new WebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GigaChatApi.class);
+                    assertThat(context).hasSingleBean(GigaChatModel.class);
+                    assertThat(context).hasSingleBean(GigaChatChatProperties.class);
+                    assertThat(context).hasSingleBean(GigaChatEmbeddingModel.class);
+                    assertThat(context).hasSingleBean(GigaChatEmbeddingProperties.class);
+                    assertThat(context).hasSingleBean(GigaChatInternalProperties.class);
+                });
+    }
+
+    @Test
+    @DisplayName(
+            "Тест проверяет сборку всех бинов автоконфигурации при использовании reactive web application context (webflux)")
+    void reactiveWebfluxAutoConfigurationTest() {
+        new ReactiveWebApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GigaChatApi.class);
+                    assertThat(context).hasSingleBean(GigaChatModel.class);
+                    assertThat(context).hasSingleBean(GigaChatChatProperties.class);
+                    assertThat(context).hasSingleBean(GigaChatEmbeddingModel.class);
+                    assertThat(context).hasSingleBean(GigaChatEmbeddingProperties.class);
+                    assertThat(context).hasSingleBean(GigaChatInternalProperties.class);
                 });
     }
 }

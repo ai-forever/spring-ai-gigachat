@@ -10,7 +10,9 @@ import org.springframework.ai.chat.observation.ChatModelObservationConvention;
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationConvention;
 import org.springframework.ai.model.SpringAIModelProperties;
 import org.springframework.ai.model.chat.observation.autoconfigure.ChatObservationAutoConfiguration;
+import org.springframework.ai.model.tool.DefaultToolExecutionEligibilityPredicate;
 import org.springframework.ai.model.tool.ToolCallingManager;
+import org.springframework.ai.model.tool.ToolExecutionEligibilityPredicate;
 import org.springframework.ai.model.tool.autoconfigure.ToolCallingAutoConfiguration;
 import org.springframework.ai.retry.autoconfigure.SpringAiRetryAutoConfiguration;
 import org.springframework.beans.factory.ObjectProvider;
@@ -52,10 +54,14 @@ public class GigaChatAutoConfiguration {
     @ConditionalOnMissingBean
     public GigaChatApi gigaChatApi(
             GigaChatApiProperties gigaChatApiProperties,
-            RestClient.Builder restClientBuilder,
-            WebClient.Builder webClientBuilder,
+            ObjectProvider<RestClient.Builder> restClientBuilderProvider,
+            ObjectProvider<WebClient.Builder> webClientBuilderProvider,
             ResponseErrorHandler responseErrorHandler) {
-        return new GigaChatApi(gigaChatApiProperties, restClientBuilder, webClientBuilder, responseErrorHandler);
+        return new GigaChatApi(
+                gigaChatApiProperties,
+                restClientBuilderProvider.getIfAvailable(RestClient::builder),
+                webClientBuilderProvider.getIfAvailable(WebClient::builder),
+                responseErrorHandler);
     }
 
     @Bean
@@ -67,6 +73,7 @@ public class GigaChatAutoConfiguration {
             ToolCallingManager toolCallingManager,
             ObjectProvider<ObservationRegistry> observationRegistry,
             ObjectProvider<ChatModelObservationConvention> observationConvention,
+            ObjectProvider<ToolExecutionEligibilityPredicate> toolExecutionEligibilityPredicate,
             GigaChatInternalProperties internalProperties) {
         final GigaChatModel gigaChatModel = GigaChatModel.builder()
                 .gigaChatApi(gigaChatApi)
@@ -74,6 +81,8 @@ public class GigaChatAutoConfiguration {
                 .retryTemplate(retryTemplate)
                 .toolCallingManager(toolCallingManager)
                 .observationRegistry(observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP))
+                .toolExecutionEligibilityPredicate(
+                        toolExecutionEligibilityPredicate.getIfUnique(DefaultToolExecutionEligibilityPredicate::new))
                 .internalProperties(internalProperties)
                 .build();
 
