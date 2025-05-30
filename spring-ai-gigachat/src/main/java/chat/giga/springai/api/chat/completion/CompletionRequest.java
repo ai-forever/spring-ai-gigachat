@@ -56,6 +56,12 @@ public class CompletionRequest {
     @JsonProperty("profanity_check")
     private Boolean profanityCheck;
 
+    /**
+     * Использование X-Session-ID для кэширования контекста разговора с GigaChat.
+     */
+    @JsonProperty("session_id")
+    private String sessionId;
+
     @Data
     @Builder
     @NoArgsConstructor

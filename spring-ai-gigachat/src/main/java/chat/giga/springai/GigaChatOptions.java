@@ -71,6 +71,12 @@ public class GigaChatOptions implements ToolCallingChatOptions {
     @JsonProperty("profanity_check")
     private Boolean profanityCheck;
 
+    /**
+     * Использование X-Session-ID для кэширования контекста разговора с GigaChat.
+     */
+    @JsonProperty("session_id")
+    private String sessionId;
+
     @Override
     public String getModel() {
         return model;
@@ -210,7 +216,8 @@ public class GigaChatOptions implements ToolCallingChatOptions {
                 .toolContext(this.toolContext)
                 .functionCallMode(this.functionCallMode)
                 .functionCallParam(this.functionCallParam)
-                .profanityCheck(this.profanityCheck);
+                .profanityCheck(this.profanityCheck)
+                .sessionId(this.sessionId);
     }
 
     public static class Builder {
@@ -300,6 +307,11 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
         public Builder profanityCheck(Boolean profanityCheck) {
             this.options.setProfanityCheck(profanityCheck);
+            return this;
+        }
+
+        public Builder sessionId(String sessionId) {
+            this.options.setSessionId(sessionId);
             return this;
         }
 
