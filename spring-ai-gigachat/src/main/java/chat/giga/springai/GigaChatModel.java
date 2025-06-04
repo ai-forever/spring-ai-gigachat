@@ -135,8 +135,8 @@ public class GigaChatModel implements ChatModel {
                         () -> observationContext,
                         this.observationRegistry)
                 .observe(() -> {
-                    ResponseEntity<CompletionResponse> completionEntity =
-                            this.retryTemplate.execute(ctx -> this.gigaChatApi.chatCompletionEntity(request));
+                    ResponseEntity<CompletionResponse> completionEntity = this.retryTemplate.execute(ctx ->
+                            this.gigaChatApi.chatCompletionEntity(request, ((GigaChatOptions) prompt.getOptions())));
 
                     CompletionResponse completionResponse = completionEntity.getBody();
                     completionResponse.setId(completionEntity.getHeaders().getFirst(X_REQUEST_ID));
@@ -195,8 +195,8 @@ public class GigaChatModel implements ChatModel {
                     .parentObservation(contextView.getOrDefault(ObservationThreadLocalAccessor.KEY, null))
                     .start();
 
-            Flux<CompletionResponse> response =
-                    this.retryTemplate.execute(ctx -> this.gigaChatApi.chatCompletionStream(request));
+            Flux<CompletionResponse> response = this.retryTemplate.execute(
+                    ctx -> this.gigaChatApi.chatCompletionStream(request, ((GigaChatOptions) prompt.getOptions())));
 
             Flux<ChatResponse> chatResponseFlux = response.switchMap(completionResponse -> {
                         Usage currentChatResponseUsage = buildUsage(completionResponse.getUsage());

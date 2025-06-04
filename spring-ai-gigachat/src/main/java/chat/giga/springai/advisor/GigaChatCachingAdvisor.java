@@ -43,11 +43,10 @@ public class GigaChatCachingAdvisor implements CallAdvisor, StreamAdvisor {
     }
 
     private void fillOptions(ChatClientRequest chatClientRequest) {
-        GigaChatOptions options = Optional.of(chatClientRequest.prompt())
+        Optional.of(chatClientRequest.prompt())
                 .map(Prompt::getOptions)
                 .map(GigaChatOptions.class::cast)
-                .orElse(new GigaChatOptions());
-
-        options.setSessionId(((String) chatClientRequest.context().get(X_SESSION_ID)));
+                .ifPresent(it ->
+                        it.setSessionId((String) chatClientRequest.context().get(X_SESSION_ID)));
     }
 }

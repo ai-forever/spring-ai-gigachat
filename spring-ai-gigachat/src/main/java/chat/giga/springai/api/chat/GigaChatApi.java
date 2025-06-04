@@ -2,6 +2,7 @@ package chat.giga.springai.api.chat;
 
 import static chat.giga.springai.advisor.GigaChatCachingAdvisor.X_SESSION_ID;
 
+import chat.giga.springai.GigaChatOptions;
 import chat.giga.springai.api.auth.GigaChatApiProperties;
 import chat.giga.springai.api.auth.bearer.GigaChatBearerAuthApi;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenFilter;
@@ -29,6 +30,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.client.reactive.JdkClientHttpConnector;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResponseErrorHandler;
@@ -96,24 +98,34 @@ public class GigaChatApi {
     }
 
     public ResponseEntity<CompletionResponse> chatCompletionEntity(final CompletionRequest chatRequest) {
+        return chatCompletionEntity(chatRequest, null);
+    }
+
+    public ResponseEntity<CompletionResponse> chatCompletionEntity(
+            final CompletionRequest chatRequest, @Nullable final GigaChatOptions chatOptions) {
         Assert.notNull(chatRequest, "The request body can not be null.");
         Assert.isTrue(!chatRequest.getStream(), "Request must set the stream property to false.");
         return this.restClient
                 .post()
                 .uri("/chat/completions")
-                .headers(applyHeaders(chatRequest))
+                .headers(applyHeaders(chatOptions))
                 .body(chatRequest)
                 .retrieve()
                 .toEntity(CompletionResponse.class);
     }
 
     public Flux<CompletionResponse> chatCompletionStream(final CompletionRequest chatRequest) {
+        return chatCompletionStream(chatRequest, null);
+    }
+
+    public Flux<CompletionResponse> chatCompletionStream(
+            final CompletionRequest chatRequest, @Nullable final GigaChatOptions options) {
         Assert.notNull(chatRequest, "The request body can not be null.");
         Assert.isTrue(chatRequest.getStream(), "Request must set the steam property to true.");
         return this.webClient
                 .post()
                 .uri("/chat/completions")
-                .headers(applyHeaders(chatRequest))
+                .headers(applyHeaders(options))
                 .body(Mono.just(chatRequest), CompletionRequest.class)
                 .exchangeToFlux(rs -> {
                     String id = rs.headers().asHttpHeaders().getFirst(X_REQUEST_ID);
@@ -173,11 +185,11 @@ public class GigaChatApi {
         return this.restClient.get().uri("/models").retrieve().toEntity(ModelsResponse.class);
     }
 
-    private Consumer<HttpHeaders> applyHeaders(CompletionRequest request) {
+    private Consumer<HttpHeaders> applyHeaders(@Nullable GigaChatOptions options) {
         return httpHeaders -> {
             httpHeaders.add(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT);
-            if (StringUtils.hasText(request.getSessionId())) {
-                httpHeaders.add(X_SESSION_ID, request.getSessionId());
+            if (options != null && StringUtils.hasText(options.getSessionId())) {
+                httpHeaders.add(X_SESSION_ID, options.getSessionId());
             }
         };
     }

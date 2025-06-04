@@ -24,6 +24,19 @@ curl "localhost:8080/chat?chatId=123" -d "Как его использовать
 curl "localhost:8080/chat?chatId=456" -d "Как его использовать?" -H "content-type:application/json"
 ```
 
+## Примеры с сохранением контекста и кешированием
+
+[ChatController](src/main/java/chat/giga/springai/example/ChatController.java)
+
+```shell
+curl "localhost:8080/session?chatId=123" -d "Ты знаешь Пушкина?" -H "content-type:application/json"
+# после второго запроса GigaChat должен понять, что ранее речь шла про Пушкина, но не будет считать токены для всей истории.
+# Количество кэшированных токенов, которые не учитываются в расчете стоимости, вернется в ответе в поле precached_prompt_tokens.
+curl "localhost:8080/session?chatId=123" -d "Какие его стихи ты знаешь?" -H "content-type:application/json"
+# если выполнить запрос без сессии, контекст сохраниться, но токенов потратиться больше
+curl "localhost:8080/chat?chatId=456" -d "Какие его стихи ты знаешь?" -H "content-type:application/json"
+```
+
 ## Примеры с запросом ответа в формате json и конвертацией в POJO
 
 [StructuredEntityController](src/main/java/chat/giga/springai/example/StructuredEntityController.java)
