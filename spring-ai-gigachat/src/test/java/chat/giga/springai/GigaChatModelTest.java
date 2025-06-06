@@ -1,5 +1,6 @@
 package chat.giga.springai;
 
+import static chat.giga.springai.advisor.GigaChatCachingAdvisor.X_SESSION_ID;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsStringIgnoringCase;
 import static org.junit.jupiter.api.Assertions.*;
@@ -32,6 +33,7 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import reactor.core.publisher.Flux;
@@ -192,11 +194,11 @@ public class GigaChatModelTest {
         gigaChatModel.internalCall(prompt, null);
 
         ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
-        ArgumentCaptor<GigaChatOptions> options = ArgumentCaptor.forClass(GigaChatOptions.class);
-        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture(), options.capture());
+        ArgumentCaptor<HttpHeaders> headers = ArgumentCaptor.forClass(HttpHeaders.class);
+        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture(), headers.capture());
 
         assertNull(requestCaptor.getValue().getFunctionCall());
-        assertEquals(sessionId, options.getValue().getSessionId());
+        assertEquals(sessionId, headers.getValue().getFirst(X_SESSION_ID));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package chat.giga.springai;
 
+import static chat.giga.springai.advisor.GigaChatCachingAdvisor.X_SESSION_ID;
 import static chat.giga.springai.api.chat.GigaChatApi.X_REQUEST_ID;
 
 import chat.giga.springai.api.auth.GigaChatInternalProperties;
@@ -11,10 +12,7 @@ import chat.giga.springai.tool.definition.GigaToolDefinition;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -38,10 +36,13 @@ import org.springframework.ai.model.tool.*;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.support.UsageCalculator;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
 @Slf4j
@@ -135,8 +136,8 @@ public class GigaChatModel implements ChatModel {
                         () -> observationContext,
                         this.observationRegistry)
                 .observe(() -> {
-                    ResponseEntity<CompletionResponse> completionEntity = this.retryTemplate.execute(ctx ->
-                            this.gigaChatApi.chatCompletionEntity(request, ((GigaChatOptions) prompt.getOptions())));
+                    ResponseEntity<CompletionResponse> completionEntity = this.retryTemplate.execute(
+                            ctx -> this.gigaChatApi.chatCompletionEntity(request, buildHeaders(prompt.getOptions())));
 
                     CompletionResponse completionResponse = completionEntity.getBody();
                     completionResponse.setId(completionEntity.getHeaders().getFirst(X_REQUEST_ID));
@@ -196,7 +197,7 @@ public class GigaChatModel implements ChatModel {
                     .start();
 
             Flux<CompletionResponse> response = this.retryTemplate.execute(
-                    ctx -> this.gigaChatApi.chatCompletionStream(request, ((GigaChatOptions) prompt.getOptions())));
+                    ctx -> this.gigaChatApi.chatCompletionStream(request, buildHeaders(prompt.getOptions())));
 
             Flux<ChatResponse> chatResponseFlux = response.switchMap(completionResponse -> {
                         Usage currentChatResponseUsage = buildUsage(completionResponse.getUsage());
@@ -497,6 +498,19 @@ public class GigaChatModel implements ChatModel {
             log.info("Sorting has been applied to make the system prompt the first message");
             return;
         }
+    }
+
+    private HttpHeaders buildHeaders(@Nullable ChatOptions options) {
+        return Optional.ofNullable(options)
+                .map(GigaChatOptions.class::cast)
+                .map(it -> {
+                    HttpHeaders httpHeaders = new HttpHeaders();
+                    if (StringUtils.hasText(it.getSessionId())) {
+                        httpHeaders.add(X_SESSION_ID, it.getSessionId());
+                    }
+                    return httpHeaders;
+                })
+                .orElseGet(HttpHeaders::new);
     }
 
     public static GigaChatModel.Builder builder() {

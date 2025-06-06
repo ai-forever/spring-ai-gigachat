@@ -4,6 +4,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import chat.giga.springai.GigaChatOptions;
 import chat.giga.springai.advisor.GigaChatCachingAdvisor;
+import chat.giga.springai.api.chat.GigaChatApi;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
@@ -27,7 +28,9 @@ public class ChatController {
                         MessageChatMemoryAdvisor.builder(chatMemory).build(),
                         new GigaChatCachingAdvisor(),
                         new SimpleLoggerAdvisor())
-                .defaultOptions(GigaChatOptions.builder().model("GigaChat-2").build())
+                .defaultOptions(GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
+                        .build())
                 .build();
     }
 
