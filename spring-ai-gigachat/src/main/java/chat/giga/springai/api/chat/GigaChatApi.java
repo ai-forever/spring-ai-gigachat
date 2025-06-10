@@ -9,6 +9,7 @@ import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.embedding.EmbeddingsRequest;
 import chat.giga.springai.api.chat.embedding.EmbeddingsResponse;
+import chat.giga.springai.api.chat.file.DeleteFileResponse;
 import chat.giga.springai.api.chat.file.UploadFileResponse;
 import chat.giga.springai.api.chat.models.ModelsResponse;
 import com.fasterxml.jackson.annotation.JsonValue;
@@ -163,8 +164,7 @@ public class GigaChatApi {
                         return media.getName();
                     }
                 })
-                .contentType(MediaType.valueOf(media.getMimeType().toString()))
-                .header("Content-Disposition", "form-data; name=file; filename=" + media.getName());
+                .contentType(MediaType.valueOf(media.getMimeType().toString()));
 
         builder.part("purpose", "general", MediaType.TEXT_PLAIN);
 
@@ -176,6 +176,16 @@ public class GigaChatApi {
                 .body(builder.build())
                 .retrieve()
                 .toEntity(UploadFileResponse.class);
+    }
+
+    public ResponseEntity<DeleteFileResponse> deleteFile(String fileId) {
+        return this.restClient
+                .post()
+                .uri("/files/{fileId}/delete", fileId)
+                .header(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .retrieve()
+                .toEntity(DeleteFileResponse.class);
     }
 
     public ResponseEntity<ModelsResponse> models() {
