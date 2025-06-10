@@ -5,7 +5,6 @@ import static org.hamcrest.Matchers.*;
 
 import chat.giga.springai.GigaChatModel;
 import chat.giga.springai.autoconfigure.GigaChatAutoConfiguration;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -17,7 +16,6 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.MimeTypeUtils;
 
-@Disabled("Временно отключено из-за 500 ошибок")
 public class MultimodalityIT {
 
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()

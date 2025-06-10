@@ -21,7 +21,6 @@ import org.springframework.ai.content.Media;
 import org.springframework.ai.model.ChatModelDescription;
 import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.retry.RetryUtils;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -158,15 +157,12 @@ public class GigaChatApi {
 
         MultipartBodyBuilder builder = new MultipartBodyBuilder();
 
-        builder.part("file", new ByteArrayResource(media.getDataAsByteArray()) {
-                    @Override
-                    public String getFilename() {
-                        return media.getName();
-                    }
-                })
-                .contentType(MediaType.valueOf(media.getMimeType().toString()));
+        builder.part("file", media.getDataAsByteArray())
+                .contentType(MediaType.valueOf(media.getMimeType().toString()))
+                .header("Content-Disposition", "form-data; name=\"file\"; filename=\"" + media.getName() + "\"");
 
-        builder.part("purpose", "general", MediaType.TEXT_PLAIN);
+        builder.part("purpose", "general", MediaType.TEXT_PLAIN)
+                .header("Content-Disposition", "form-data; name=\"purpose\"");
 
         return this.restClient
                 .post()
@@ -183,7 +179,6 @@ public class GigaChatApi {
                 .post()
                 .uri("/files/{fileId}/delete", fileId)
                 .header(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT)
-                .contentType(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .toEntity(DeleteFileResponse.class);
     }
