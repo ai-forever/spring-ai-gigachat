@@ -75,7 +75,7 @@ curl localhost:8080/tool/v1/weather -d "Какая температура в К�
 curl localhost:8080/tool/v2/weather -d "Сколько градусов в Спб?" -H "content-type:application/json"
 curl localhost:8080/tool/v3/weather -d "Сколько градусов в Москве?" -H "content-type:application/json"
 curl localhost:8080/tool/v4/weather -d "Сколько градусов в Сочи будет завтра?" -H "content-type:application/json"
-curl localhost:8080/tool/v4/weather -d "Какое давление в Сочи будет завтра?" -H "content-type:application/json"
+curl localhost:8080/tool/v4/weather -d "Сколько градусов и какое давление в Сочи будет завтра?" -H "content-type:application/json"
 ```
 
 ## Примеры использования RAG

@@ -2,15 +2,20 @@ package chat.giga.springai.example;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import chat.giga.springai.support.GigaChatResponseUtils;
 import chat.giga.springai.tool.GigaTools;
 import chat.giga.springai.tool.annotation.FewShotExample;
 import chat.giga.springai.tool.annotation.GigaTool;
 import chat.giga.springai.tool.function.GigaFunctionToolCallback;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.MessageType;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.ai.tool.function.FunctionToolCallback;
@@ -150,12 +155,18 @@ public class WeatherToolController {
      */
     @PostMapping("tool/v4/weather")
     public String weatherToolAnnotation(@RequestBody String question) {
-        return chatClient
+        ChatResponse chatResponse = chatClient
                 .prompt(question)
                 // Важно использовать .toolCallbacks(GigaTools.from()), чтобы обрабатывались аннотации @GigaTool и @Tool
                 // Если использовать конструкцию .tools(new WeatherTools()), то будет использоваться только @Tool
                 .toolCallbacks(GigaTools.from(new WeatherTools()))
                 .call()
-                .content();
+                .chatResponse();
+        List<Message> toolResponseMessages = GigaChatResponseUtils.getConversationHistory(chatResponse).stream()
+                .filter(msg -> MessageType.TOOL.equals(msg.getMessageType()))
+                .toList();
+        log.info("Было вызвано {} функций", toolResponseMessages.size());
+        toolResponseMessages.forEach(msg -> log.info(msg.toString()));
+        return chatResponse.getResult().getOutput().getText();
     }
 }
