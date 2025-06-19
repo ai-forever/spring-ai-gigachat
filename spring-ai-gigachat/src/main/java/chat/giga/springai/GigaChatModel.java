@@ -28,6 +28,7 @@ import org.springframework.ai.chat.observation.ChatModelObservationDocumentation
 import org.springframework.ai.chat.observation.DefaultChatModelObservationConvention;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
 import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.model.tool.*;
 import org.springframework.ai.retry.RetryUtils;
@@ -286,7 +287,10 @@ public class GigaChatModel implements ChatModel {
 
         ToolCallingChatOptions.validateToolCallbacks(requestOptions.getToolCallbacks());
 
-        return new Prompt(prompt.getInstructions(), requestOptions);
+        // Uploads media and sets an id to media
+        List<Message> messagesWithUploadedMediaIds = uploadMedia(prompt.getInstructions());
+
+        return new Prompt(messagesWithUploadedMediaIds, requestOptions);
     }
 
     private CompletionRequest createRequest(Prompt prompt, boolean stream) {
@@ -295,10 +299,7 @@ public class GigaChatModel implements ChatModel {
                     if (message instanceof UserMessage userMessage) {
                         if (!CollectionUtils.isEmpty(userMessage.getMedia())) {
                             List<UUID> filesIds = userMessage.getMedia().stream()
-                                    .map(media -> gigaChatApi
-                                            .uploadFile(media)
-                                            .getBody()
-                                            .id())
+                                    .map(media -> UUID.fromString(media.getId()))
                                     .toList();
 
                             return List.of(new CompletionRequest.Message(
@@ -361,6 +362,42 @@ public class GigaChatModel implements ChatModel {
             request.setFunctions(this.getFunctionDescriptions(toolDefinitions));
         }
         return request;
+    }
+
+    /**
+     * Загружает медиа файлы, если они переданы в UserMessage, и проставляет к ним id.
+     * @param messages - исходные сообщения
+     * @return - обновленные сообщения с проставленными id для media
+     */
+    private List<Message> uploadMedia(List<Message> messages) {
+        return messages.stream()
+                .map(message -> {
+                    if (message instanceof UserMessage userMessage
+                            && !CollectionUtils.isEmpty(userMessage.getMedia())) {
+                        var mediaWithIds = userMessage.getMedia().stream()
+                                .map(media -> media.getId() != null
+                                        ? media
+                                        : Media.builder()
+                                                .id(gigaChatApi
+                                                        .uploadFile(media)
+                                                        .getBody()
+                                                        .id()
+                                                        .toString())
+                                                .name(media.getName())
+                                                .data(media.getData())
+                                                .mimeType(media.getMimeType())
+                                                .build())
+                                .toList();
+                        return UserMessage.builder()
+                                .text(userMessage.getText())
+                                .metadata(userMessage.getMetadata())
+                                .media(mediaWithIds)
+                                .build();
+                    } else {
+                        return message;
+                    }
+                })
+                .toList();
     }
 
     private Object getFunctionCall(GigaChatOptions requestOptions, List<ToolDefinition> toolDefinitions) {
