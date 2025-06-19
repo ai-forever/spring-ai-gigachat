@@ -16,10 +16,12 @@ import org.springframework.ai.chat.model.ChatResponse;
 @Slf4j
 public class GigaChatResponseUtils {
     public static List<Message> getConversationHistory(ChatResponse chatResponse) {
-        if (chatResponse != null
-                && chatResponse.getMetadata() != null
-                && chatResponse.getMetadata().containsKey(GigaChatModel.CONVERSATION_HISTORY)) {
-            return chatResponse.getMetadata().get(GigaChatModel.CONVERSATION_HISTORY);
+        if (chatResponse != null && chatResponse.getMetadata() != null) {
+            List<Message> messages = chatResponse.getMetadata().get(GigaChatModel.CONVERSATION_HISTORY);
+            if (messages == null) {
+                messages = List.of();
+            }
+            return messages;
         }
         return List.of();
     }

@@ -35,7 +35,6 @@ import org.springframework.ai.support.UsageCalculator;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
@@ -139,6 +138,12 @@ public class GigaChatModel implements ChatModel {
                             ctx -> this.gigaChatApi.chatCompletionEntity(request, buildHeaders(prompt.getOptions())));
 
                     CompletionResponse completionResponse = completionEntity.getBody();
+
+                    if (completionResponse == null) {
+                        log.warn("No chat completion returned for prompt: {}", prompt);
+                        return new ChatResponse(List.of());
+                    }
+
                     completionResponse.setId(completionEntity.getHeaders().getFirst(X_REQUEST_ID));
 
                     Usage currentChatResponseUsage = buildUsage(completionResponse.getUsage());
@@ -200,6 +205,10 @@ public class GigaChatModel implements ChatModel {
                     ctx -> this.gigaChatApi.chatCompletionStream(request, buildHeaders(prompt.getOptions())));
 
             Flux<ChatResponse> chatResponseFlux = response.switchMap(completionResponse -> {
+                        if (completionResponse == null) {
+                            log.warn("No chat completion returned for prompt: {}", prompt);
+                            return Flux.just(new ChatResponse(List.of()));
+                        }
                         Usage currentChatResponseUsage = buildUsage(completionResponse.getUsage());
                         Usage accumulatedUsage =
                                 UsageCalculator.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
@@ -407,15 +416,7 @@ public class GigaChatModel implements ChatModel {
     }
 
     private ChatResponse toChatResponse(
-            CompletionResponse completionResponse,
-            Usage usage,
-            boolean streaming,
-            @NonNull List<Message> conversationHistory) {
-        if (completionResponse == null) {
-            log.warn("Null completion response");
-            return new ChatResponse(List.of());
-        }
-
+            CompletionResponse completionResponse, Usage usage, boolean streaming, List<Message> conversationHistory) {
         List<Generation> generations = completionResponse.getChoices().stream()
                 .map(choice -> buildGeneration(completionResponse.getId(), choice, streaming))
                 .toList();
