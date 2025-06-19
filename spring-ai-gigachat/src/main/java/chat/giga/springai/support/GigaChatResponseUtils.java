@@ -18,10 +18,7 @@ public class GigaChatResponseUtils {
     public static List<Message> getConversationHistory(ChatResponse chatResponse) {
         if (chatResponse != null && chatResponse.getMetadata() != null) {
             List<Message> messages = chatResponse.getMetadata().get(GigaChatModel.CONVERSATION_HISTORY);
-            if (messages == null) {
-                messages = List.of();
-            }
-            return messages;
+            return messages == null ? List.of() : messages;
         }
         return List.of();
     }
