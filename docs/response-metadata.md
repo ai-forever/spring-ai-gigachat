@@ -11,6 +11,7 @@
 можно воспользоваться утилитным методом `GigaChatResponseUtils.getConversationHistory(chatResponse)`.
 
 Пример:
+
 ```java
 ChatResponse chatResponse = chatClient
         .prompt(question)
