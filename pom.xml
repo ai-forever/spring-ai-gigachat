@@ -252,6 +252,24 @@
                     <skip>true</skip>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.sonatype.ossindex.maven</groupId>
+                <artifactId>ossindex-maven-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <fail>false</fail>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>audit-dependencies</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>audit-aggregate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
