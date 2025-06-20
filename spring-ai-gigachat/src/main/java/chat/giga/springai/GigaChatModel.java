@@ -371,32 +371,45 @@ public class GigaChatModel implements ChatModel {
     private List<Message> uploadMedia(List<Message> messages) {
         return messages.stream()
                 .map(message -> {
-                    if (message instanceof UserMessage userMessage
-                            && !CollectionUtils.isEmpty(userMessage.getMedia())) {
-                        var mediaWithIds = userMessage.getMedia().stream()
-                                .map(media -> media.getId() != null
-                                        ? media
-                                        : Media.builder()
-                                                .id(gigaChatApi
-                                                        .uploadFile(media)
-                                                        .getBody()
-                                                        .id()
-                                                        .toString())
-                                                .name(media.getName())
-                                                .data(media.getData())
-                                                .mimeType(media.getMimeType())
-                                                .build())
-                                .toList();
-                        return UserMessage.builder()
-                                .text(userMessage.getText())
-                                .metadata(userMessage.getMetadata())
-                                .media(mediaWithIds)
-                                .build();
+                    if (message instanceof UserMessage userMessage) {
+                        return buildUserMessageWithUploadedMedia(userMessage);
                     } else {
                         return message;
                     }
                 })
                 .toList();
+    }
+
+    private UserMessage buildUserMessageWithUploadedMedia(UserMessage userMessage) {
+        List<Media> mediaList = userMessage.getMedia();
+
+        // Если нет медиа, то ничего не меняем
+        if (CollectionUtils.isEmpty(mediaList)) {
+            return userMessage;
+        }
+        var mediaWithIds = mediaList.stream().map(this::uploadMediaAndSetId).toList();
+        return UserMessage.builder()
+                .text(userMessage.getText())
+                .metadata(userMessage.getMetadata())
+                .media(mediaWithIds)
+                .build();
+    }
+
+    // Загрузка файла в GigaChat, если у media нет id.
+    private Media uploadMediaAndSetId(Media media) {
+        // если id указан - значит файл уже загружен и можно возвращать media как есть
+        if (media.getId() != null) {
+            return media;
+        }
+        // иначе загружаем файл и получаем его id
+        String mediaId = gigaChatApi.uploadFile(media).getBody().id().toString();
+
+        return Media.builder()
+                .id(mediaId)
+                .name(media.getName())
+                .data(media.getData())
+                .mimeType(media.getMimeType())
+                .build();
     }
 
     private Object getFunctionCall(GigaChatOptions requestOptions, List<ToolDefinition> toolDefinitions) {
@@ -499,13 +512,7 @@ public class GigaChatModel implements ChatModel {
         List<Message> messages = prompt.getInstructions();
 
         // ищем индекс последнего пользовательского сообщения, т.к. здесь могут быть сообщения из ChatMemory
-        int lastUserMessageIndex = -1;
-        for (int i = messages.size() - 1; i >= 0; i--) {
-            if (messages.get(i) instanceof UserMessage) {
-                lastUserMessageIndex = i;
-                break;
-            }
-        }
+        int lastUserMessageIndex = getIndexOfLastUserMessage(messages);
 
         // Должен включать только AssistantMessage и ToolResponseMessage,
         // т.е. внутренние сообщения от GigaChat с параметрами вызова функции, а результаты вызова функций
@@ -523,6 +530,16 @@ public class GigaChatModel implements ChatModel {
         }
 
         return chatResponseBuilder.build();
+    }
+
+    // Возвращает индекс последнего пользовательского сообщения, или -1, если их нет
+    private int getIndexOfLastUserMessage(List<Message> messages) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (messages.get(i) instanceof UserMessage) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private ChatResponseMetadata from(CompletionResponse completionResponse) {
