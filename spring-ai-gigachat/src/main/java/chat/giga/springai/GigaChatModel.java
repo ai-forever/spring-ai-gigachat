@@ -48,7 +48,8 @@ public class GigaChatModel implements ChatModel {
     public static final String DEFAULT_MODEL_NAME = GigaChatApi.ChatModel.GIGA_CHAT_2.getName();
     public static final ChatModelObservationConvention DEFAULT_OBSERVATION_CONVENTION =
             new DefaultChatModelObservationConvention();
-    public static final String CONVERSATION_HISTORY = "conversationHistory";
+    public static final String INTERNAL_CONVERSATION_HISTORY = "GigaChatInternalConversationHistory";
+    public static final String UPLOADED_MEDIA_IDS = "GigaChatUploadedMediaIds";
     private static final ToolCallingManager DEFAULT_TOOL_CALLING_MANAGER =
             ToolCallingManager.builder().build();
 
@@ -151,8 +152,7 @@ public class GigaChatModel implements ChatModel {
                     Usage accumulatedUsage =
                             UsageCalculator.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
 
-                    ChatResponse chatResponse =
-                            toChatResponse(completionResponse, accumulatedUsage, false, prompt.getInstructions());
+                    ChatResponse chatResponse = toChatResponse(completionResponse, accumulatedUsage, false);
                     observationContext.setResponse(chatResponse);
 
                     return chatResponse;
@@ -173,7 +173,7 @@ public class GigaChatModel implements ChatModel {
             }
         }
 
-        return response;
+        return buildChatResponseWithCustomMetadata(prompt, response);
     }
 
     @Override
@@ -214,8 +214,7 @@ public class GigaChatModel implements ChatModel {
                         Usage accumulatedUsage =
                                 UsageCalculator.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
 
-                        ChatResponse chatResponse =
-                                toChatResponse(completionResponse, accumulatedUsage, true, prompt.getInstructions());
+                        ChatResponse chatResponse = toChatResponse(completionResponse, accumulatedUsage, true);
 
                         if (this.toolExecutionEligibilityPredicate.isToolExecutionRequired(
                                 prompt.getOptions(), chatResponse)) {
@@ -234,7 +233,7 @@ public class GigaChatModel implements ChatModel {
                             }
                         }
 
-                        return Flux.just(chatResponse);
+                        return Flux.just(buildChatResponseWithCustomMetadata(prompt, chatResponse));
                     })
                     .doOnError(observation::error)
                     .doFinally(s -> observation.stop())
@@ -452,13 +451,11 @@ public class GigaChatModel implements ChatModel {
                 .toList();
     }
 
-    private ChatResponse toChatResponse(
-            CompletionResponse completionResponse, Usage usage, boolean streaming, List<Message> conversationHistory) {
+    private ChatResponse toChatResponse(CompletionResponse completionResponse, Usage usage, boolean streaming) {
         List<Generation> generations = completionResponse.getChoices().stream()
                 .map(choice -> buildGeneration(completionResponse.getId(), choice, streaming))
                 .toList();
-        return new ChatResponse(
-                generations, from(completionResponse, usage, Map.of(CONVERSATION_HISTORY, conversationHistory)));
+        return new ChatResponse(generations, from(completionResponse, usage));
     }
 
     private Generation buildGeneration(String id, CompletionResponse.Choice choice, boolean streaming) {
@@ -490,6 +487,42 @@ public class GigaChatModel implements ChatModel {
                 .finishReason(choice.getFinishReason())
                 .build();
         return new Generation(assistantMessage, generationMetadata);
+    }
+
+    private ChatResponse buildChatResponseWithCustomMetadata(Prompt prompt, ChatResponse originalResponse) {
+        // т.к. этот метод вызывается при обратном проходе из рекурсии internalCall/internalStream,
+        // то нужно заполнять метаданные только один раз при первом вызове
+        if (originalResponse.getMetadata().containsKey(INTERNAL_CONVERSATION_HISTORY)) {
+            return originalResponse;
+        }
+
+        List<Message> messages = prompt.getInstructions();
+
+        // ищем индекс последнего пользовательского сообщения, т.к. здесь могут быть сообщения из ChatMemory
+        int lastUserMessageIndex = -1;
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (messages.get(i) instanceof UserMessage) {
+                lastUserMessageIndex = i;
+                break;
+            }
+        }
+
+        // Должен включать только AssistantMessage и ToolResponseMessage,
+        // т.е. внутренние сообщения от GigaChat с параметрами вызова функции, а результаты вызова функций
+        var internalConversationHistory = new ArrayList<>(messages.subList(lastUserMessageIndex + 1, messages.size()));
+        var chatResponseBuilder = ChatResponse.builder()
+                .from(originalResponse)
+                .metadata(INTERNAL_CONVERSATION_HISTORY, internalConversationHistory);
+
+        // ID загруженных медиа файлов
+        UserMessage lastUserMessage = (UserMessage) messages.get(lastUserMessageIndex);
+        if (!CollectionUtils.isEmpty(lastUserMessage.getMedia())) {
+            chatResponseBuilder.metadata(
+                    UPLOADED_MEDIA_IDS,
+                    lastUserMessage.getMedia().stream().map(Media::getId).toList());
+        }
+
+        return chatResponseBuilder.build();
     }
 
     private ChatResponseMetadata from(CompletionResponse completionResponse) {
