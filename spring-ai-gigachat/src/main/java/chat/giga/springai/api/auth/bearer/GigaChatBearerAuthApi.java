@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
@@ -27,18 +28,10 @@ public class GigaChatBearerAuthApi {
     }
 
     public GigaChatBearerAuthApi(GigaChatApiProperties properties, RestClient.Builder builder) {
-        final SSLFactory sslFactory = SSLFactory.builder()
-                .withTrustingAllCertificatesWithoutValidation()
-                .withUnsafeHostnameVerifier()
-                .build();
-        final HttpClient jdkHttpClient = HttpClient.newBuilder()
-                .sslParameters(sslFactory.getSslParameters())
-                .sslContext(sslFactory.getSslContext())
-                .build();
         this.properties = properties;
         this.restClient = builder.clone()
                 .baseUrl(properties.getAuthUrl())
-                .requestFactory(new JdkClientHttpRequestFactory(jdkHttpClient))
+                .requestFactory(getClientHttpRequestFactory(properties))
                 .defaultStatusHandler(httpStatusCode -> {
                     log.debug("AuthApi status code:{}", httpStatusCode);
                     return false; // Игнорируем 4xx/5xx статусы, т.к. access token все равно может быть в теле ответа
@@ -80,5 +73,49 @@ public class GigaChatBearerAuthApi {
             this.token = this.requestToken();
         }
         return this.token.getAccessToken();
+    }
+
+    /**
+     * Creates a {@link ClientHttpRequestFactory} based on SSL configuration settings.
+     * <p>
+     * If the {@code unsafeSsl} property is disabled (default), returns a standard
+     * {@link JdkClientHttpRequestFactory}. When enabled, delegates to {@link #unsafeSsl}
+     * to create a factory that bypasses SSL certificate validation.
+     * </p>
+     *
+     * @param properties API configuration properties containing the {@code unsafeSsl} flag
+     * @return A secure or insecure {@link ClientHttpRequestFactory} based on configuration
+     * @see #unsafeSsl
+     */
+    ClientHttpRequestFactory getClientHttpRequestFactory(final GigaChatApiProperties properties) {
+        if (properties.isUnsafeSsl()) {
+            return unsafeSsl();
+        }
+        return new JdkClientHttpRequestFactory();
+    }
+
+    /**
+     * Creates an SSL-unsafe {@link ClientHttpRequestFactory} that bypasses certificate validation.
+     * <p>
+     * <b>Security Warning:</b> This configuration:
+     * <ul>
+     *   <li>Trusts all certificates without validation</li>
+     *   <li>Disables hostname verification</li>
+     * </ul>
+     * Should only be used for testing/development with self-signed certificates.
+     * </p>
+     *
+     * @return An insecure {@link ClientHttpRequestFactory} that bypasses SSL checks
+     */
+    ClientHttpRequestFactory unsafeSsl() {
+        final SSLFactory sslFactory = SSLFactory.builder()
+                .withTrustingAllCertificatesWithoutValidation()
+                .withUnsafeHostnameVerifier()
+                .build();
+        final HttpClient jdkHttpClient = HttpClient.newBuilder()
+                .sslParameters(sslFactory.getSslParameters())
+                .sslContext(sslFactory.getSslContext())
+                .build();
+        return new JdkClientHttpRequestFactory(jdkHttpClient);
     }
 }
