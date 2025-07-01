@@ -54,7 +54,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.29.1</allure-bom.version>
         <aspectj.version>1.9.24</aspectj.version>
-        <spring-boot.version>3.4.5</spring-boot.version>
+        <spring-boot.version>3.4.7</spring-boot.version>
         <spring-ai.version>1.0.0</spring-ai.version>
         <sslcontext-kickstart>8.3.7</sslcontext-kickstart>
         <lombok.version>1.18.38</lombok.version>
