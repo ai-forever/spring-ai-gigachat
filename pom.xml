@@ -6,7 +6,7 @@
 
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-parent</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0.2</version>
     <packaging>pom</packaging>
 
     <name>Spring AI model - GigaChat - Parent</name>
@@ -46,6 +46,11 @@
             <email>abzaltdinov@gmail.com</email>
             <url>https://github.com/linarkou</url>
         </developer>
+        <developer>
+            <name>Artem Simeshin</name>
+            <email>sadnovember2@gmail.com</email>
+            <url>https://github.com/a-simeshin</url>
+        </developer>
     </developers>
 
     <properties>
@@ -54,7 +59,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.29.1</allure-bom.version>
         <aspectj.version>1.9.24</aspectj.version>
-        <spring-boot.version>3.4.7</spring-boot.version>
+        <spring-boot.version>3.5.4</spring-boot.version>
         <spring-ai.version>1.0.0</spring-ai.version>
         <sslcontext-kickstart>8.3.7</sslcontext-kickstart>
         <lombok.version>1.18.38</lombok.version>

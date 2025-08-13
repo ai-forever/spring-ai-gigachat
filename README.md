@@ -13,7 +13,7 @@
 ## Требования
 
 * Java 17+
-* Spring Boot 3.4.x
+* Spring Boot 3.4/3.5
 
 ## Быстрый старт
 
@@ -34,7 +34,7 @@
 <dependency>
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-starter-model-gigachat</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
