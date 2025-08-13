@@ -511,19 +511,21 @@ public class GigaChatModel implements ChatModel {
 
         List<Message> messages = prompt.getInstructions();
 
-        // ищем индекс последнего пользовательского сообщения, т.к. здесь могут быть сообщения из ChatMemory
-        int lastUserMessageIndex = getIndexOfLastUserMessage(messages);
+        // ищем индекс последнего пользовательского/системного сообщения, т.к. здесь могут быть сообщения из ChatMemory
+        int lastUserOrSystemMessageIndex = getIndexOfLastUserOrSystemMessage(messages);
 
         // Должен включать только AssistantMessage и ToolResponseMessage,
         // т.е. внутренние сообщения от GigaChat с параметрами вызова функции, а результаты вызова функций
-        var internalConversationHistory = new ArrayList<>(messages.subList(lastUserMessageIndex + 1, messages.size()));
+        var internalConversationHistory =
+                new ArrayList<>(messages.subList(lastUserOrSystemMessageIndex + 1, messages.size()));
         var chatResponseBuilder = ChatResponse.builder()
                 .from(originalResponse)
                 .metadata(INTERNAL_CONVERSATION_HISTORY, internalConversationHistory);
 
-        // ID загруженных медиа файлов
-        UserMessage lastUserMessage = (UserMessage) messages.get(lastUserMessageIndex);
-        if (!CollectionUtils.isEmpty(lastUserMessage.getMedia())) {
+        // добавляем в метаданные ID загруженных медиа файлов
+        // предполагается, что медиа файлы только в пользовательскоих сообщениях
+        UserMessage lastUserMessage = getLastUserMessage(messages);
+        if (lastUserMessage != null && !CollectionUtils.isEmpty(lastUserMessage.getMedia())) {
             chatResponseBuilder.metadata(
                     UPLOADED_MEDIA_IDS,
                     lastUserMessage.getMedia().stream().map(Media::getId).toList());
@@ -532,14 +534,24 @@ public class GigaChatModel implements ChatModel {
         return chatResponseBuilder.build();
     }
 
-    // Возвращает индекс последнего пользовательского сообщения, или -1, если их нет
-    private int getIndexOfLastUserMessage(List<Message> messages) {
+    // Возвращает индекс последнего пользовательского или системного сообщения, или -1, если их нет
+    private int getIndexOfLastUserOrSystemMessage(List<Message> messages) {
         for (int i = messages.size() - 1; i >= 0; i--) {
-            if (messages.get(i) instanceof UserMessage) {
+            if (messages.get(i) instanceof UserMessage || messages.get(i) instanceof SystemMessage) {
                 return i;
             }
         }
         return -1;
+    }
+
+    // Возвращает последнее пользовательское сообщение, или null, если их нет
+    private UserMessage getLastUserMessage(List<Message> messages) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (messages.get(i) instanceof UserMessage msg) {
+                return msg;
+            }
+        }
+        return null;
     }
 
     private ChatResponseMetadata from(CompletionResponse completionResponse) {

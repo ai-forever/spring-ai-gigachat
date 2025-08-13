@@ -2,7 +2,7 @@ package chat.giga.springai;
 
 import static chat.giga.springai.advisor.GigaChatCachingAdvisor.X_SESSION_ID;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsStringIgnoringCase;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -14,15 +14,16 @@ import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.param.FunctionCallParam;
 import chat.giga.springai.tool.GigaTools;
 import chat.giga.springai.tool.annotation.GigaTool;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
@@ -30,12 +31,16 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.content.Media;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MimeTypeUtils;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
@@ -336,5 +341,113 @@ public class GigaChatModelTest {
         public String testMethod() {
             return "test";
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("promptAndMetadataProvider")
+    @DisplayName("Тест проверяет наполнение ChatResponse кастомными метаданными")
+    void testCustomMetadata(Prompt prompt, Map<String, Object> expectedMetadata) {
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        ChatResponse chatResponse = gigaChatModel.call(prompt);
+        ChatResponseMetadata metadata = chatResponse.getMetadata();
+
+        expectedMetadata.forEach((metadataKey, metadataValue) -> {
+            assertEquals(metadataValue, metadata.get(metadataKey));
+        });
+    }
+
+    public static Stream<Arguments> promptAndMetadataProvider() {
+        return Stream.of(
+                Arguments.of(
+                        new Prompt(List.of(SystemMessage.builder()
+                                .text("Ты - полезный ассистент")
+                                .build())),
+                        new HashMap<>() {
+                            {
+                                put(GigaChatModel.INTERNAL_CONVERSATION_HISTORY, Collections.emptyList());
+                                put(GigaChatModel.UPLOADED_MEDIA_IDS, null);
+                            }
+                        }),
+                Arguments.of(
+                        new Prompt(List.of(
+                                SystemMessage.builder()
+                                        .text("Ты - полезный ассистент")
+                                        .build(),
+                                UserMessage.builder().text("Что ты умеешь?").build())),
+                        new HashMap<>() {
+                            {
+                                put(GigaChatModel.INTERNAL_CONVERSATION_HISTORY, Collections.emptyList());
+                                put(GigaChatModel.UPLOADED_MEDIA_IDS, null);
+                            }
+                        }),
+                Arguments.of(
+                        new Prompt(List.of(UserMessage.builder().text("Кто ты?").build())), new HashMap<>() {
+                            {
+                                put(GigaChatModel.INTERNAL_CONVERSATION_HISTORY, Collections.emptyList());
+                                put(GigaChatModel.UPLOADED_MEDIA_IDS, null);
+                            }
+                        }),
+                Arguments.of(
+                        new Prompt(List.of(
+                                UserMessage.builder().text("Кто ты?").build(),
+                                new AssistantMessage("Я - GigaChat!"),
+                                UserMessage.builder().text("Что ты умеешь?").build())),
+                        new HashMap<>() {
+                            {
+                                put(GigaChatModel.INTERNAL_CONVERSATION_HISTORY, Collections.emptyList());
+                                put(GigaChatModel.UPLOADED_MEDIA_IDS, null);
+                            }
+                        }),
+                Arguments.of(
+                        new Prompt(List.of(
+                                UserMessage.builder()
+                                        .text("Отправь письмо на support@chat.giga")
+                                        .build(),
+                                new AssistantMessage(
+                                        "",
+                                        Map.of(),
+                                        List.of(new AssistantMessage.ToolCall(
+                                                "sendEmail",
+                                                "function",
+                                                "sendEmail",
+                                                "{\"address\": \"support@chat.giga\"}"))),
+                                new ToolResponseMessage(List.of(new ToolResponseMessage.ToolResponse(
+                                        "sendEmail", "sendEmail", "{\"status\": \"sent\"}"))))),
+                        new HashMap<>() {
+                            {
+                                put(
+                                        GigaChatModel.INTERNAL_CONVERSATION_HISTORY,
+                                        List.of(
+                                                new AssistantMessage(
+                                                        "",
+                                                        Map.of(),
+                                                        List.of(
+                                                                new AssistantMessage.ToolCall(
+                                                                        "sendEmail",
+                                                                        "function",
+                                                                        "sendEmail",
+                                                                        "{\"address\": \"support@chat.giga\"}"))),
+                                                new ToolResponseMessage(List.of(new ToolResponseMessage.ToolResponse(
+                                                        "sendEmail", "sendEmail", "{\"status\": \"sent\"}")))));
+                                put(GigaChatModel.UPLOADED_MEDIA_IDS, null);
+                            }
+                        }),
+                Arguments.of(
+                        new Prompt(List.of(UserMessage.builder()
+                                .text("Кто ты?")
+                                .media(Media.builder()
+                                        .id("5512e5c1-2829-4b44-ad2d-c9bce5f8b154")
+                                        .data("документ")
+                                        .mimeType(MimeTypeUtils.TEXT_PLAIN)
+                                        .build())
+                                .build())),
+                        new HashMap<>() {
+                            {
+                                put(GigaChatModel.INTERNAL_CONVERSATION_HISTORY, Collections.emptyList());
+                                put(GigaChatModel.UPLOADED_MEDIA_IDS, List.of("5512e5c1-2829-4b44-ad2d-c9bce5f8b154"));
+                            }
+                        }));
     }
 }
