@@ -18,6 +18,8 @@ spring:
       chat:
         options:
           model: GigaChat-2
+          http-headers:
+            x-client-id: ${spring.application.name}
 
 logging:
   level:

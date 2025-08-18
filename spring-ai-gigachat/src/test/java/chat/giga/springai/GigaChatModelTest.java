@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import chat.giga.springai.advisor.GigaChatCachingAdvisor;
 import chat.giga.springai.api.auth.GigaChatInternalProperties;
 import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
@@ -190,7 +191,7 @@ public class GigaChatModelTest {
                 List.of(new UserMessage("Hello")),
                 GigaChatOptions.builder()
                         .model(GigaChatApi.ChatModel.GIGA_CHAT)
-                        .sessionId(sessionId)
+                        .httpHeaders(Map.of(GigaChatCachingAdvisor.X_SESSION_ID, sessionId))
                         .build());
 
         when(gigaChatApi.chatCompletionEntity(any(), any()))

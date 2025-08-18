@@ -120,6 +120,17 @@ curl -X POST \
   -F "file=@src/main/resources/multimodality/poem.txt;type=text/plain"
 ```
 
+## Пример отправки кастомных HTTP-заголовков в GigaChat API
+
+[CustomHttpHeadersController.java](src/main/java/chat/giga/springai/example/CustomHttpHeadersController.java)
+
+```shell
+# в первом запросе x-request-id сгенерируется случайным образом
+curl localhost:8080/sendWithHeaders -d "Расскажи шутку" -H "Content-Type:application/json"
+# во втором запросе x-request-id пробросится в запрос к GigaChat API
+curl localhost:8080/sendWithHeaders -d "Расскажи шутку" -H "x-request-id:1234567890" -H "Content-Type:application/json"
+```
+
 ## Внешние примеры
 
 Еще больше примеров Вы можете найти в официальном репозитории Spring

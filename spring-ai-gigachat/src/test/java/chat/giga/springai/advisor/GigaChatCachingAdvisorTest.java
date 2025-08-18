@@ -18,6 +18,7 @@ import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
 import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
@@ -57,7 +58,7 @@ class GigaChatCachingAdvisorTest {
         assertEquals(X_SESSION_ID_VALUE, requestCaptor.getValue().context().get(GigaChatCachingAdvisor.X_SESSION_ID));
         assertEquals(
                 X_SESSION_ID_VALUE,
-                ((GigaChatOptions) requestCaptor.getValue().prompt().getOptions()).getSessionId());
+                getSessionId(requestCaptor.getValue().prompt().getOptions()));
     }
 
     @Test
@@ -76,7 +77,7 @@ class GigaChatCachingAdvisorTest {
         verify(chain).nextCall(requestCaptor.capture());
 
         assertNull(requestCaptor.getValue().context().get(GigaChatCachingAdvisor.X_SESSION_ID));
-        assertNull(((GigaChatOptions) requestCaptor.getValue().prompt().getOptions()).getSessionId());
+        assertNull(getSessionId(requestCaptor.getValue().prompt().getOptions()));
     }
 
     @Test
@@ -102,7 +103,7 @@ class GigaChatCachingAdvisorTest {
         assertEquals(X_SESSION_ID_VALUE, requestCaptor.getValue().context().get(GigaChatCachingAdvisor.X_SESSION_ID));
         assertEquals(
                 X_SESSION_ID_VALUE,
-                ((GigaChatOptions) requestCaptor.getValue().prompt().getOptions()).getSessionId());
+                getSessionId(requestCaptor.getValue().prompt().getOptions()));
     }
 
     @Test
@@ -125,6 +126,16 @@ class GigaChatCachingAdvisorTest {
         verify(streamChain).nextStream(requestCaptor.capture());
 
         assertNull(requestCaptor.getValue().context().get(GigaChatCachingAdvisor.X_SESSION_ID));
-        assertNull(((GigaChatOptions) requestCaptor.getValue().prompt().getOptions()).getSessionId());
+        assertNull(getSessionId(requestCaptor.getValue().prompt().getOptions()));
+    }
+
+    private String getSessionId(ChatOptions options) {
+        if (options == null) {
+            return null;
+        }
+        if (options instanceof GigaChatOptions gigaChatOptions) {
+            return gigaChatOptions.getHttpHeaders().get(GigaChatCachingAdvisor.X_SESSION_ID);
+        }
+        return null;
     }
 }

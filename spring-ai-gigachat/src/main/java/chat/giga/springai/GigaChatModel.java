@@ -1,6 +1,5 @@
 package chat.giga.springai;
 
-import static chat.giga.springai.advisor.GigaChatCachingAdvisor.X_SESSION_ID;
 import static chat.giga.springai.api.chat.GigaChatApi.X_REQUEST_ID;
 
 import chat.giga.springai.api.auth.GigaChatInternalProperties;
@@ -40,7 +39,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
 @Slf4j
@@ -621,9 +619,7 @@ public class GigaChatModel implements ChatModel {
                 .map(GigaChatOptions.class::cast)
                 .map(it -> {
                     HttpHeaders httpHeaders = new HttpHeaders();
-                    if (StringUtils.hasText(it.getSessionId())) {
-                        httpHeaders.add(X_SESSION_ID, it.getSessionId());
-                    }
+                    it.getHttpHeaders().forEach(httpHeaders::add);
                     return httpHeaders;
                 })
                 .orElseGet(HttpHeaders::new);
