@@ -16,9 +16,7 @@
 
 package chat.giga.springai.tool.method;
 
-import chat.giga.springai.tool.annotation.GigaTool;
 import chat.giga.springai.tool.definition.GigaToolDefinition;
-import chat.giga.springai.tool.support.GigaToolUtils;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
@@ -31,11 +29,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.metadata.DefaultToolMetadata;
 import org.springframework.ai.tool.metadata.ToolMetadata;
 import org.springframework.ai.tool.method.MethodToolCallback;
 import org.springframework.ai.tool.support.ToolUtils;
 import org.springframework.aop.support.AopUtils;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ReflectionUtils;
@@ -60,13 +58,8 @@ public class GigaMethodToolCallbackProvider implements ToolCallbackProvider {
 
     private void assertToolAnnotatedMethodsPresent(List<Object> toolObjects) {
         for (Object toolObject : toolObjects) {
-            List<Method> toolMethods = Stream.of(ReflectionUtils.getDeclaredMethods(
-                            AopUtils.isAopProxy(toolObject)
-                                    ? AopUtils.getTargetClass(toolObject)
-                                    : toolObject.getClass()))
-                    .filter(toolMethod -> toolMethod.isAnnotationPresent(Tool.class)
-                            || toolMethod.isAnnotationPresent(GigaTool.class))
-                    .filter(toolMethod -> !isFunctionalType(toolMethod))
+            List<Method> toolMethods = Stream.of(getDeclaredMethods(toolObject))
+                    .filter(this::isToolAnnotatedMethod)
                     .toList();
 
             if (toolMethods.isEmpty()) {
@@ -80,19 +73,14 @@ public class GigaMethodToolCallbackProvider implements ToolCallbackProvider {
     @Override
     public ToolCallback[] getToolCallbacks() {
         var toolCallbacks = toolObjects.stream()
-                .map(toolObject -> Stream.of(ReflectionUtils.getDeclaredMethods(
-                                AopUtils.isAopProxy(toolObject)
-                                        ? AopUtils.getTargetClass(toolObject)
-                                        : toolObject.getClass()))
-                        .filter(toolMethod -> toolMethod.isAnnotationPresent(Tool.class)
-                                || toolMethod.isAnnotationPresent(GigaTool.class))
-                        .filter(toolMethod -> !isFunctionalType(toolMethod))
+                .map(toolObject -> Stream.of(getDeclaredMethods(toolObject))
+                        .filter(this::isToolAnnotatedMethod)
                         .map(toolMethod -> MethodToolCallback.builder()
                                 .toolDefinition(GigaToolDefinition.from(toolMethod))
-                                .toolMetadata(getToolMetadata(toolMethod))
+                                .toolMetadata(ToolMetadata.from(toolMethod))
                                 .toolMethod(toolMethod)
                                 .toolObject(toolObject)
-                                .toolCallResultConverter(GigaToolUtils.getToolCallResultConverter(toolMethod))
+                                .toolCallResultConverter(ToolUtils.getToolCallResultConverter(toolMethod))
                                 .build())
                         .toArray(ToolCallback[]::new))
                 .flatMap(Stream::of)
@@ -103,16 +91,20 @@ public class GigaMethodToolCallbackProvider implements ToolCallbackProvider {
         return toolCallbacks;
     }
 
-    private ToolMetadata getToolMetadata(Method toolMethod) {
-        return DefaultToolMetadata.builder()
-                .returnDirect(GigaToolUtils.getToolReturnDirect(toolMethod))
-                .build();
+    private Method[] getDeclaredMethods(Object toolObject) {
+        return ReflectionUtils.getDeclaredMethods(
+                AopUtils.isAopProxy(toolObject) ? AopUtils.getTargetClass(toolObject) : toolObject.getClass());
+    }
+
+    private boolean isToolAnnotatedMethod(Method method) {
+        Tool annotation = AnnotationUtils.findAnnotation(method, Tool.class);
+        return annotation != null && !isFunctionalType(method) && ReflectionUtils.USER_DECLARED_METHODS.matches(method);
     }
 
     private boolean isFunctionalType(Method toolMethod) {
-        var isFunction = ClassUtils.isAssignable(toolMethod.getReturnType(), Function.class)
-                || ClassUtils.isAssignable(toolMethod.getReturnType(), Supplier.class)
-                || ClassUtils.isAssignable(toolMethod.getReturnType(), Consumer.class);
+        var isFunction = ClassUtils.isAssignable(Function.class, toolMethod.getReturnType())
+                || ClassUtils.isAssignable(Supplier.class, toolMethod.getReturnType())
+                || ClassUtils.isAssignable(Consumer.class, toolMethod.getReturnType());
 
         if (isFunction) {
             log.warn(
