@@ -1,8 +1,6 @@
 package chat.giga.springai.tool.method;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import chat.giga.springai.tool.annotation.GigaTool;
 import chat.giga.springai.tool.function.GigaFunctionToolCallback;
@@ -26,6 +24,7 @@ public class GigaMethodToolCallbackProviderTest {
     }
 
     @Test
+    @DisplayName("Если метод имеет аннотации @Tool и @GigaTool, то у @Tool приоритет выше")
     public void testGetToolCallbacks_withToolAndGigaTool() {
         GigaMethodToolCallbackProvider methodToolCallbackProvider = GigaMethodToolCallbackProvider.builder()
                 .toolObjects(new TestToolAndGigaTool())
@@ -34,7 +33,7 @@ public class GigaMethodToolCallbackProviderTest {
         ToolCallback[] toolCallbacks = methodToolCallbackProvider.getToolCallbacks();
 
         assertEquals(1, toolCallbacks.length);
-        assertTrue(toolCallbacks[0].getToolMetadata().returnDirect());
+        assertFalse(toolCallbacks[0].getToolMetadata().returnDirect());
     }
 
     @Test

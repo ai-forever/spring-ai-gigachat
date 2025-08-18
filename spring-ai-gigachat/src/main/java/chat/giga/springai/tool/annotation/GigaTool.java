@@ -16,6 +16,7 @@ import org.springframework.core.annotation.AliasFor;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 @Tool
+@Inherited
 public @interface GigaTool {
 
     /**

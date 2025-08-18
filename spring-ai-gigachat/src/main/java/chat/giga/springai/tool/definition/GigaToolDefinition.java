@@ -53,8 +53,8 @@ public record GigaToolDefinition(
     static GigaToolDefinition.Builder builder(Method method) {
         Assert.notNull(method, "method cannot be null");
         return GigaToolDefinition.builder()
-                .name(GigaToolUtils.getToolName(method))
-                .description(GigaToolUtils.getToolDescription(method))
+                .name(ToolUtils.getToolName(method))
+                .description(ToolUtils.getToolDescription(method))
                 .inputSchema(JsonSchemaGenerator.generateForMethodInput(method))
                 .fewShotExamples(GigaToolUtils.getFewShotExamples(method))
                 .outputSchema(GigaToolUtils.generateJsonSchemaForMethodOutput(method)); // надо учесть примитивы?
