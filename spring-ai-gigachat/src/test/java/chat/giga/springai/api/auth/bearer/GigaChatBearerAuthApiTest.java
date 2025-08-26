@@ -1,53 +1,241 @@
 package chat.giga.springai.api.auth.bearer;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static chat.giga.springai.api.chat.GigaChatApi.USER_AGENT_SPRING_AI_GIGACHAT;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import chat.giga.springai.api.auth.GigaChatApiProperties;
+import chat.giga.springai.api.GigaChatApiProperties;
+import chat.giga.springai.api.auth.GigaChatApiScope;
+import chat.giga.springai.api.auth.GigaChatAuthProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import java.time.Instant;
+import java.util.stream.Stream;
+import lombok.SneakyThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.client.ClientHttpRequestFactory;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureWebClient;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.client.RestClient;
+import org.wiremock.spring.ConfigureWireMock;
+import org.wiremock.spring.EnableWireMock;
+import org.wiremock.spring.InjectWireMock;
 
-@ExtendWith(MockitoExtension.class)
-public class GigaChatBearerAuthApiTest {
+@EnableWireMock({@ConfigureWireMock(name = "auth-api")})
+@ExtendWith(SpringExtension.class)
+@AutoConfigureWebClient
+public abstract class GigaChatBearerAuthApiTest {
 
-    @Test
-    void getClientHttpRequestFactory_WhenUnsafeSslFalse_ReturnsStandardFactory() {
-        final GigaChatApiProperties properties = new GigaChatApiProperties();
-        properties.setUnsafeSsl(false);
-        final GigaChatBearerAuthApi api = spy(new GigaChatBearerAuthApi(properties));
-        final ClientHttpRequestFactory factory = api.getClientHttpRequestFactory(properties);
+    @Autowired
+    GigaChatBearerAuthApi authApi;
 
-        assertNotNull(factory);
-        assertInstanceOf(JdkClientHttpRequestFactory.class, factory);
+    @Autowired
+    ObjectMapper objectMapper;
 
-        verify(api, times(0)).unsafeSsl();
+    @InjectWireMock("auth-api")
+    WireMockServer mockServer;
+
+    @BeforeEach
+    void setUp() {
+        setToken(null); // чистим токен, чтобы не аффектило другие тесты
     }
 
     @Test
-    void getClientHttpRequestFactory_WhenUnsafeSslTrue_ReturnsUnsafeFactory() {
-        final GigaChatApiProperties properties = new GigaChatApiProperties();
-        properties.setUnsafeSsl(true);
-        final GigaChatBearerAuthApi api = spy(new GigaChatBearerAuthApi(properties));
-        final ClientHttpRequestFactory factory = api.getClientHttpRequestFactory(properties);
+    @SneakyThrows
+    void testGetAccessToken_InitialCall() {
+        // Arrange
+        long expiresAt = System.currentTimeMillis() + 3600_000;
+        GigaChatBearerAuthApi.GigaChatAccessTokenResponse tokenResponse =
+                new GigaChatBearerAuthApi.GigaChatAccessTokenResponse("test-token", expiresAt);
 
-        assertNotNull(factory);
-        assertInstanceOf(JdkClientHttpRequestFactory.class, factory);
+        createStubForTokenRequest(tokenResponse);
 
-        verify(api, times(1)).unsafeSsl();
+        // Act
+        String accessToken = authApi.getAccessToken();
+
+        // Assert
+        assertEquals("test-token", accessToken);
+        verify(postRequestedFor(urlEqualTo("/api/v2/oauth")));
     }
 
     @Test
-    void unsafeSsl_ReturnsCustomJdkClientHttpRequestFactory() {
-        final GigaChatBearerAuthApi api = new GigaChatBearerAuthApi(new GigaChatApiProperties());
-        final ClientHttpRequestFactory factory = api.unsafeSsl();
+    void testGetAccessToken_TokenExpired_Refresh() {
+        // Arrange
+        long expiresAt = System.currentTimeMillis() - 10_000;
+        GigaChatBearerToken oldToken = new GigaChatBearerToken("old-token", expiresAt);
+        setToken(oldToken);
 
-        assertNotNull(factory);
-        assertInstanceOf(JdkClientHttpRequestFactory.class, factory);
+        GigaChatBearerAuthApi.GigaChatAccessTokenResponse tokenResponse =
+                new GigaChatBearerAuthApi.GigaChatAccessTokenResponse(
+                        "new-token", Instant.now().plusSeconds(3600).getEpochSecond());
+
+        createStubForTokenRequest(tokenResponse);
+
+        // Act
+        String accessToken = authApi.getAccessToken();
+
+        // Assert
+        assertEquals("new-token", accessToken);
+        verify(postRequestedFor(urlEqualTo("/api/v2/oauth")));
+    }
+
+    @Test
+    void testGetAccessToken_CachedToken() {
+        // Arrange
+        long expiresAt = System.currentTimeMillis() + 3600_000;
+        setToken(new GigaChatBearerToken("cached-token", expiresAt));
+
+        // Act
+        String accessToken = authApi.getAccessToken();
+
+        // Assert
+        assertEquals("cached-token", accessToken);
+        verify(exactly(0), postRequestedFor(urlEqualTo("/api/v2/oauth")));
+    }
+
+    @Test
+    @DisplayName("Тест на успешное получение токена c 500 http-кодом")
+    void testGetAccessToken_5xxErrorWithToken_expectSuccessfullyProceed() {
+        // Arrange
+        long expiresAt = System.currentTimeMillis() + 3600_000;
+        GigaChatBearerAuthApi.GigaChatAccessTokenResponse tokenResponse =
+                new GigaChatBearerAuthApi.GigaChatAccessTokenResponse("test-token", expiresAt);
+
+        createStubForTokenRequest(tokenResponse, 500);
+
+        // Act
+        String accessToken = authApi.getAccessToken();
+
+        // Assert
+        assertEquals("test-token", accessToken);
+        verify(postRequestedFor(urlEqualTo("/api/v2/oauth")));
+    }
+
+    public static Stream<Arguments> invalidTokenProvider() {
+        return Stream.of(
+                Arguments.of(new GigaChatBearerAuthApi.GigaChatAccessTokenResponse(null, System.currentTimeMillis())),
+                Arguments.of(new GigaChatBearerAuthApi.GigaChatAccessTokenResponse("new-token", null)));
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @MethodSource("invalidTokenProvider")
+    void testInvalidRequestToken_NullResponse(GigaChatBearerAuthApi.GigaChatAccessTokenResponse tokenResponse) {
+        // Arrange
+        createStubForTokenRequest(tokenResponse);
+
+        // Act & Assert
+        assertThrows(IllegalArgumentException.class, () -> authApi.getAccessToken());
+    }
+
+    @SneakyThrows
+    private void createStubForTokenRequest(GigaChatBearerAuthApi.GigaChatAccessTokenResponse response) {
+        createStubForTokenRequest(response, 200);
+    }
+
+    @SneakyThrows
+    private void createStubForTokenRequest(GigaChatBearerAuthApi.GigaChatAccessTokenResponse response, int httpStatus) {
+        mockServer.stubFor(post("/api/v2/oauth")
+                .withHeader(HttpHeaders.ACCEPT, equalTo(MediaType.APPLICATION_JSON_VALUE))
+                .withHeader(HttpHeaders.AUTHORIZATION, WireMock.matching("Basic .+"))
+                .withHeader(HttpHeaders.CONTENT_TYPE, equalTo(MediaType.APPLICATION_FORM_URLENCODED_VALUE))
+                .withHeader("RqUID", WireMock.matching(".+"))
+                .withHeader(HttpHeaders.USER_AGENT, equalTo(USER_AGENT_SPRING_AI_GIGACHAT))
+                .withFormParam("scope", equalToIgnoreCase("GIGACHAT_API_CORP"))
+                .willReturn(jsonResponse(objectMapper.writeValueAsString(response), httpStatus)));
+    }
+
+    private void setToken(GigaChatBearerToken token) {
+        ReflectionTestUtils.setField(authApi, "token", token);
+    }
+
+    @ContextConfiguration(classes = NewAuthPropertiesWithApiKeyTest.Config.class)
+    public static class NewAuthPropertiesWithApiKeyTest extends GigaChatBearerAuthApiTest {
+        @Configuration
+        public static class Config {
+            @Bean
+            public GigaChatApiProperties gigaChatApiProperties(@Value("${wiremock.server.baseUrl}") String baseUrl) {
+                return GigaChatApiProperties.builder()
+                        .auth(GigaChatAuthProperties.builder()
+                                .scope(GigaChatApiScope.GIGACHAT_API_CORP)
+                                .bearer(GigaChatAuthProperties.Bearer.builder()
+                                        .url(baseUrl + "/api/v2/oauth")
+                                        .apiKey("apiKey")
+                                        .build())
+                                .build())
+                        .build();
+            }
+
+            @Bean
+            public GigaChatBearerAuthApi gigaChatBearerAuthApi(
+                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
+                return new GigaChatBearerAuthApi(apiProperties, restClientBuilder);
+            }
+        }
+    }
+
+    @ContextConfiguration(classes = NewAuthPropertiesWithApiKeyTest.Config.class)
+    public static class NewAuthPropertiesWithClientIdAndSecretTest extends GigaChatBearerAuthApiTest {
+        @Configuration
+        public static class Config {
+            @Bean
+            public GigaChatApiProperties gigaChatApiProperties(@Value("${wiremock.server.baseUrl}") String baseUrl) {
+                return GigaChatApiProperties.builder()
+                        .auth(GigaChatAuthProperties.builder()
+                                .scope(GigaChatApiScope.GIGACHAT_API_CORP)
+                                .bearer(GigaChatAuthProperties.Bearer.builder()
+                                        .url(baseUrl + "/api/v2/oauth")
+                                        .clientId("id")
+                                        .clientSecret("secret")
+                                        .build())
+                                .build())
+                        .build();
+            }
+
+            @Bean
+            public GigaChatBearerAuthApi gigaChatBearerAuthApi(
+                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
+                return new GigaChatBearerAuthApi(apiProperties, restClientBuilder);
+            }
+        }
+    }
+
+    @ContextConfiguration(classes = OldGigaChatBearerAuthApiTest.Config.class)
+    public static class OldGigaChatBearerAuthApiTest extends GigaChatBearerAuthApiTest {
+        @Configuration
+        public static class Config {
+            @Bean
+            public GigaChatApiProperties gigaChatApiProperties(@Value("${wiremock.server.baseUrl}") String baseUrl) {
+                return GigaChatApiProperties.builder()
+                        .authUrl(baseUrl + "/api/v2/oauth")
+                        .scope(GigaChatApiScope.GIGACHAT_API_CORP)
+                        .clientId("id")
+                        .clientSecret("secret")
+                        .unsafeSsl(true)
+                        .build();
+            }
+
+            @Bean
+            public GigaChatBearerAuthApi gigaChatBearerAuthApi(
+                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
+                return new GigaChatBearerAuthApi(apiProperties, restClientBuilder);
+            }
+        }
     }
 }

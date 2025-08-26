@@ -11,9 +11,12 @@ spring:
     retry:
       max-attempts: 3
     gigachat:
-      scope: ${GIGACHAT_API_SCOPE}
-      client-id: ${GIGACHAT_API_CLIENT_ID}
-      client-secret: ${GIGACHAT_API_CLIENT_SECRET}
+      auth:
+        bearer:
+          api-key: ${GIGACHAT_API_KEY}
+          # client-id: ${GIGACHAT_API_CLIENT_ID}
+          # client-secret: ${GIGACHAT_API_CLIENT_SECRET}
+        scope: ${GIGACHAT_API_SCOPE}
       unsafe-ssl: true
       chat:
         options:

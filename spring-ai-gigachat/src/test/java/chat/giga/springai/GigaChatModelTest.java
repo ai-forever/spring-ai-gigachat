@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import chat.giga.springai.api.auth.GigaChatInternalProperties;
+import chat.giga.springai.api.GigaChatInternalProperties;
 import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;

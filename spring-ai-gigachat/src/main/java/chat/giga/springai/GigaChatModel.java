@@ -3,7 +3,7 @@ package chat.giga.springai;
 import static chat.giga.springai.advisor.GigaChatCachingAdvisor.X_SESSION_ID;
 import static chat.giga.springai.api.chat.GigaChatApi.X_REQUEST_ID;
 
-import chat.giga.springai.api.auth.GigaChatInternalProperties;
+import chat.giga.springai.api.GigaChatInternalProperties;
 import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;

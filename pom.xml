@@ -63,6 +63,7 @@
         <spring-ai.version>1.0.0</spring-ai.version>
         <sslcontext-kickstart>8.3.7</sslcontext-kickstart>
         <lombok.version>1.18.38</lombok.version>
+        <wiremock-spring-boot.version>3.10.6</wiremock-spring-boot.version>
 
         <maven.deploy.plugin.version>3.1.4</maven.deploy.plugin.version>
     </properties>
@@ -109,6 +110,12 @@
                 <groupId>io.github.hakky54</groupId>
                 <artifactId>sslcontext-kickstart-for-pem</artifactId>
                 <version>${sslcontext-kickstart}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.wiremock.integrations</groupId>
+                <artifactId>wiremock-spring-boot</artifactId>
+                <version>${wiremock-spring-boot.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

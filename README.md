@@ -44,9 +44,10 @@
 spring:
   ai:
     gigachat:
-      scope: GIGACHAT_API_PERS             # доступны также GIGACHAT_API_B2B, GIGACHAT_API_CORP
-      client-id: <ваш_client_id>           # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
-      client-secret: <ваш_client_secret>   # Ваш Client Secret
+      auth:
+        bearer:
+           api-key: ${GIGACHAT_API_CLIENT_ID}    # Ваш Authorization Key, полученный в личном кабинете GigaChat
+        scope: GIGACHAT_API_PERS                 # доступны также GIGACHAT_API_B2B, GIGACHAT_API_CORP
       unsafe-ssl: true                     # отключает проверку не рекомендуется использовать в production
 ```
 

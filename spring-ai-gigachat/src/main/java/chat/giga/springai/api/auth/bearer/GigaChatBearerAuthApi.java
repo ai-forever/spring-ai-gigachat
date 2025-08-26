@@ -2,40 +2,51 @@ package chat.giga.springai.api.auth.bearer;
 
 import static chat.giga.springai.api.chat.GigaChatApi.USER_AGENT_SPRING_AI_GIGACHAT;
 
-import chat.giga.springai.api.auth.GigaChatApiProperties;
+import chat.giga.springai.api.GigaChatApiProperties;
+import chat.giga.springai.api.HttpClientUtils;
+import chat.giga.springai.api.auth.GigaChatApiScope;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.net.http.HttpClient;
 import java.util.List;
 import java.util.UUID;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
 @Slf4j
 public class GigaChatBearerAuthApi {
-
-    private final GigaChatApiProperties properties;
+    private final String apiKey;
+    private final GigaChatApiScope scope;
     private final RestClient restClient;
     private GigaChatBearerToken token;
 
-    public GigaChatBearerAuthApi(GigaChatApiProperties properties) {
-        this(properties, RestClient.builder());
+    public GigaChatBearerAuthApi(GigaChatApiProperties apiProperties) {
+        this(apiProperties, RestClient.builder());
     }
 
-    public GigaChatBearerAuthApi(GigaChatApiProperties properties, RestClient.Builder builder) {
-        this.properties = properties;
-        this.restClient = builder.clone()
-                .baseUrl(properties.getAuthUrl())
-                .requestFactory(getClientHttpRequestFactory(properties))
-                .defaultStatusHandler(httpStatusCode -> {
-                    log.debug("AuthApi status code:{}", httpStatusCode);
-                    return false; // Игнорируем 4xx/5xx статусы, т.к. access token все равно может быть в теле ответа
-                })
+    public GigaChatBearerAuthApi(GigaChatApiProperties apiProperties, RestClient.Builder builder) {
+        this(apiProperties, builder, null, null);
+    }
+
+    public GigaChatBearerAuthApi(
+            GigaChatApiProperties apiProperties,
+            RestClient.Builder builder,
+            @Nullable KeyManagerFactory kmf,
+            @Nullable TrustManagerFactory tmf) {
+        this.apiKey = apiProperties.getApiKey();
+        this.scope = apiProperties.getScope();
+        boolean isUnsafeSsl = apiProperties.isUnsafeSsl();
+        SSLFactory sslFactory = HttpClientUtils.buildSslFactory(kmf, tmf, isUnsafeSsl);
+        String authUrl = apiProperties.getAuthUrl();
+        this.restClient = builder.baseUrl(authUrl)
+                .requestFactory(new JdkClientHttpRequestFactory(HttpClientUtils.buildHttpClient(sslFactory)))
                 .build();
     }
 
@@ -46,10 +57,12 @@ public class GigaChatBearerAuthApi {
         GigaChatAccessTokenResponse tokenResponse = this.restClient
                 .post()
                 .headers(this::getAuthHeaders)
-                .body("scope=" + properties.getScope())
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .accept(MediaType.APPLICATION_JSON)
+                .body("scope=" + this.scope)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, ((request, response) -> {
+                    log.debug("Auth token request failed with status code: {}", response.getStatusCode());
+                    // Игнорируем 4xx/5xx статусы, т.к. access token все равно может быть в теле ответа
+                }))
                 .body(GigaChatAccessTokenResponse.class);
         Assert.notNull(tokenResponse, "Failed to get access token, response is null");
         final String token = tokenResponse.accessToken();
@@ -63,7 +76,7 @@ public class GigaChatBearerAuthApi {
     private void getAuthHeaders(HttpHeaders headers) {
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.setBasicAuth(properties.getClientId(), properties.getClientSecret());
+        headers.setBasicAuth(this.apiKey);
         headers.set("RqUID", UUID.randomUUID().toString());
         headers.set(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT);
     }
@@ -73,49 +86,5 @@ public class GigaChatBearerAuthApi {
             this.token = this.requestToken();
         }
         return this.token.getAccessToken();
-    }
-
-    /**
-     * Creates a {@link ClientHttpRequestFactory} based on SSL configuration settings.
-     * <p>
-     * If the {@code unsafeSsl} property is disabled (default), returns a standard
-     * {@link JdkClientHttpRequestFactory}. When enabled, delegates to {@link #unsafeSsl}
-     * to create a factory that bypasses SSL certificate validation.
-     * </p>
-     *
-     * @param properties API configuration properties containing the {@code unsafeSsl} flag
-     * @return A secure or insecure {@link ClientHttpRequestFactory} based on configuration
-     * @see #unsafeSsl
-     */
-    ClientHttpRequestFactory getClientHttpRequestFactory(final GigaChatApiProperties properties) {
-        if (properties.isUnsafeSsl()) {
-            return unsafeSsl();
-        }
-        return new JdkClientHttpRequestFactory();
-    }
-
-    /**
-     * Creates an SSL-unsafe {@link ClientHttpRequestFactory} that bypasses certificate validation.
-     * <p>
-     * <b>Security Warning:</b> This configuration:
-     * <ul>
-     *   <li>Trusts all certificates without validation</li>
-     *   <li>Disables hostname verification</li>
-     * </ul>
-     * Should only be used for testing/development with self-signed certificates.
-     * </p>
-     *
-     * @return An insecure {@link ClientHttpRequestFactory} that bypasses SSL checks
-     */
-    ClientHttpRequestFactory unsafeSsl() {
-        final SSLFactory sslFactory = SSLFactory.builder()
-                .withTrustingAllCertificatesWithoutValidation()
-                .withUnsafeHostnameVerifier()
-                .build();
-        final HttpClient jdkHttpClient = HttpClient.newBuilder()
-                .sslParameters(sslFactory.getSslParameters())
-                .sslContext(sslFactory.getSslContext())
-                .build();
-        return new JdkClientHttpRequestFactory(jdkHttpClient);
     }
 }

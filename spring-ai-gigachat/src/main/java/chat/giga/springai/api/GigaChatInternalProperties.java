@@ -1,4 +1,4 @@
-package chat.giga.springai.api.auth;
+package chat.giga.springai.api;
 
 import lombok.Data;
 
