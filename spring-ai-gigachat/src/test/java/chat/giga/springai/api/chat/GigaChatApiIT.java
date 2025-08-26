@@ -34,9 +34,9 @@ public class GigaChatApiIT {
         gigaChatApi = new GigaChatApi(oldApiProperties);
 
         GigaChatApiProperties newApiProperties = GigaChatApiProperties.builder()
-                .unsafeSsl(true)
                 .auth(GigaChatAuthProperties.builder()
                         .scope(GigaChatApiScope.valueOf(System.getenv("GIGACHAT_API_SCOPE")))
+                        .unsafeSsl(true)
                         .bearer(GigaChatAuthProperties.Bearer.builder()
                                 .clientId(System.getenv("GIGACHAT_API_CLIENT_ID"))
                                 .clientSecret(System.getenv("GIGACHAT_API_CLIENT_SECRET"))

@@ -87,8 +87,8 @@ public class GigaChatAutoConfiguration {
                 }
             } else {
                 keyManagerFactory = KeyManagerUtils.createKeyManagerFactory(PemUtils.loadIdentityMaterial(
-                        auth.getCerts().getClientCertificate().getInputStream(),
-                        auth.getCerts().getClientKey().getInputStream()));
+                        auth.getCerts().getCertificate().getInputStream(),
+                        auth.getCerts().getPrivateKey().getInputStream()));
             }
         } else if (gigaChatApiProperties.getClientKey() != null
                 && gigaChatApiProperties.getClientCertificate() != null) {
@@ -96,9 +96,9 @@ public class GigaChatAutoConfiguration {
                     gigaChatApiProperties.getClientCertificate().getInputStream(),
                     gigaChatApiProperties.getClientKey().getInputStream()));
         }
-        if (trustManagerFactory == null && auth.getCaCerts() != null) {
+        if (trustManagerFactory == null && auth.getCerts().getCaCerts() != null) {
             trustManagerFactory = TrustManagerUtils.createTrustManagerFactory(
-                    PemUtils.loadTrustMaterial(auth.getCaCerts().getInputStream()));
+                    PemUtils.loadTrustMaterial(auth.getCerts().getCaCerts().getInputStream()));
         }
         return new GigaChatApi(
                 gigaChatApiProperties,

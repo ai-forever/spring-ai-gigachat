@@ -73,7 +73,8 @@ public class GigaChatApi {
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
         if (properties.isBearer()) {
-            final GigaChatBearerAuthApi gigaChatBearerAuthApi = new GigaChatBearerAuthApi(properties);
+            final GigaChatBearerAuthApi gigaChatBearerAuthApi =
+                    new GigaChatBearerAuthApi(properties, restClientBuilder, null, tmf);
             restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
             webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
         }

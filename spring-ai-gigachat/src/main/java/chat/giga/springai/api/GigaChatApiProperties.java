@@ -25,37 +25,41 @@ public class GigaChatApiProperties {
     private GigaChatAuthProperties auth = new GigaChatAuthProperties();
 
     /**
-     * @deprecated since 1.0.5 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Bearer#url}.
+     * @deprecated since 1.0.4 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Bearer#url}.
      */
     @Deprecated
     @Builder.Default
     private String authUrl = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
     /**
-     * @deprecated since 1.0.5 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Bearer#clientId}.
+     * @deprecated since 1.0.4 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Bearer#clientId}.
      */
     @Deprecated
     private String clientId;
     /**
-     * @deprecated since 1.0.5 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Bearer#clientSecret}.
+     * @deprecated since 1.0.4 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Bearer#clientSecret}.
      */
     @Deprecated
     private String clientSecret;
     /**
-     * @deprecated since 1.0.5 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties#scope}.
+     * @deprecated since 1.0.4 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties#scope}.
      */
     @Deprecated
     private GigaChatApiScope scope;
     /**
-     * @deprecated since 1.0.5 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Certificates#clientCertificate}.
+     * @deprecated since 1.0.4 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Certificates#clientCertificate}.
      */
     @Deprecated
     private Resource clientCertificate;
     /**
-     * @deprecated since 1.0.5 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Certificates#clientKey}.
+     * @deprecated since 1.0.4 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Certificates#clientKey}.
      */
     @Deprecated
     private Resource clientKey;
 
+    /**
+     * @deprecated since 1.0.4 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties#unsafeSsl}.
+     */
+    @Deprecated
     @Builder.Default
     private boolean unsafeSsl = false;
 
@@ -89,5 +93,9 @@ public class GigaChatApiProperties {
             return auth.getScope();
         }
         return scope;
+    }
+
+    public boolean isUnsafeSsl() {
+        return unsafeSsl || auth.isUnsafeSsl();
     }
 }

@@ -17,10 +17,8 @@ public class GigaChatAuthProperties {
 
     private GigaChatApiScope scope;
 
-    /**
-     * Note: {@link Certificates#sslBundle}'s truststore has higher priority than this field.
-     */
-    private Resource caCerts;
+    @Builder.Default
+    private boolean unsafeSsl = false;
 
     @Builder.Default
     private Bearer bearer = new Bearer();
@@ -35,8 +33,7 @@ public class GigaChatAuthProperties {
 
     public boolean isCertsAuth() {
         return certs != null
-                && (certs.getSslBundle() != null
-                        || certs.getClientCertificate() != null && certs.getClientKey() != null);
+                && (certs.getSslBundle() != null || certs.getCertificate() != null && certs.getPrivateKey() != null);
     }
 
     @Data
@@ -53,7 +50,14 @@ public class GigaChatAuthProperties {
          */
         private String apiKey;
 
+        /**
+         * Note: {@link Bearer#apiKey} has higher priority than this field.
+         */
         private String clientId;
+
+        /**
+         * Note: {@link Bearer#apiKey} has higher priority than this field.
+         */
         private String clientSecret;
     }
 
@@ -64,18 +68,25 @@ public class GigaChatAuthProperties {
     public static class Certificates {
         /**
          * SSL bundle name.
-         * Note: {@link #sslBundle} has higher priority than {@link #clientKey} and {@link #clientCertificate}.
+         * Note: {@link #sslBundle} has higher priority than {@link #privateKey} and {@link #certificate}.
          *
          * @see {@link org.springframework.boot.autoconfigure.ssl.SslAutoConfiguration#sslBundleRegistry(ObjectProvider)}
          */
         private String sslBundle;
+
         /**
-         * Prefer to use {@link #sslBundle}.
+         * Note: {@link Certificates#sslBundle}'s keystore has higher priority than this field.
          */
-        private Resource clientCertificate;
+        private Resource certificate;
+
         /**
-         * Prefer to use {@link #sslBundle}.
+         * Note: {@link Certificates#sslBundle}'s keystore has higher priority than this field.
          */
-        private Resource clientKey;
+        private Resource privateKey;
+
+        /**
+         * Note: {@link Certificates#sslBundle}'s truststore has higher priority than this field.
+         */
+        private Resource caCerts;
     }
 }

@@ -17,7 +17,7 @@ spring:
           # client-id: ${GIGACHAT_API_CLIENT_ID}
           # client-secret: ${GIGACHAT_API_CLIENT_SECRET}
         scope: ${GIGACHAT_API_SCOPE}
-      unsafe-ssl: true
+        unsafe-ssl: true
       chat:
         options:
           model: GigaChat-2
