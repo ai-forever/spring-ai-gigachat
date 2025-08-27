@@ -59,9 +59,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.29.1</allure-bom.version>
         <aspectj.version>1.9.24</aspectj.version>
-        <spring-boot.version>3.5.4</spring-boot.version>
-        <spring-ai.version>1.0.0</spring-ai.version>
-        <sslcontext-kickstart>8.3.7</sslcontext-kickstart>
+        <spring-boot.version>3.5.5</spring-boot.version>
+        <spring-ai.version>1.0.1</spring-ai.version>
+        <sslcontext-kickstart>9.1.0</sslcontext-kickstart>
         <lombok.version>1.18.38</lombok.version>
         <wiremock-spring-boot.version>3.10.6</wiremock-spring-boot.version>
 

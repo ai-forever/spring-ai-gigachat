@@ -19,7 +19,6 @@ package chat.giga.springai.tool.support;
 import chat.giga.springai.tool.annotation.FewShotExample;
 import chat.giga.springai.tool.annotation.FewShotExampleList;
 import chat.giga.springai.tool.annotation.GigaTool;
-import chat.giga.springai.tool.execution.GigaToolCallResultConverter;
 import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,14 +31,12 @@ import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.execution.ToolCallResultConverter;
 import org.springframework.ai.util.JacksonUtils;
-import org.springframework.ai.util.ParsingUtils;
 import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
-import org.springframework.util.StringUtils;
 
 /**
  * Utils for supporting the work of Tool Calling API with GigaChat LLM.
@@ -56,85 +53,31 @@ public final class GigaToolUtils {
             .addModules(JacksonUtils.instantiateAvailableModules())
             .build();
 
-    public static String getToolName(Method method) {
-        Assert.notNull(method, "method cannot be null");
-        String toolName = null;
-        var tool = method.getAnnotation(Tool.class);
-        var gigaTool = method.getAnnotation(GigaTool.class);
-        if (gigaTool != null && StringUtils.hasText(gigaTool.name())) {
-            toolName = gigaTool.name();
-        } else if (tool != null && StringUtils.hasText(tool.name())) {
-            toolName = tool.name();
-        } else {
-            toolName = method.getName();
-        }
-        return toolName;
-    }
-
-    public static String getToolDescription(Method method) {
-        Assert.notNull(method, "method cannot be null");
-        String toolDescription = null;
-        var tool = method.getAnnotation(Tool.class);
-        var gigaTool = method.getAnnotation(GigaTool.class);
-        if (gigaTool != null && StringUtils.hasText(gigaTool.description())) {
-            toolDescription = gigaTool.description();
-        } else if (tool != null && StringUtils.hasText(tool.description())) {
-            toolDescription = tool.description();
-        } else {
-            toolDescription = ParsingUtils.reConcatenateCamelCase(method.getName(), " ");
-        }
-        return toolDescription;
-    }
-
-    public static boolean getToolReturnDirect(Method method) {
-        Assert.notNull(method, "method cannot be null");
-        boolean toolReturnDirect = false;
-        var tool = method.getAnnotation(Tool.class);
-        var gigaTool = method.getAnnotation(GigaTool.class);
-        if (gigaTool != null) {
-            return gigaTool.returnDirect();
-        } else {
-            return tool != null && tool.returnDirect();
-        }
-    }
-
-    public static ToolCallResultConverter getToolCallResultConverter(Method method) {
-        Assert.notNull(method, "method cannot be null");
-        var tool = method.getAnnotation(Tool.class);
-        var gigaTool = method.getAnnotation(GigaTool.class);
-        if (tool == null && gigaTool == null) {
-            return new GigaToolCallResultConverter();
-        }
-        var type = gigaTool != null ? gigaTool.resultConverter() : tool.resultConverter();
-        try {
-            return type.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to instantiate ToolCallResultConverter: " + type, e);
-        }
-    }
-
     public static chat.giga.springai.tool.definition.FewShotExample[] getFewShotExamples(Method method) {
         Assert.notNull(method, "method cannot be null");
-        var gigaTool = method.getAnnotation(GigaTool.class);
-        var tool = method.getAnnotation(Tool.class);
+        return getFewShotExampleStream(method)
+                .map(fewShotExample -> chat.giga.springai.tool.definition.FewShotExample.builder()
+                        .request(fewShotExample.request())
+                        .paramsSchema(fewShotExample.params())
+                        .build())
+                .toArray(chat.giga.springai.tool.definition.FewShotExample[]::new);
+    }
+
+    private static Stream<FewShotExample> getFewShotExampleStream(Method method) {
+        var tool = AnnotatedElementUtils.findMergedAnnotation(method, Tool.class);
+        var gigaTool = AnnotatedElementUtils.findMergedAnnotation(method, GigaTool.class);
+        if (tool == null && gigaTool == null) {
+            return Stream.empty();
+        }
         var exampleList = method.getAnnotation(FewShotExampleList.class);
         var example = method.getAnnotation(FewShotExample.class);
-        if (gigaTool == null && tool == null) {
-            return new chat.giga.springai.tool.definition.FewShotExample[0];
-        }
         Stream<FewShotExample> shotExampleStream = Stream.empty();
         if (example != null) shotExampleStream = Stream.of(example);
         if (exampleList != null && exampleList.value() != null)
             shotExampleStream = Stream.concat(shotExampleStream, Arrays.stream(exampleList.value()));
         if (gigaTool != null && gigaTool.fewShotExamples() != null)
             shotExampleStream = Stream.concat(shotExampleStream, Arrays.stream(gigaTool.fewShotExamples()));
-
-        return shotExampleStream
-                .map(fewShotExample -> chat.giga.springai.tool.definition.FewShotExample.builder()
-                        .request(fewShotExample.request())
-                        .paramsSchema(fewShotExample.params())
-                        .build())
-                .toArray(chat.giga.springai.tool.definition.FewShotExample[]::new);
+        return shotExampleStream;
     }
 
     /**
@@ -143,7 +86,7 @@ public final class GigaToolUtils {
      */
     public static String generateJsonSchemaForMethodOutput(Method method) {
         Assert.notNull(method, "method cannot be null");
-        var gigaTool = method.getAnnotation(GigaTool.class);
+        var gigaTool = AnnotatedElementUtils.findMergedAnnotation(method, GigaTool.class);
         if (gigaTool == null || !gigaTool.generateOutputSchema()) {
             return null;
         }
