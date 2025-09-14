@@ -21,8 +21,8 @@ public class StreamAnswerController {
 
     @PostMapping(value = "/stream/answer", consumes = APPLICATION_JSON_VALUE, produces = TEXT_EVENT_STREAM_VALUE)
     public Flux<String> answer(@RequestBody String question) {
-        return chatClient.prompt(question).stream().chatResponse().log().map(rs -> rs.getResult()
-                .getOutput()
-                .getText());
+        return chatClient.prompt(question).stream()
+                .chatResponse()
+                .mapNotNull(rs -> rs.getResult().getOutput().getText());
     }
 }

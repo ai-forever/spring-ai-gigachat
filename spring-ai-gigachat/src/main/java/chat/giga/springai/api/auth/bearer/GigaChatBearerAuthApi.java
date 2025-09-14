@@ -2,47 +2,51 @@ package chat.giga.springai.api.auth.bearer;
 
 import static chat.giga.springai.api.chat.GigaChatApi.USER_AGENT_SPRING_AI_GIGACHAT;
 
-import chat.giga.springai.api.auth.GigaChatApiProperties;
+import chat.giga.springai.api.GigaChatApiProperties;
+import chat.giga.springai.api.HttpClientUtils;
+import chat.giga.springai.api.auth.GigaChatApiScope;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.net.http.HttpClient;
 import java.util.List;
 import java.util.UUID;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
 @Slf4j
 public class GigaChatBearerAuthApi {
-
-    private final GigaChatApiProperties properties;
+    private final String apiKey;
+    private final GigaChatApiScope scope;
     private final RestClient restClient;
     private GigaChatBearerToken token;
 
-    public GigaChatBearerAuthApi(GigaChatApiProperties properties) {
-        this(properties, RestClient.builder());
+    public GigaChatBearerAuthApi(GigaChatApiProperties apiProperties) {
+        this(apiProperties, RestClient.builder());
     }
 
-    public GigaChatBearerAuthApi(GigaChatApiProperties properties, RestClient.Builder builder) {
-        final SSLFactory sslFactory = SSLFactory.builder()
-                .withTrustingAllCertificatesWithoutValidation()
-                .withUnsafeHostnameVerifier()
-                .build();
-        final HttpClient jdkHttpClient = HttpClient.newBuilder()
-                .sslParameters(sslFactory.getSslParameters())
-                .sslContext(sslFactory.getSslContext())
-                .build();
-        this.properties = properties;
-        this.restClient = builder.clone()
-                .baseUrl(properties.getAuthUrl())
-                .requestFactory(new JdkClientHttpRequestFactory(jdkHttpClient))
-                .defaultStatusHandler(httpStatusCode -> {
-                    log.debug("AuthApi status code:{}", httpStatusCode);
-                    return false; // Игнорируем 4xx/5xx статусы, т.к. access token все равно может быть в теле ответа
-                })
+    public GigaChatBearerAuthApi(GigaChatApiProperties apiProperties, RestClient.Builder builder) {
+        this(apiProperties, builder, null, null);
+    }
+
+    public GigaChatBearerAuthApi(
+            GigaChatApiProperties apiProperties,
+            RestClient.Builder builder,
+            @Nullable KeyManagerFactory kmf,
+            @Nullable TrustManagerFactory tmf) {
+        this.apiKey = apiProperties.getApiKey();
+        this.scope = apiProperties.getScope();
+        boolean isUnsafeSsl = apiProperties.isUnsafeSsl();
+        SSLFactory sslFactory = HttpClientUtils.buildSslFactory(kmf, tmf, isUnsafeSsl);
+        String authUrl = apiProperties.getAuthUrl();
+        this.restClient = builder.baseUrl(authUrl)
+                .requestFactory(new JdkClientHttpRequestFactory(HttpClientUtils.buildHttpClient(sslFactory)))
                 .build();
     }
 
@@ -53,10 +57,12 @@ public class GigaChatBearerAuthApi {
         GigaChatAccessTokenResponse tokenResponse = this.restClient
                 .post()
                 .headers(this::getAuthHeaders)
-                .body("scope=" + properties.getScope())
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .accept(MediaType.APPLICATION_JSON)
+                .body("scope=" + this.scope)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, ((request, response) -> {
+                    log.debug("Auth token request failed with status code: {}", response.getStatusCode());
+                    // Игнорируем 4xx/5xx статусы, т.к. access token все равно может быть в теле ответа
+                }))
                 .body(GigaChatAccessTokenResponse.class);
         Assert.notNull(tokenResponse, "Failed to get access token, response is null");
         final String token = tokenResponse.accessToken();
@@ -70,7 +76,7 @@ public class GigaChatBearerAuthApi {
     private void getAuthHeaders(HttpHeaders headers) {
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.setBasicAuth(properties.getClientId(), properties.getClientSecret());
+        headers.setBasicAuth(this.apiKey);
         headers.set("RqUID", UUID.randomUUID().toString());
         headers.set(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT);
     }

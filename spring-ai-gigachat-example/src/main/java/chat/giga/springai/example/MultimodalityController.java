@@ -3,8 +3,12 @@ package chat.giga.springai.example;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 import chat.giga.springai.GigaChatOptions;
+import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.support.GigaChatResponseUtils;
+import java.util.List;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.content.Media;
 import org.springframework.http.MediaType;
 import org.springframework.util.MimeType;
@@ -16,8 +20,10 @@ import org.springframework.web.multipart.MultipartFile;
 public class MultimodalityController {
 
     private final ChatClient chatClient;
+    private final GigaChatApi gigaChatApi;
 
-    public MultimodalityController(ChatClient.Builder chatClientBuilder) {
+    public MultimodalityController(ChatClient.Builder chatClientBuilder, GigaChatApi gigaChatApi) {
+        this.gigaChatApi = gigaChatApi;
         this.chatClient = chatClientBuilder
                 .defaultAdvisors(new SimpleLoggerAdvisor())
                 .defaultOptions(
@@ -28,12 +34,17 @@ public class MultimodalityController {
     @PostMapping(value = "/multimodality/chat", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public String chatWithMultimodality(
             @RequestParam String userMessage, @RequestParam("file") MultipartFile multipartFile) {
-        return chatClient
+        ChatResponse chatResponse = chatClient
                 .prompt()
                 .user(u -> u.text(userMessage)
                         .media(new Media(
                                 MimeType.valueOf(multipartFile.getContentType()), multipartFile.getResource())))
                 .call()
-                .content();
+                .chatResponse();
+
+        List<String> uploadedMediaIds = GigaChatResponseUtils.getUploadedMediaIds(chatResponse);
+        uploadedMediaIds.forEach(gigaChatApi::deleteFile);
+
+        return chatResponse.getResult().getOutput().getText();
     }
 }

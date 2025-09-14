@@ -13,7 +13,7 @@
 ## Требования
 
 * Java 17+
-* Spring Boot 3.4.x
+* Spring Boot 3.4/3.5
 
 ## Быстрый старт
 
@@ -34,7 +34,7 @@
 <dependency>
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-starter-model-gigachat</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.3</version>
 </dependency>
 ```
 
@@ -44,10 +44,11 @@
 spring:
   ai:
     gigachat:
-      scope: GIGACHAT_API_PERS             # доступны также GIGACHAT_API_B2B, GIGACHAT_API_CORP
-      client-id: <ваш_client_id>           # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
-      client-secret: <ваш_client_secret>   # Ваш Client Secret
-      unsafe-ssl: true                     # отключает проверку не рекомендуется использовать в production
+      auth:
+        bearer:
+           api-key: ${GIGACHAT_API_KEY}    # Ваш Authorization Key, полученный в личном кабинете GigaChat
+        scope: GIGACHAT_API_PERS           # доступны также GIGACHAT_API_B2B, GIGACHAT_API_CORP
+        unsafe-ssl: true                   # отключает проверку серверных сертификатов, не рекомендуется использовать в production!
 ```
 
 3) Создайте Main-класс:
@@ -98,6 +99,23 @@ spring:
 
 ## Способы авторизации
 
+### По Authorization Key (apiKey)
+
+Пример application.yml для авторизации по Authorization Key:
+
+```yaml
+spring:
+  ai:
+    gigachat:
+      auth:
+        bearer:
+          api-key: <ваш_authorization_key>     # Ваш Authorization Key, можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
+        scope: GIGACHAT_API_PERS               # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
+```
+
+Также необходимо [настроить доверие сертифкатам НУЦ Минцифры](#настройка-доверия-сертификатам-нуц-минцифры)
+или отключить проверку серверных сертификатов (не рекомендуется!).
+
 ### По Client ID + Client Secret
 
 Пример application.yml для авторизации по Client ID и Client Secret:
@@ -106,22 +124,66 @@ spring:
 spring:
   ai:
     gigachat:
-      scope: GIGACHAT_API_PERS
-      client-id: <ваш_client_id>             # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
-      client-secret: <ваш_client_secret>     # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
+      auth:
+        bearer:
+          client-id: <ваш_client_id>             # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
+          client-secret: <ваш_client_secret>     # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
+        scope: GIGACHAT_API_PERS
 ```
+
+Также необходимо [настроить доверие сертифкатам НУЦ Минцифры](#настройка-доверия-сертификатам-нуц-минцифры)
+или отключить проверку серверных сертификатов (не рекомендуется!).
 
 ### С помощью TLS-сертификатов
 
-Пример application.yml для подключения к GigaChat :
+Пример application.yml для подключения к GigaChat с помощью TLS-сертификатов:
 
 ```yaml
 spring:
   ai:
     gigachat:
-      scope: GIGACHAT_API_PERS
-      client-key: file:/path/to/tls.key         # Путь до вашего сертификата. Если у вас терминация TLS настроена на Egress-gateway, то можно пропустить этот параметр
-      client-certificate: file:/path/to/tls.crt # Путь до вашего сертификата. Если у вас терминация TLS настроена на Egress-gateway, то можно пропустить этот параметр
+      auth:
+        certs:
+          certificate: file:/path/to/tls.crt     # Путь до вашего сертификата. Если у вас терминация TLS настроена на Egress-gateway, то можно пропустить этот параметр
+          private-key: file:/path/to/tls.key     # Путь до вашего сертификата. Если у вас терминация TLS настроена на Egress-gateway, то можно пропустить этот параметр
+          ca-certs: file:/path/to/ca.crt         # Путь до ваших доверенных сертификатов. Если у вас терминация TLS настроена на Egress-gateway, то можно пропустить этот параметр
+        scope: GIGACHAT_API_PERS
+```
+
+Пример application.yml для подключения к GigaChat с помощью TLS-сертификатов,
+объявленных через [Spring Boot SSL Bundles](https://docs.spring.io/spring-boot/reference/features/ssl.html):
+
+```yaml
+spring:
+  ai:
+    gigachat:
+      auth:
+        certs:
+          ssl-bundle: "gigachat-ssl-bundle"      # Название вашего ssl-bundle
+        scope: GIGACHAT_API_PERS
+  ssl:
+    bundle:
+      gigachat-ssl-bundle:
+        keystore:
+          private-key: file:/path/to/tls.key     # Путь до вашего сертификата
+          certificate: file:/path/to/tls.crt     # Путь до вашего сертификата
+        truststore:
+          certificates: file:/path/to/ca.crt     # Путь до ваших доверенных сертификатов
+```
+
+### Настройка доверия сертификатам НУЦ Минцифры
+
+Для настройки доверия сертификатам НУЦ Минцифры, необходимо:
+1) Скачать сертификат https://gu-st.ru/content/Other/doc/russian_trusted_root_ca.cer
+2) Указать путь до сертификата `application.yml`:
+
+```yaml
+spring:
+  ai:
+    gigachat:
+      auth:
+        certs:
+          ca-certs: file:/path/to/russian_trusted_root_ca.cer
 ```
 
 ## Примеры

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="Base ruleset" xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 http://pmd.sourceforge.net/ruleset_2_0_0.xsd">
+
+    <description>General Java quality rules</description>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_bestpractices.html -->
+    <rule ref="category/java/bestpractices.xml">
+        <exclude name="AccessorMethodGeneration"/>
+        <exclude name="LooseCoupling"/>
+        <exclude name="GuardLogStatement"/>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_codestyle.html -->
+    <rule ref="category/java/codestyle.xml">
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="CommentDefaultAccessModifier"/>
+        <exclude name="LocalHomeNamingConvention"/>
+        <exclude name="LocalInterfaceSessionNamingConvention"/>
+        <exclude name="MDBAndSessionBeanNamingConvention"/>
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="RemoteInterfaceNamingConvention"/>
+        <exclude name="RemoteSessionInterfaceNamingConvention"/>
+        <exclude name="LongVariable"/>
+        <exclude name="ShortVariable"/>
+        <exclude name="UnnecessaryAnnotationValueElement"/>
+        <exclude name="UseExplicitTypes"/>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_codestyle.html#linguisticnaming -->
+    <rule ref="category/java/codestyle.xml/LinguisticNaming">
+        <properties>
+            <property name="checkSetters" value="false"/>
+        </properties>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_design.html -->
+    <rule ref="category/java/design.xml">
+        <exclude name="LoosePackageCoupling"/>
+        <exclude name="LawOfDemeter"/>
+        <exclude name="AvoidCatchingGenericException"/>
+        <exclude name="DataClass"/>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_documentation.html -->
+    <rule ref="category/java/documentation.xml">
+        <exclude name="CommentSize"/>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_errorprone.html -->
+    <rule ref="category/java/errorprone.xml">
+        <exclude name="AvoidAccessibilityAlteration"/>
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+        <exclude name="JUnitSpelling"/>
+        <exclude name="JUnitStaticSuite"/>
+        <exclude name="MissingSerialVersionUID"/>
+        <exclude name="NullAssignment"/> <!-- disabled due to false positive for initialization with ternary operator -->
+        <exclude name="StaticEJBFieldShouldBeFinal"/>
+        <exclude name="UseProperClassLoader"/>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_errorprone.html#avoidduplicateliterals -->
+    <rule ref="category/java/errorprone.xml/AvoidDuplicateLiterals">
+        <properties>
+            <property name="skipAnnotations" value="true"/>
+        </properties>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_errorprone.html#closeresource -->
+    <rule ref="category/java/errorprone.xml/CloseResource">
+        <properties>
+            <property name="types" value="java.sql.Connection,java.sql.Statement,java.sql.ResultSet"/>
+        </properties>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_multithreading.html -->
+    <rule ref="category/java/multithreading.xml">
+        <exclude name="DoNotUseThreads"/>
+        <exclude name="UseConcurrentHashMap"/>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_performance.html -->
+    <rule ref="category/java/performance.xml">
+        <exclude name="AvoidInstantiatingObjectsInLoops"/>
+    </rule>
+
+    <!-- https://pmd.github.io/pmd/pmd_rules_java_security.html -->
+    <rule ref="category/java/security.xml"/>
+</ruleset>

@@ -162,7 +162,7 @@ public class WeatherToolController {
                 .toolCallbacks(GigaTools.from(new WeatherTools()))
                 .call()
                 .chatResponse();
-        List<Message> toolResponseMessages = GigaChatResponseUtils.getConversationHistory(chatResponse).stream()
+        List<Message> toolResponseMessages = GigaChatResponseUtils.getInternalMessages(chatResponse).stream()
                 .filter(msg -> MessageType.TOOL.equals(msg.getMessageType()))
                 .toList();
         log.info("Было вызвано {} функций", toolResponseMessages.size());

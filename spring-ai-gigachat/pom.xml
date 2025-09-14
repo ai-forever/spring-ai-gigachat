@@ -7,7 +7,7 @@
     <parent>
         <groupId>chat.giga</groupId>
         <artifactId>spring-ai-gigachat-parent</artifactId>
-        <version>1.0.0</version>
+        <version>1.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>spring-ai-gigachat</artifactId>
@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>io.github.hakky54</groupId>
-            <artifactId>sslcontext-kickstart-for-pem</artifactId>
+            <artifactId>ayza-for-pem</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
@@ -40,7 +40,6 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.32</version>
             <scope>provided</scope>
         </dependency>
 
@@ -53,6 +52,11 @@
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock.integrations</groupId>
+            <artifactId>wiremock-spring-boot</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -21,4 +21,4 @@ jobs:
           distribution: 'temurin'
 
       - name: Build with Maven (unit tests only)
-        run: mvn clean test --no-transfer-progress
+        run: mvn clean verify --no-transfer-progress

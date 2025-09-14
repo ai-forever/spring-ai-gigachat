@@ -21,10 +21,10 @@ public class MultimodalityIT {
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
             .withPropertyValues(
-                    "spring.ai.gigachat.scope=" + System.getenv("GIGACHAT_API_SCOPE"),
-                    "spring.ai.gigachat.client-id=" + System.getenv("GIGACHAT_API_CLIENT_ID"),
-                    "spring.ai.gigachat.client-secret=" + System.getenv("GIGACHAT_API_CLIENT_SECRET"),
-                    "spring.ai.gigachat.unsafe-ssl=true",
+                    "spring.ai.gigachat.auth.scope=" + System.getenv("GIGACHAT_API_SCOPE"),
+                    "spring.ai.gigachat.auth.bearer.client-id=" + System.getenv("GIGACHAT_API_CLIENT_ID"),
+                    "spring.ai.gigachat.auth.bearer.client-secret=" + System.getenv("GIGACHAT_API_CLIENT_SECRET"),
+                    "spring.ai.gigachat.auth.unsafe-ssl=true",
                     "spring.ai.gigachat.chat.options.model=GigaChat-2-Max");
 
     @Test

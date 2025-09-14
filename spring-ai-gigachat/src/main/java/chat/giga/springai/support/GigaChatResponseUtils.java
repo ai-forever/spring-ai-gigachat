@@ -15,11 +15,19 @@ import org.springframework.ai.chat.model.ChatResponse;
 @UtilityClass
 @Slf4j
 public class GigaChatResponseUtils {
-    public static List<Message> getConversationHistory(ChatResponse chatResponse) {
+    public static List<Message> getInternalMessages(ChatResponse chatResponse) {
+        return getFromMetadata(chatResponse, GigaChatModel.INTERNAL_CONVERSATION_HISTORY, List.of());
+    }
+
+    public static List<String> getUploadedMediaIds(ChatResponse chatResponse) {
+        return getFromMetadata(chatResponse, GigaChatModel.UPLOADED_MEDIA_IDS, List.of());
+    }
+
+    private static <T> T getFromMetadata(ChatResponse chatResponse, String key, T defaultValue) {
         if (chatResponse != null && chatResponse.getMetadata() != null) {
-            List<Message> messages = chatResponse.getMetadata().get(GigaChatModel.CONVERSATION_HISTORY);
-            return messages == null ? List.of() : messages;
+            T data = chatResponse.getMetadata().get(key);
+            return data == null ? defaultValue : data;
         }
-        return List.of();
+        return defaultValue;
     }
 }

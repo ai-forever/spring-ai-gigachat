@@ -6,7 +6,7 @@
 
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Spring AI model - GigaChat - Parent</name>
@@ -46,6 +46,11 @@
             <email>abzaltdinov@gmail.com</email>
             <url>https://github.com/linarkou</url>
         </developer>
+        <developer>
+            <name>Artem Simeshin</name>
+            <email>sadnovember2@gmail.com</email>
+            <url>https://github.com/a-simeshin</url>
+        </developer>
     </developers>
 
     <properties>
@@ -54,10 +59,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.29.1</allure-bom.version>
         <aspectj.version>1.9.24</aspectj.version>
-        <spring-boot.version>3.4.5</spring-boot.version>
+        <spring-boot.version>3.5.5</spring-boot.version>
         <spring-ai.version>1.1.0-M1</spring-ai.version>
-        <sslcontext-kickstart>8.3.7</sslcontext-kickstart>
+        <ayza.version>10.0.0</ayza.version>
         <lombok.version>1.18.38</lombok.version>
+        <wiremock-spring-boot.version>3.10.6</wiremock-spring-boot.version>
 
         <maven.deploy.plugin.version>3.1.4</maven.deploy.plugin.version>
     </properties>
@@ -102,8 +108,14 @@
             </dependency>
             <dependency>
                 <groupId>io.github.hakky54</groupId>
-                <artifactId>sslcontext-kickstart-for-pem</artifactId>
-                <version>${sslcontext-kickstart}</version>
+                <artifactId>ayza-for-pem</artifactId>
+                <version>${ayza.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.wiremock.integrations</groupId>
+                <artifactId>wiremock-spring-boot</artifactId>
+                <version>${wiremock-spring-boot.version}</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -266,6 +278,27 @@
                         <phase>verify</phase>
                         <goals>
                             <goal>audit-aggregate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>3.26.0</version>
+                <configuration>
+                    <failOnViolation>false</failOnViolation>
+                    <rulesets>
+                        <ruleset>${project.parent.basedir}/configs/pmd-ruleset.xml</ruleset>
+                    </rulesets>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>pmd</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
                         </goals>
                     </execution>
                 </executions>

@@ -1,10 +1,12 @@
 package chat.giga.springai.api.chat;
 
-import chat.giga.springai.api.auth.GigaChatApiProperties;
+import static chat.giga.springai.api.HttpClientUtils.buildHttpClient;
+import static chat.giga.springai.api.HttpClientUtils.buildSslFactory;
+
+import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.auth.bearer.GigaChatBearerAuthApi;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenFilter;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenInterceptor;
-import chat.giga.springai.api.auth.certificates.HttpClientUtils;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.embedding.EmbeddingsRequest;
@@ -15,6 +17,8 @@ import chat.giga.springai.api.chat.models.ModelsResponse;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.content.Media;
@@ -47,29 +51,45 @@ public class GigaChatApi {
     private final WebClient webClient;
 
     public GigaChatApi(GigaChatApiProperties properties) {
-        this(properties, RestClient.builder(), WebClient.builder(), RetryUtils.DEFAULT_RESPONSE_ERROR_HANDLER);
+        this(properties, null, null);
+    }
+
+    public GigaChatApi(
+            GigaChatApiProperties properties, @Nullable KeyManagerFactory kmf, @Nullable TrustManagerFactory tmf) {
+        this(
+                properties,
+                RestClient.builder(),
+                WebClient.builder(),
+                RetryUtils.DEFAULT_RESPONSE_ERROR_HANDLER,
+                kmf,
+                tmf);
     }
 
     public GigaChatApi(
             GigaChatApiProperties properties,
             RestClient.Builder restClientBuilder,
             WebClient.Builder webClientBuilder,
-            ResponseErrorHandler responseErrorHandler) {
+            ResponseErrorHandler responseErrorHandler,
+            @Nullable KeyManagerFactory kmf,
+            @Nullable TrustManagerFactory tmf) {
         if (properties.isBearer()) {
-            final GigaChatBearerAuthApi gigaChatBearerAuthApi = new GigaChatBearerAuthApi(properties);
+            final GigaChatBearerAuthApi gigaChatBearerAuthApi =
+                    new GigaChatBearerAuthApi(properties, restClientBuilder, null, tmf);
             restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
             webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
         }
         this.restClient = restClientBuilder
                 .clone()
-                .requestFactory(new JdkClientHttpRequestFactory(HttpClientUtils.build(properties)))
+                .requestFactory(new JdkClientHttpRequestFactory(
+                        buildHttpClient(buildSslFactory(kmf, tmf, properties.isUnsafeSsl()))))
                 .requestInterceptor(new GigachatLoggingInterceptor())
                 .defaultStatusHandler(responseErrorHandler)
                 .baseUrl(properties.getBaseUrl())
                 .build();
         this.webClient = webClientBuilder
                 .clone()
-                .clientConnector(new JdkClientHttpConnector(HttpClientUtils.build(properties)))
+                .clientConnector(new JdkClientHttpConnector(
+                        buildHttpClient(buildSslFactory(kmf, tmf, properties.isUnsafeSsl()))))
                 .baseUrl(properties.getBaseUrl())
                 .build();
     }

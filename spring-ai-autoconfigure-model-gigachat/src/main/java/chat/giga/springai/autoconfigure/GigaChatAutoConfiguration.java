@@ -2,10 +2,18 @@ package chat.giga.springai.autoconfigure;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
 import chat.giga.springai.GigaChatModel;
-import chat.giga.springai.api.auth.GigaChatApiProperties;
-import chat.giga.springai.api.auth.GigaChatInternalProperties;
+import chat.giga.springai.api.GigaChatApiProperties;
+import chat.giga.springai.api.GigaChatInternalProperties;
+import chat.giga.springai.api.auth.GigaChatAuthProperties;
 import chat.giga.springai.api.chat.GigaChatApi;
 import io.micrometer.observation.ObservationRegistry;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManagerFactory;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import nl.altindag.ssl.pem.util.PemUtils;
+import nl.altindag.ssl.util.KeyManagerUtils;
+import nl.altindag.ssl.util.TrustManagerUtils;
 import org.springframework.ai.chat.observation.ChatModelObservationConvention;
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationConvention;
 import org.springframework.ai.model.SpringAIModelProperties;
@@ -25,6 +33,8 @@ import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfigura
 import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientAutoConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.ssl.SslBundle;
+import org.springframework.boot.ssl.SslBundles;
 import org.springframework.context.annotation.Bean;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.web.client.ResponseErrorHandler;
@@ -34,6 +44,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 @AutoConfiguration(
         after = {
             RestClientAutoConfiguration.class,
+            WebClientAutoConfiguration.class,
             SpringAiRetryAutoConfiguration.class,
             ChatObservationAutoConfiguration.class,
             ToolCallingAutoConfiguration.class
@@ -48,20 +59,54 @@ import org.springframework.web.reactive.function.client.WebClient;
             WebClientAutoConfiguration.class,
             ToolCallingAutoConfiguration.class
         })
+@Slf4j
 public class GigaChatAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @SneakyThrows
     public GigaChatApi gigaChatApi(
             GigaChatApiProperties gigaChatApiProperties,
             ObjectProvider<RestClient.Builder> restClientBuilderProvider,
             ObjectProvider<WebClient.Builder> webClientBuilderProvider,
-            ResponseErrorHandler responseErrorHandler) {
+            ResponseErrorHandler responseErrorHandler,
+            ObjectProvider<SslBundles> sslBundlesProvider) {
+        KeyManagerFactory keyManagerFactory = null;
+        TrustManagerFactory trustManagerFactory = null;
+        GigaChatAuthProperties auth = gigaChatApiProperties.getAuth();
+        if (auth.isCertsAuth()) {
+            SslBundles sslBundles = sslBundlesProvider.getIfUnique();
+            String sslBundleName = auth.getCerts().getSslBundle();
+            if (sslBundleName != null) {
+                if (sslBundles != null) {
+                    SslBundle sslBundle = sslBundles.getBundle(sslBundleName);
+                    keyManagerFactory = sslBundle.getManagers().getKeyManagerFactory();
+                    trustManagerFactory = sslBundle.getManagers().getTrustManagerFactory();
+                } else {
+                    log.warn("SslBundles bean was not found");
+                }
+            } else {
+                keyManagerFactory = KeyManagerUtils.createKeyManagerFactory(PemUtils.loadIdentityMaterial(
+                        auth.getCerts().getCertificate().getInputStream(),
+                        auth.getCerts().getPrivateKey().getInputStream()));
+            }
+        } else if (gigaChatApiProperties.getClientKey() != null
+                && gigaChatApiProperties.getClientCertificate() != null) {
+            keyManagerFactory = KeyManagerUtils.createKeyManagerFactory(PemUtils.loadIdentityMaterial(
+                    gigaChatApiProperties.getClientCertificate().getInputStream(),
+                    gigaChatApiProperties.getClientKey().getInputStream()));
+        }
+        if (trustManagerFactory == null && auth.getCerts().getCaCerts() != null) {
+            trustManagerFactory = TrustManagerUtils.createTrustManagerFactory(
+                    PemUtils.loadTrustMaterial(auth.getCerts().getCaCerts().getInputStream()));
+        }
         return new GigaChatApi(
                 gigaChatApiProperties,
                 restClientBuilderProvider.getIfAvailable(RestClient::builder),
                 webClientBuilderProvider.getIfAvailable(WebClient::builder),
-                responseErrorHandler);
+                responseErrorHandler,
+                keyManagerFactory,
+                trustManagerFactory);
     }
 
     @Bean
@@ -110,9 +155,17 @@ public class GigaChatAutoConfiguration {
     }
 
     @Bean
+    @ConfigurationProperties(prefix = GigaChatAuthProperties.CONFIG_PREFIX)
+    public GigaChatAuthProperties gigaChatAuthProperties() {
+        return new GigaChatAuthProperties();
+    }
+
+    @Bean
     @ConfigurationProperties(prefix = GigaChatApiProperties.CONFIG_PREFIX)
-    public GigaChatApiProperties gigaChatApiProperties() {
-        return new GigaChatApiProperties();
+    public GigaChatApiProperties gigaChatApiProperties(GigaChatAuthProperties gigaChatAuthProperties) {
+        GigaChatApiProperties gigaChatApiProperties = new GigaChatApiProperties();
+        gigaChatApiProperties.setAuth(gigaChatAuthProperties);
+        return gigaChatApiProperties;
     }
 
     @Bean

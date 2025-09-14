@@ -1,7 +1,9 @@
 spring:
   ai:
     gigachat:
-      scope: ${GIGACHAT_API_SCOPE}
-      client-id: ${GIGACHAT_API_CLIENT_ID}
-      client-secret: ${GIGACHAT_API_CLIENT_SECRET}
-      unsafe-ssl: true
+      auth:
+        bearer:
+          client-id: ${GIGACHAT_API_CLIENT_ID}
+          client-secret: ${GIGACHAT_API_CLIENT_SECRET}
+        scope: ${GIGACHAT_API_SCOPE}
+        unsafe-ssl: true
