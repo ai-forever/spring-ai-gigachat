@@ -78,18 +78,28 @@ public class GigaChatApi {
             restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
             webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
         }
+
+        var internalProps = properties.getInternal();
+
+        var clientHttpRequestFactory = new JdkClientHttpRequestFactory(buildHttpClient(
+                buildSslFactory(kmf, tmf, properties.isUnsafeSsl()), internalProps.getConnectTimeout()));
+        clientHttpRequestFactory.setReadTimeout(internalProps.getReadTimeout());
         this.restClient = restClientBuilder
                 .clone()
-                .requestFactory(new JdkClientHttpRequestFactory(
-                        buildHttpClient(buildSslFactory(kmf, tmf, properties.isUnsafeSsl()))))
+                .requestFactory(clientHttpRequestFactory)
                 .requestInterceptor(new GigachatLoggingInterceptor())
                 .defaultStatusHandler(responseErrorHandler)
                 .baseUrl(properties.getBaseUrl())
                 .build();
+
+        var clientHttpConnector = new JdkClientHttpConnector(buildHttpClient(
+                buildSslFactory(kmf, tmf, properties.isUnsafeSsl()), internalProps.getConnectTimeout()));
+        if (internalProps.getReadTimeout() != null) {
+            clientHttpConnector.setReadTimeout(internalProps.getReadTimeout());
+        }
         this.webClient = webClientBuilder
                 .clone()
-                .clientConnector(new JdkClientHttpConnector(
-                        buildHttpClient(buildSslFactory(kmf, tmf, properties.isUnsafeSsl()))))
+                .clientConnector(clientHttpConnector)
                 .baseUrl(properties.getBaseUrl())
                 .build();
     }

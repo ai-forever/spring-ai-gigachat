@@ -24,6 +24,9 @@ public class GigaChatApiProperties {
     @Builder.Default
     private GigaChatAuthProperties auth = new GigaChatAuthProperties();
 
+    @Builder.Default
+    private GigaChatInternalProperties internal = new GigaChatInternalProperties();
+
     /**
      * @deprecated since 1.0.4 for removal in 1.1.0 in favor of {@link GigaChatAuthProperties.Bearer#url}.
      */

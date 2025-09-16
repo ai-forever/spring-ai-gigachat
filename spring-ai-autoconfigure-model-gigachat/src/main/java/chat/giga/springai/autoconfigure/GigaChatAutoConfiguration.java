@@ -161,16 +161,18 @@ public class GigaChatAutoConfiguration {
     }
 
     @Bean
-    @ConfigurationProperties(prefix = GigaChatApiProperties.CONFIG_PREFIX)
-    public GigaChatApiProperties gigaChatApiProperties(GigaChatAuthProperties gigaChatAuthProperties) {
-        GigaChatApiProperties gigaChatApiProperties = new GigaChatApiProperties();
-        gigaChatApiProperties.setAuth(gigaChatAuthProperties);
-        return gigaChatApiProperties;
-    }
-
-    @Bean
     @ConfigurationProperties(prefix = GigaChatInternalProperties.CONFIG_PREFIX)
     public GigaChatInternalProperties gigaChatInternalProperties() {
         return new GigaChatInternalProperties();
+    }
+
+    @Bean
+    @ConfigurationProperties(prefix = GigaChatApiProperties.CONFIG_PREFIX)
+    public GigaChatApiProperties gigaChatApiProperties(
+            GigaChatAuthProperties gigaChatAuthProperties, GigaChatInternalProperties gigaChatInternalProperties) {
+        GigaChatApiProperties gigaChatApiProperties = new GigaChatApiProperties();
+        gigaChatApiProperties.setAuth(gigaChatAuthProperties);
+        gigaChatApiProperties.setInternal(gigaChatInternalProperties);
+        return gigaChatApiProperties;
     }
 }

@@ -1,6 +1,7 @@
 package chat.giga.springai.api;
 
 import java.net.http.HttpClient;
+import java.time.Duration;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.SneakyThrows;
@@ -8,15 +9,21 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
 import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 
 @UtilityClass
 @Slf4j
 public class HttpClientUtils {
 
-    public static HttpClient buildHttpClient(SSLFactory sslFactory) {
+    public static HttpClient buildHttpClient(SSLFactory sslFactory, Duration connectTimeout) {
+        Assert.notNull(sslFactory, "sslFactory must not be null");
+        if (connectTimeout != null && connectTimeout.isNegative()) {
+            throw new IllegalArgumentException("connectTimeout must be positive");
+        }
         return HttpClient.newBuilder()
                 .sslParameters(sslFactory.getSslParameters())
                 .sslContext(sslFactory.getSslContext())
+                .connectTimeout(connectTimeout)
                 .build();
     }
 
