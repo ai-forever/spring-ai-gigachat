@@ -17,9 +17,9 @@ public class HttpClientUtils {
 
     public static HttpClient buildHttpClient(SSLFactory sslFactory, Duration connectTimeout) {
         Assert.notNull(sslFactory, "sslFactory must not be null");
-        if (connectTimeout != null && connectTimeout.isNegative()) {
-            throw new IllegalArgumentException("connectTimeout must be positive");
-        }
+        Assert.notNull(connectTimeout, "connectTimeout must not be null");
+        Assert.state(connectTimeout.getSeconds() > 0, "connectTimeout must be positive");
+
         return HttpClient.newBuilder()
                 .sslParameters(sslFactory.getSslParameters())
                 .sslContext(sslFactory.getSslContext())

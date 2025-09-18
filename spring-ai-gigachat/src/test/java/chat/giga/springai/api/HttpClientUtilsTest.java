@@ -50,15 +50,19 @@ class HttpClientUtilsTest {
     }
 
     @Test
+    void testBuildHttpClientWithNullConnectTimeout() {
+        assertThrows(IllegalArgumentException.class, () -> HttpClientUtils.buildHttpClient(sslFactoryMock, null));
+    }
+
+    @Test
     void testBuildHttpClientWithZeroConnectTimeout() {
-        assertThrows(
-                IllegalArgumentException.class, () -> HttpClientUtils.buildHttpClient(sslFactoryMock, Duration.ZERO));
+        assertThrows(IllegalStateException.class, () -> HttpClientUtils.buildHttpClient(sslFactoryMock, Duration.ZERO));
     }
 
     @Test
     void testBuildHttpClientWithNegativeConnectTimeout() {
         assertThrows(
-                IllegalArgumentException.class,
+                IllegalStateException.class,
                 () -> HttpClientUtils.buildHttpClient(sslFactoryMock, Duration.ofSeconds(-1)));
     }
 
