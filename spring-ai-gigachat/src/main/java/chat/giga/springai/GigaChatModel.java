@@ -13,6 +13,7 @@ import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
 import java.util.*;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.*;
@@ -40,6 +41,7 @@ import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 public class GigaChatModel implements ChatModel {
@@ -64,6 +66,7 @@ public class GigaChatModel implements ChatModel {
     /**
      * The retry template used to retry the GigaChat API calls.
      */
+    @Getter
     private final RetryTemplate retryTemplate;
 
     /**
@@ -157,18 +160,20 @@ public class GigaChatModel implements ChatModel {
                 });
 
         if (this.toolExecutionEligibilityPredicate.isToolExecutionRequired(prompt.getOptions(), response)) {
-            var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
-            if (toolExecutionResult.returnDirect()) {
-                // Return tool execution result directly to the client.
-                return ChatResponse.builder()
-                        .from(response)
-                        .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
-                        .build();
-            } else {
-                // Send the tool execution result back to the model.
+            return this.retryTemplate.execute(ctx -> {
+                var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, response);
+
+                if (toolExecutionResult.returnDirect()) {
+                    // Return tool execution result directly to the client.
+                    return ChatResponse.builder()
+                            .from(response)
+                            .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
+                            .build();
+                }
+                // Send the tool execution result back to the model (тоже под ретраями внешнего execute)
                 return this.internalCall(
                         new Prompt(toolExecutionResult.conversationHistory(), prompt.getOptions()), response);
-            }
+            });
         }
 
         return buildChatResponseWithCustomMetadata(prompt, response);
@@ -212,27 +217,29 @@ public class GigaChatModel implements ChatModel {
                             log.warn("No chat completion returned for prompt: {}", prompt);
                             return Flux.just(new ChatResponse(List.of()));
                         }
-                        Usage currentChatResponseUsage = buildUsage(completionResponse.getUsage());
-                        Usage accumulatedUsage =
+                        final Usage currentChatResponseUsage = buildUsage(completionResponse.getUsage());
+                        final Usage accumulatedUsage =
                                 UsageCalculator.getCumulativeUsage(currentChatResponseUsage, previousChatResponse);
-
-                        ChatResponse chatResponse = toChatResponse(completionResponse, accumulatedUsage, true);
+                        final ChatResponse chatResponse = toChatResponse(completionResponse, accumulatedUsage, true);
 
                         if (this.toolExecutionEligibilityPredicate.isToolExecutionRequired(
                                 prompt.getOptions(), chatResponse)) {
-                            var toolExecutionResult = this.toolCallingManager.executeToolCalls(prompt, chatResponse);
-                            if (toolExecutionResult.returnDirect()) {
-                                // Return tool execution result directly to the client.
-                                return Flux.just(ChatResponse.builder()
-                                        .from(chatResponse)
-                                        .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
-                                        .build());
-                            } else {
-                                // Send the tool execution result back to the model.
-                                return this.internalStream(
-                                        new Prompt(toolExecutionResult.conversationHistory(), prompt.getOptions()),
-                                        chatResponse);
-                            }
+                            return Mono.fromCallable(() -> this.retryTemplate.execute(
+                                            ctx -> this.toolCallingManager.executeToolCalls(prompt, chatResponse)))
+                                    .flatMapMany(toolExecutionResult -> {
+                                        if (toolExecutionResult.returnDirect()) {
+                                            // Return tool execution result directly to the client.
+                                            return Flux.just(ChatResponse.builder()
+                                                    .from(chatResponse)
+                                                    .generations(
+                                                            ToolExecutionResult.buildGenerations(toolExecutionResult))
+                                                    .build());
+                                        }
+                                        return Mono.fromCallable(() -> this.retryTemplate.execute(ctx -> new Prompt(
+                                                        toolExecutionResult.conversationHistory(),
+                                                        prompt.getOptions())))
+                                                .flatMapMany(p -> this.internalStream(p, chatResponse));
+                                    });
                         }
 
                         return Flux.just(buildChatResponseWithCustomMetadata(prompt, chatResponse));
@@ -367,6 +374,7 @@ public class GigaChatModel implements ChatModel {
 
     /**
      * Загружает медиа файлы, если они переданы в UserMessage, и проставляет к ним id.
+     *
      * @param messages - исходные сообщения
      * @return - обновленные сообщения с проставленными id для media
      */
