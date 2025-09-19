@@ -60,7 +60,7 @@
         <allure-bom.version>2.29.1</allure-bom.version>
         <aspectj.version>1.9.24</aspectj.version>
         <spring-boot.version>3.5.5</spring-boot.version>
-        <spring-ai.version>1.0.1</spring-ai.version>
+        <spring-ai.version>1.0.2</spring-ai.version>
         <ayza.version>10.0.0</ayza.version>
         <lombok.version>1.18.38</lombok.version>
         <wiremock-spring-boot.version>3.10.6</wiremock-spring-boot.version>
