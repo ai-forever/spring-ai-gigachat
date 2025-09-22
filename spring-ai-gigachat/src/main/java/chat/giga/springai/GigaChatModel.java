@@ -161,6 +161,7 @@ public class GigaChatModel implements ChatModel {
             if (toolExecutionResult.returnDirect()) {
                 // Return tool execution result directly to the client.
                 return ChatResponse.builder()
+                        .metadata("textContent", response.getResults().getFirst().getOutput().getText())
                         .from(response)
                         .generations(ToolExecutionResult.buildGenerations(toolExecutionResult))
                         .build();
