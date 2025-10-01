@@ -47,8 +47,8 @@ public class GigaChatBearerAuthApi {
         SSLFactory sslFactory = HttpClientUtils.buildSslFactory(kmf, tmf, isUnsafeSsl);
         String authUrl = apiProperties.getAuthUrl();
         GigaChatInternalProperties internalProps = apiProperties.getInternal();
-        var clientHttpRequestFactory = new JdkClientHttpRequestFactory(HttpClientUtils.buildHttpClient(
-                sslFactory, internalProps.getConnectTimeout()));
+        var clientHttpRequestFactory = new JdkClientHttpRequestFactory(
+                HttpClientUtils.buildHttpClient(sslFactory, internalProps.getConnectTimeout()));
         if (internalProps.getReadTimeout() != null) {
             clientHttpRequestFactory.setReadTimeout(internalProps.getReadTimeout());
         }
