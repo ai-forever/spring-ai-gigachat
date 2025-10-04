@@ -3,6 +3,7 @@ package chat.giga.springai.api.auth.bearer;
 import static chat.giga.springai.api.chat.GigaChatApi.USER_AGENT_SPRING_AI_GIGACHAT;
 
 import chat.giga.springai.api.GigaChatApiProperties;
+import chat.giga.springai.api.GigaChatInternalProperties;
 import chat.giga.springai.api.HttpClientUtils;
 import chat.giga.springai.api.auth.GigaChatApiScope;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -45,9 +46,12 @@ public class GigaChatBearerAuthApi {
         boolean isUnsafeSsl = apiProperties.isUnsafeSsl();
         SSLFactory sslFactory = HttpClientUtils.buildSslFactory(kmf, tmf, isUnsafeSsl);
         String authUrl = apiProperties.getAuthUrl();
-        var clientHttpRequestFactory = new JdkClientHttpRequestFactory(HttpClientUtils.buildHttpClient(
-                sslFactory, apiProperties.getInternal().getConnectTimeout()));
-        clientHttpRequestFactory.setReadTimeout(apiProperties.getInternal().getReadTimeout());
+        GigaChatInternalProperties internalProps = apiProperties.getInternal();
+        var clientHttpRequestFactory = new JdkClientHttpRequestFactory(
+                HttpClientUtils.buildHttpClient(sslFactory, internalProps.getConnectTimeout()));
+        if (internalProps.getReadTimeout() != null) {
+            clientHttpRequestFactory.setReadTimeout(internalProps.getReadTimeout());
+        }
         this.restClient = builder.baseUrl(authUrl)
                 .requestFactory(clientHttpRequestFactory)
                 .build();

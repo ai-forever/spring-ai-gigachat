@@ -83,7 +83,9 @@ public class GigaChatApi {
 
         var clientHttpRequestFactory = new JdkClientHttpRequestFactory(buildHttpClient(
                 buildSslFactory(kmf, tmf, properties.isUnsafeSsl()), internalProps.getConnectTimeout()));
-        clientHttpRequestFactory.setReadTimeout(internalProps.getReadTimeout());
+        if (internalProps.getReadTimeout() != null) {
+            clientHttpRequestFactory.setReadTimeout(internalProps.getReadTimeout());
+        }
         this.restClient = restClientBuilder
                 .clone()
                 .requestFactory(clientHttpRequestFactory)
