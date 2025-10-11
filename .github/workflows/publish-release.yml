@@ -24,6 +24,8 @@ jobs:
       - name: Publish to the Maven Central Repository
         run: mvn clean deploy -DskipTests -P release
         env:
+          OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
+          OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}

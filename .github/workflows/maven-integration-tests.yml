@@ -26,6 +26,8 @@ jobs:
       - name: Integration tests
         run: mvn verify -P integration-tests --no-transfer-progress
         env:
+          OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
+          OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
           GIGACHAT_API_CLIENT_ID: ${{ secrets.GIGACHAT_API_CLIENT_ID }}
           GIGACHAT_API_CLIENT_SECRET: ${{ secrets.GIGACHAT_API_CLIENT_SECRET }}
           GIGACHAT_API_SCOPE: ${{ secrets.GIGACHAT_API_SCOPE }}

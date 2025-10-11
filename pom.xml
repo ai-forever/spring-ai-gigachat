@@ -277,6 +277,12 @@
                 <version>3.2.0</version>
                 <configuration>
                     <fail>false</fail>
+                    <clientConfiguration>
+                        <authConfiguration>
+                            <username>${env.OSSINDEX_SONATYPE_USERNAME}</username>
+                            <password>${env.OSSINDEX_SONATYPE_PASSWORD}</password>
+                        </authConfiguration>
+                    </clientConfiguration>
                 </configuration>
                 <executions>
                     <execution>

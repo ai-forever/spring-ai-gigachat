@@ -22,3 +22,6 @@ jobs:
 
       - name: Build with Maven (unit tests only)
         run: mvn clean verify --no-transfer-progress
+        env:
+          OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
+          OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
