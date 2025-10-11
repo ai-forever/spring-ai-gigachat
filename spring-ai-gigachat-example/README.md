@@ -24,7 +24,7 @@ curl "localhost:8080/chat?chatId=123" -d "Как его использовать
 curl "localhost:8080/chat?chatId=456" -d "Как его использовать?" -H "content-type:application/json"
 ```
 
-## Примеры с сохранением контекста и кешированием
+## Примеры с сохранением контекста и кешированием на стороне GigaChat
 
 [ChatController](src/main/java/chat/giga/springai/example/ChatController.java)
 

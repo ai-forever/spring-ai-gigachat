@@ -6,7 +6,7 @@
 
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-example</artifactId>
-    <version>1.1.0-M2.001</version>
+    <version>1.1.0-M3.001</version>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -17,7 +17,7 @@
 
     <properties>
         <java.version>17</java.version>
-        <spring-ai.version>1.1.0-M2</spring-ai.version>
+        <spring-ai.version>1.1.0-M3</spring-ai.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <apache-tika.version>3.2.3</apache-tika.version>
     </properties>
