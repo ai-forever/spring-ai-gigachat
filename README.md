@@ -4,7 +4,7 @@
   ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
   ![Maven Central](https://img.shields.io/maven-central/v/chat.giga/spring-ai-starter-model-gigachat)
 
-  <img" src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="200">
+  <img src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="200">
 </div>
 
 Данная библиотека позволяет интегрироваться с GigaChat API с использованием фреймворка [Spring AI](https://docs.spring.io/spring-ai/reference/index.html).
