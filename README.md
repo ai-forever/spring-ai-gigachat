@@ -1,18 +1,19 @@
 <div align="center">
   <h1>Spring AI GigaChat</h1>
 
-  ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
-  ![Maven Central](https://img.shields.io/maven-central/v/chat.giga/spring-ai-starter-model-gigachat)
+![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
+![Maven Central](https://img.shields.io/maven-central/v/chat.giga/spring-ai-starter-model-gigachat)
 
-  <img src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="200">
+<img src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="200">
+
 </div>
 
 Данная библиотека позволяет интегрироваться с GigaChat API с использованием фреймворка [Spring AI](https://docs.spring.io/spring-ai/reference/index.html).
 
 Реализованы:
 - Вызов Chat модели, в том числе:
-- блокирующий вызов, когда ответ от LLM приходит полностью
-- потоковая генерация токенов через Server Sent Events (SSE)
+- - блокирующий вызов, когда ответ от LLM приходит полностью
+- - потоковая генерация токенов через Server Sent Events (SSE)
 - Вызов внешних функций, в том числе через Model Context Protocol (MCP)
 - Работа с файлами и изображениями - можно спросить, что изображено на Вашей фотографии
 - Вызов Embedding модели - может использоваться для построения RAG-системы
