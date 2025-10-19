@@ -1,10 +1,10 @@
 <div style="text-align: center;">
-<h1>Spring AI GigaChat</h1>
+<h1 style="text-align: center;">Spring AI GigaChat</h1>
 
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 ![Maven Central](https://img.shields.io/maven-central/v/chat.giga/spring-ai-starter-model-gigachat)
 
-<img src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="200">
+<img style="text-align: center;" src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="200">
 
 </div>
 
