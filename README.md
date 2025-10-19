@@ -1,14 +1,46 @@
-# spring-ai-gigachat
+<div style="text-align: center;">
+<h1>Spring AI GigaChat</h1>
+
+![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
+![Maven Central](https://img.shields.io/maven-central/v/chat.giga/spring-ai-starter-model-gigachat)
+
+<img src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="200">
+
+</div>
 
 Данная библиотека позволяет интегрироваться с GigaChat API с использованием фреймворка [Spring AI](https://docs.spring.io/spring-ai/reference/index.html).
 
 Реализованы:
-* Вызов Chat модели, включая:
-* * потоковую обработку (streaming)
-* * вызов внешних функций, в том числе доп.возможности GigaChat (`fewShotExample`/`returnParameters` и т.д.) - подробнее в **[tools.md](docs/tools.md)**
-* работу с файлами и изображениями
-* Вызов Embedding модели
-* [Observability](https://docs.spring.io/spring-ai/reference/observability/index.html)
+- Вызов Chat модели, в том числе:
+- блокирующий вызов, когда ответ от LLM приходит полностью
+- потоковая генерация токенов через Server Sent Events (SSE)
+- Вызов внешних функций, в том числе через Model Context Protocol (MCP)
+- Работа с файлами и изображениями - можно спросить, что изображено на Вашей фотографии
+- Вызов Embedding модели - может использоваться для построения RAG-системы
+- [Наблюдаемость](https://docs.spring.io/spring-ai/reference/observability/index.html) (метрики, трейсы, логи)
+
+## Содержание
+
+- [Требования](#требования)
+- [Быстрый старт](#быстрый-старт)
+- [Конфигурация](#конфигурация)
+- [Способы авторизации](#способы-авторизации)
+  - [По Authorization Key (apiKey)](#по-authorization-key-apikey)
+  - [По Client ID + Client Secret](#по-client-id--client-secret)
+  - [С помощью TLS-сертификатов](#с-помощью-tls-сертификатов)
+  - [Настройка доверия сертификатам НУЦ Минцифры](#настройка-доверия-сертификатам-нуц-минцифры)
+- [Вызов пользовательских функций](docs/tools.md)
+  - [Использование @GigaTool](docs/tools.md#использование-gigatool)
+  - [Управление вызовом функций](docs/tools.md#управление-вызовом-функций)
+  - [Принудительный вызов функции](docs/tools.md#принудительный-вызов-функции)
+- [Отправка HTTP-заголовков в GigaChat](docs/custom-http-headers.md)
+  - [Статические значения HTTP-заголовоков](docs/custom-http-headers.md#статические-значения-http-заголовоков)
+  - [Динамически вычисляемые значения HTTP-заголовоков](docs/custom-http-headers.md#динамически-вычисляемые-значения-http-заголовоков)
+  - [Отправка X-Session-Id](docs/custom-http-headers.md#отправка-x-session-id)
+- [Дополнительная метаинформация в ответе ChatResponse](docs/response-metadata.md)
+  - [Получение всей переписки с GigaChat под капотом Spring AI](docs/response-metadata.md#получение-всей-переписки-с-gigachat-под-капотом-spring-ai)
+  - [Получение идентификаторов загруженных файлов при использовании Multimodality](docs/response-metadata.md#получение-иденификаторов-загруженных-файлов-при-использовании-multimodality)
+- [Примеры](#примеры)
 
 ## Требования
 
@@ -96,6 +128,10 @@ spring:
         options:
           model: Embeddings      # Embeddings по дефолту
           dimensions: 1024       # null по дефолту, вычисляется при первом обращении к Embedding-модели
+      internal:
+        connect-timeout: 15s     # 15 секунд по дефолту. Таймаут на установление соединения с севрером
+        read-timeout: 15s        # null по дефолту (без таймаута). Таймаут на получение ответа от сервера
+        make-system-prompt-first-message-in-memory: true  # true по дефолту; перемещает сообщение с ситемным промптом в начало
 ```
 
 ## Способы авторизации
@@ -160,16 +196,17 @@ spring:
     gigachat:
       auth:
         certs:
-          ssl-bundle: "gigachat-ssl-bundle"      # Название вашего ssl-bundle
+          ssl-bundle: "gigachat-ssl-bundle"        # Название вашего ssl-bundle
         scope: GIGACHAT_API_PERS
   ssl:
     bundle:
-      gigachat-ssl-bundle:
-        keystore:
-          private-key: file:/path/to/tls.key     # Путь до вашего сертификата
-          certificate: file:/path/to/tls.crt     # Путь до вашего сертификата
-        truststore:
-          certificates: file:/path/to/ca.crt     # Путь до ваших доверенных сертификатов
+      pem: 
+        gigachat-ssl-bundle:
+          keystore:
+            private-key: file:/path/to/tls.key     # Путь до вашего сертификата
+            certificate: file:/path/to/tls.crt     # Путь до вашего сертификата
+          truststore:
+            certificates: file:/path/to/ca.crt     # Путь до ваших доверенных сертификатов
 ```
 
 ### Настройка доверия сертификатам НУЦ Минцифры
