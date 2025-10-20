@@ -8,13 +8,14 @@ Spring AI - https://docs.spring.io/spring-ai/reference/api/tools.html.
 Однако, если вы хотите использовать больше возможностей GigaChat
 (например, параметры `few_shot_examples` и `return_parameters`),
 которых нет в Spring AI из коробки, то можно использовать следующие альтернативы:
-* `@Tool` -> `@GigaTool`
-* * **Важно** В Spring AI разрешена конструкция `chatClient.prompt("").tools(new ToolsService())`.
-Если используете `@GigaTool`-ы, то ссылайтесь на них через `.toolCallbacks(GigaTools.from(...))`, т.е. :
-`chatClient.prompt("").toolCallbacks(GigaTools.from(new ToolsService()))`
-* `ToolDefinition` -> `GigaToolDefinition`
-* `FunctionToolCallback` -> `GigaFunctionToolCallback`
-* resultConverter: `GigaToolCallResultConverter`
+
+- `@Tool` -> `@GigaTool`
+  - **Важно**: В Spring AI разрешена конструкция `chatClient.prompt("").tools(new ToolsService())`.
+    Если используете `@GigaTool`-ы, то ссылайтесь на них через `.toolCallbacks(GigaTools.from(...))`, т.е. :
+    `chatClient.prompt("").toolCallbacks(GigaTools.from(new ToolsService()))`
+- `ToolDefinition` -> `GigaToolDefinition`
+- `FunctionToolCallback` -> `GigaFunctionToolCallback`
+- resultConverter: `GigaToolCallResultConverter`
 
 Также есть возможность возвращать результат работы функции напрямую пользователю, а не в GigaChat.
 Для этого используйте `@Tool(returnDirect=true)` / `@GigaTool(returnDirect=true)` /
@@ -24,10 +25,11 @@ Spring AI - https://docs.spring.io/spring-ai/reference/api/tools.html.
 
 Аннотация `@GigaTool` полностью наследует все параметры стандартной аннотации `@Tool`,
 а также добавляет 2 необязательных параметра:
-* `fewShotExamples` - массив, в котором вы можете описать примеры того, как модель должна сгенерировать аргументы.
-Наличие примеров повышает качество генерации аргументов.
-* `generateOutputSchema` - включение генерации json-схемы ответа от функции. По-умолчанию включено.
-Помогает лучше генерировать аргументы для пользовательских функций.
+
+- `fewShotExamples` - массив, в котором вы можете описать примеры того, как модель должна сгенерировать аргументы.
+  Наличие примеров повышает качество генерации аргументов.
+- `generateOutputSchema` - включение генерации json-схемы ответа от функции. По-умолчанию включено.
+  Помогает лучше генерировать аргументы для пользовательских функций.
 
 Пример использования `@GigaTool`:
 

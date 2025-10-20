@@ -1,19 +1,23 @@
 <div align="center">
   <h1>Spring AI GigaChat</h1>
-
-![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
-![Maven Central](https://img.shields.io/maven-central/v/chat.giga/spring-ai-starter-model-gigachat)
-
-<img src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="200">
-
+  <a href="https://www.apache.org/licenses/LICENSE-2.0">
+    <img alt="Apache 2.0 License" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg">
+  </a>
+  <a href="https://central.sonatype.com/artifact/chat.giga/spring-ai-starter-model-gigachat">
+    <img alt="Maven Central Version" src="https://img.shields.io/maven-central/v/chat.giga/spring-ai-starter-model-gigachat">
+  </a>
+  <p>
+    <img src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="300">
+  </p>
 </div>
 
 Данная библиотека позволяет интегрироваться с GigaChat API с использованием фреймворка [Spring AI](https://docs.spring.io/spring-ai/reference/index.html).
 
 Реализованы:
+
 - Вызов Chat модели, в том числе:
-- - блокирующий вызов, когда ответ от LLM приходит полностью
-- - потоковая генерация токенов через Server Sent Events (SSE)
+  - блокирующий вызов, когда ответ от LLM приходит полностью
+  - потоковая генерация токенов через Server Sent Events (SSE)
 - Вызов внешних функций, в том числе через Model Context Protocol (MCP)
 - Работа с файлами и изображениями - можно спросить, что изображено на Вашей фотографии
 - Вызов Embedding модели - может использоваться для построения RAG-системы
@@ -44,8 +48,8 @@
 
 ## Требования
 
-* Java 17+
-* Spring Boot 3.4/3.5
+- Java 17+
+- Spring Boot 3.4/3.5
 
 ## Быстрый старт
 
@@ -150,7 +154,7 @@ spring:
         scope: GIGACHAT_API_PERS               # Можно посмотреть в личном кабинете GigaChat в разделе "Настройки API" в вашем проекте
 ```
 
-Также необходимо [настроить доверие сертифкатам НУЦ Минцифры](#настройка-доверия-сертификатам-нуц-минцифры)
+Также необходимо [настроить доверие сертификатам НУЦ Минцифры](#настройка-доверия-сертификатам-нуц-минцифры)
 или отключить проверку серверных сертификатов (не рекомендуется!).
 
 ### По Client ID + Client Secret
@@ -168,7 +172,7 @@ spring:
         scope: GIGACHAT_API_PERS
 ```
 
-Также необходимо [настроить доверие сертифкатам НУЦ Минцифры](#настройка-доверия-сертификатам-нуц-минцифры)
+Также необходимо [настроить доверие сертификатам НУЦ Минцифры](#настройка-доверия-сертификатам-нуц-минцифры)
 или отключить проверку серверных сертификатов (не рекомендуется!).
 
 ### С помощью TLS-сертификатов
