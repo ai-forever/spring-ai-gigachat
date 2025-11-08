@@ -5,6 +5,7 @@ import static chat.giga.springai.api.HttpClientUtils.buildSslFactory;
 
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.auth.bearer.GigaChatBearerAuthApi;
+import chat.giga.springai.api.auth.bearer.GigaChatOAuthClient;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenFilter;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenInterceptor;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
@@ -73,8 +74,9 @@ public class GigaChatApi {
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
         if (properties.isBearer()) {
-            final GigaChatBearerAuthApi gigaChatBearerAuthApi =
-                    new GigaChatBearerAuthApi(properties, restClientBuilder, null, tmf);
+            final GigaChatOAuthClient gigaChatOAuthClient =
+                    new GigaChatOAuthClient(properties, restClientBuilder, null, tmf);
+            final GigaChatBearerAuthApi gigaChatBearerAuthApi = new GigaChatBearerAuthApi(gigaChatOAuthClient);
             restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
             webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
         }

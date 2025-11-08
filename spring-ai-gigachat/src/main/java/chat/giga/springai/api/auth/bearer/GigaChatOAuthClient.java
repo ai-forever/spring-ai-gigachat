@@ -32,7 +32,20 @@ import org.springframework.web.client.RestClient;
 @Slf4j
 public class GigaChatOAuthClient {
 
+    /**
+     * HTTP Client for OAuth interaction with proper ssl and observability.
+     */
     private final RestClient restClient;
+
+    /**
+     * Scope requested scope for the access token.
+     */
+    private final GigaChatApiScope scope;
+
+    /**
+     * ApiKey OAuth client credentials (Base64-encoded for Basic Auth).
+     */
+    private final String apiKey;
 
     /**
      * Creates auth client with default RestClient.Builder and SSL configuration.
@@ -70,9 +83,13 @@ public class GigaChatOAuthClient {
             clientHttpRequestFactory.setReadTimeout(internalProps.getReadTimeout());
         }
 
-        this.restClient = builder.baseUrl(authUrl)
+        this.restClient = builder.clone()
+                .baseUrl(authUrl)
                 .requestFactory(clientHttpRequestFactory)
                 .build();
+
+        this.apiKey = apiProperties.getApiKey();
+        this.scope = apiProperties.getScope();
     }
 
     /**
@@ -94,16 +111,14 @@ public class GigaChatOAuthClient {
      * if the response body contains valid token data. This handles cases where the API
      * returns tokens with non-2xx status codes. Validation is done by the caller.
      *
-     * @param apiKey OAuth client credentials (Base64-encoded for Basic Auth)
-     * @param scope requested scope for the access token
      * @return token response, may be null if request completely fails
      * @throws org.springframework.web.client.RestClientException if HTTP request fails without valid response body
      */
-    GigaChatAccessTokenResponse requestToken(String apiKey, GigaChatApiScope scope) {
+    GigaChatAccessTokenResponse requestToken() {
         return this.restClient
                 .post()
-                .headers(headers -> buildAuthHeaders(headers, apiKey))
-                .body("scope=" + scope)
+                .headers(headers -> buildAuthHeaders(headers, this.apiKey))
+                .body("scope=" + this.scope)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, ((request, response) -> {
                     log.warn(

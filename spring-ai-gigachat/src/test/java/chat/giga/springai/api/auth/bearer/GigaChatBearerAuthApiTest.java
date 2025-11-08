@@ -185,7 +185,7 @@ public abstract class GigaChatBearerAuthApiTest {
             @Bean
             public GigaChatBearerAuthApi gigaChatBearerAuthApi(
                     GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
-                return new GigaChatBearerAuthApi(apiProperties, restClientBuilder);
+                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder));
             }
         }
     }
@@ -211,7 +211,7 @@ public abstract class GigaChatBearerAuthApiTest {
             @Bean
             public GigaChatBearerAuthApi gigaChatBearerAuthApi(
                     GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
-                return new GigaChatBearerAuthApi(apiProperties, restClientBuilder);
+                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder));
             }
         }
     }
@@ -234,7 +234,7 @@ public abstract class GigaChatBearerAuthApiTest {
             @Bean
             public GigaChatBearerAuthApi gigaChatBearerAuthApi(
                     GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
-                return new GigaChatBearerAuthApi(apiProperties, restClientBuilder);
+                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder));
             }
         }
     }
