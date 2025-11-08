@@ -11,7 +11,6 @@ import chat.giga.springai.api.auth.GigaChatAuthProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
-import java.time.Instant;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
@@ -61,13 +60,13 @@ public abstract class GigaChatBearerAuthApiTest {
     void testGetAccessToken_InitialCall() {
         // Arrange
         long expiresAt = System.currentTimeMillis() + 3600_000;
-        GigaChatBearerAuthApi.GigaChatAccessTokenResponse tokenResponse =
-                new GigaChatBearerAuthApi.GigaChatAccessTokenResponse("test-token", expiresAt);
+        GigaChatOAuthClient.GigaChatAccessTokenResponse tokenResponse =
+                new GigaChatOAuthClient.GigaChatAccessTokenResponse("test-token", expiresAt);
 
         createStubForTokenRequest(tokenResponse);
 
         // Act
-        String accessToken = authApi.getAccessToken();
+        String accessToken = authApi.getValue();
 
         // Assert
         assertEquals("test-token", accessToken);
@@ -75,20 +74,21 @@ public abstract class GigaChatBearerAuthApiTest {
     }
 
     @Test
+    @SneakyThrows
     void testGetAccessToken_TokenExpired_Refresh() {
         // Arrange
-        long expiresAt = System.currentTimeMillis() - 10_000;
+        long expiresAt = System.currentTimeMillis() + 100;
         GigaChatBearerToken oldToken = new GigaChatBearerToken("old-token", expiresAt);
         setToken(oldToken);
+        Thread.sleep(100);
 
-        GigaChatBearerAuthApi.GigaChatAccessTokenResponse tokenResponse =
-                new GigaChatBearerAuthApi.GigaChatAccessTokenResponse(
-                        "new-token", Instant.now().plusSeconds(3600).getEpochSecond());
+        GigaChatOAuthClient.GigaChatAccessTokenResponse tokenResponse =
+                new GigaChatOAuthClient.GigaChatAccessTokenResponse("new-token", System.currentTimeMillis() + 3600_000);
 
         createStubForTokenRequest(tokenResponse);
 
         // Act
-        String accessToken = authApi.getAccessToken();
+        String accessToken = authApi.getValue();
 
         // Assert
         assertEquals("new-token", accessToken);
@@ -102,7 +102,7 @@ public abstract class GigaChatBearerAuthApiTest {
         setToken(new GigaChatBearerToken("cached-token", expiresAt));
 
         // Act
-        String accessToken = authApi.getAccessToken();
+        String accessToken = authApi.getValue();
 
         // Assert
         assertEquals("cached-token", accessToken);
@@ -114,13 +114,13 @@ public abstract class GigaChatBearerAuthApiTest {
     void testGetAccessToken_5xxErrorWithToken_expectSuccessfullyProceed() {
         // Arrange
         long expiresAt = System.currentTimeMillis() + 3600_000;
-        GigaChatBearerAuthApi.GigaChatAccessTokenResponse tokenResponse =
-                new GigaChatBearerAuthApi.GigaChatAccessTokenResponse("test-token", expiresAt);
+        GigaChatOAuthClient.GigaChatAccessTokenResponse tokenResponse =
+                new GigaChatOAuthClient.GigaChatAccessTokenResponse("test-token", expiresAt);
 
         createStubForTokenRequest(tokenResponse, 500);
 
         // Act
-        String accessToken = authApi.getAccessToken();
+        String accessToken = authApi.getValue();
 
         // Assert
         assertEquals("test-token", accessToken);
@@ -129,28 +129,28 @@ public abstract class GigaChatBearerAuthApiTest {
 
     public static Stream<Arguments> invalidTokenProvider() {
         return Stream.of(
-                Arguments.of(new GigaChatBearerAuthApi.GigaChatAccessTokenResponse(null, System.currentTimeMillis())),
-                Arguments.of(new GigaChatBearerAuthApi.GigaChatAccessTokenResponse("new-token", null)));
+                Arguments.of(new GigaChatOAuthClient.GigaChatAccessTokenResponse(null, System.currentTimeMillis())),
+                Arguments.of(new GigaChatOAuthClient.GigaChatAccessTokenResponse("new-token", null)));
     }
 
     @ParameterizedTest
     @NullSource
     @MethodSource("invalidTokenProvider")
-    void testInvalidRequestToken_NullResponse(GigaChatBearerAuthApi.GigaChatAccessTokenResponse tokenResponse) {
+    void testInvalidRequestToken_NullResponse(GigaChatOAuthClient.GigaChatAccessTokenResponse tokenResponse) {
         // Arrange
         createStubForTokenRequest(tokenResponse);
 
         // Act & Assert
-        assertThrows(IllegalArgumentException.class, () -> authApi.getAccessToken());
+        assertThrows(IllegalArgumentException.class, () -> authApi.getValue());
     }
 
     @SneakyThrows
-    private void createStubForTokenRequest(GigaChatBearerAuthApi.GigaChatAccessTokenResponse response) {
+    private void createStubForTokenRequest(GigaChatOAuthClient.GigaChatAccessTokenResponse response) {
         createStubForTokenRequest(response, 200);
     }
 
     @SneakyThrows
-    private void createStubForTokenRequest(GigaChatBearerAuthApi.GigaChatAccessTokenResponse response, int httpStatus) {
+    private void createStubForTokenRequest(GigaChatOAuthClient.GigaChatAccessTokenResponse response, int httpStatus) {
         mockServer.stubFor(post("/api/v2/oauth")
                 .withHeader(HttpHeaders.ACCEPT, equalTo(MediaType.APPLICATION_JSON_VALUE))
                 .withHeader(HttpHeaders.AUTHORIZATION, WireMock.matching("Basic .+"))
@@ -190,7 +190,7 @@ public abstract class GigaChatBearerAuthApiTest {
         }
     }
 
-    @ContextConfiguration(classes = NewAuthPropertiesWithApiKeyTest.Config.class)
+    @ContextConfiguration(classes = NewAuthPropertiesWithClientIdAndSecretTest.Config.class)
     public static class NewAuthPropertiesWithClientIdAndSecretTest extends GigaChatBearerAuthApiTest {
         @Configuration
         public static class Config {
