@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.ai.model.ApiKey;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
@@ -21,9 +20,6 @@ public class GigaChatApiProperties {
 
     @Builder.Default
     private String baseUrl = "https://gigachat.devices.sberbank.ru/api/v1/";
-
-    /** User-defined API key provider. */
-    private ApiKey apiKey;
 
     @Builder.Default
     private GigaChatAuthProperties auth = new GigaChatAuthProperties();
@@ -76,7 +72,7 @@ public class GigaChatApiProperties {
 
     public String getApiKey() {
         if (auth.isBearerAuth()) {
-            String apiKey = auth.getApiKey();
+            String apiKey = auth.getBearer().getApiKey();
             if (StringUtils.hasText(apiKey)) {
                 return apiKey;
             }

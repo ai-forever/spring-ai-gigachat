@@ -22,6 +22,7 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.content.Media;
+import org.springframework.ai.model.ApiKey;
 import org.springframework.ai.model.ChatModelDescription;
 import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.retry.RetryUtils;
@@ -66,7 +67,25 @@ public class GigaChatApi {
     }
 
     public GigaChatApi(
+        GigaChatApiProperties properties,
+        RestClient.Builder restClientBuilder,
+        WebClient.Builder webClientBuilder,
+        ResponseErrorHandler responseErrorHandler,
+        @Nullable KeyManagerFactory kmf,
+        @Nullable TrustManagerFactory tmf) {
+        this(
+                properties,
+                null,
+                restClientBuilder,
+                webClientBuilder,
+                responseErrorHandler,
+                kmf,
+                tmf);
+    }
+
+    public GigaChatApi(
             GigaChatApiProperties properties,
+            @Nullable ApiKey apiKey,
             RestClient.Builder restClientBuilder,
             WebClient.Builder webClientBuilder,
             ResponseErrorHandler responseErrorHandler,
@@ -75,8 +94,8 @@ public class GigaChatApi {
         if (properties.isBearer()) {
             final GigaChatBearerAuthApi gigaChatBearerAuthApi =
                     new GigaChatBearerAuthApi(properties, restClientBuilder, null, tmf);
-            restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
-            webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
+            restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi, apiKey));
+            webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi, apiKey));
         }
 
         var internalProps = properties.getInternal();

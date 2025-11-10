@@ -6,7 +6,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.ai.model.ApiKey;
 import org.springframework.core.io.Resource;
 
 @Data
@@ -27,23 +26,14 @@ public class GigaChatAuthProperties {
     @Builder.Default
     private Certificates certs = new Certificates();
 
-    private ApiKey apiKey;
-
     public boolean isBearerAuth() {
-        return apiKey != null || bearer != null
+        return bearer != null
                 && (hasText(bearer.getApiKey()) || hasText(bearer.getClientId()) && hasText(bearer.getClientSecret()));
     }
 
     public boolean isCertsAuth() {
         return certs != null
                 && (certs.getSslBundle() != null || certs.getCertificate() != null && certs.getPrivateKey() != null);
-    }
-
-    public String getApiKey() {
-        if (apiKey != null) {
-            return apiKey.getValue();
-        }
-        return bearer.getApiKey();
     }
 
     @Data
