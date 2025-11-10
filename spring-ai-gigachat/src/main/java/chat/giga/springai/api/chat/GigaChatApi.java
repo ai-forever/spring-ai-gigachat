@@ -84,7 +84,7 @@ public class GigaChatApi {
             ResponseErrorHandler responseErrorHandler,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
-        if (properties.isBearer()) {
+        if (apiKey != null || properties.isBearer()) {
             final GigaChatBearerAuthApi gigaChatBearerAuthApi =
                     new GigaChatBearerAuthApi(properties, apiKey, restClientBuilder, null, tmf);
             restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
