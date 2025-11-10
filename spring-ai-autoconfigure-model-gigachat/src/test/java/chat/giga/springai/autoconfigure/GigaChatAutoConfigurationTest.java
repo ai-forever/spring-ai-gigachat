@@ -25,8 +25,9 @@ public class GigaChatAutoConfigurationTest {
     AutoConfigurations sslBundlesAutoConfigurations = AutoConfigurations.of(
             GigaChatAutoConfiguration.class, SslAutoConfiguration.class, ClientHttpConnectorAutoConfiguration.class);
 
-    ApplicationContextRunner contextRunner =
-            new ApplicationContextRunner().withConfiguration(gigaChatAutoConfigurations);
+    ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+            .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
+            .withConfiguration(gigaChatAutoConfigurations);
 
     @Test
     @DisplayName("Тест проверяет корректную сборку всех бинов автоконфигурации с дефолтными параметрами")
@@ -100,6 +101,7 @@ public class GigaChatAutoConfigurationTest {
     @DisplayName("Тест проверяет сборку всех бинов автоконфигурации при использовании web application context")
     void webAutoConfigurationTest() {
         new WebApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
                 .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
                 .run(context -> {
                     assertThat(context).hasSingleBean(GigaChatApi.class);
@@ -118,6 +120,7 @@ public class GigaChatAutoConfigurationTest {
             "Тест проверяет сборку всех бинов автоконфигурации при использовании web application context (servlet)")
     void servletWebAutoConfigurationTest() {
         new WebApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
                 .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
                 .run(context -> {
                     assertThat(context).hasSingleBean(GigaChatApi.class);
@@ -135,6 +138,7 @@ public class GigaChatAutoConfigurationTest {
     @DisplayName("Тест проверяет сборку всех бинов автоконфигурации при использовании web + sslBundles")
     void sslBundleBbeanAutoConfigurationTest() {
         new WebApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
                 .withConfiguration(sslBundlesAutoConfigurations)
                 .run(context -> {
                     assertThat(context).hasSingleBean(GigaChatApi.class);
@@ -153,6 +157,7 @@ public class GigaChatAutoConfigurationTest {
             "Тест проверяет сборку всех бинов автоконфигурации при использовании reactive web application context (webflux)")
     void reactiveWebfluxAutoConfigurationTest() {
         new ReactiveWebApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
                 .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
                 .run(context -> {
                     assertThat(context).hasSingleBean(GigaChatApi.class);
@@ -170,6 +175,7 @@ public class GigaChatAutoConfigurationTest {
     @DisplayName("Тест проверяет сборку всех бинов автоконфигурации при использовании webflux + sslBundles")
     void webfluxSslBundlesBeanAutoConfigurationTest() {
         new ReactiveWebApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
                 .withConfiguration(sslBundlesAutoConfigurations)
                 .run(context -> {
                     assertThat(context).hasSingleBean(GigaChatApi.class);

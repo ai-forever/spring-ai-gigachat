@@ -186,11 +186,9 @@ public class GigaChatAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnExpression(
             """
-            T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.auth.bearer.api-key:}') ||
-            (T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.auth.bearer.client-id:}') &&
-            T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.auth.bearer.client-secret:}')) ||
-            (T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.client-id:}') &&
-            T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.client-secret:}'))
+            '${spring.ai.gigachat.auth.bearer.api-key:}' > '' ||
+            ('${spring.ai.gigachat.auth.bearer.client-id:}' > '' && '${spring.ai.gigachat.auth.bearer.client-secret:}' > '') ||
+            ('${spring.ai.gigachat.client-id:}' > '' && '${spring.ai.gigachat.client-secret:}' > '')
             """)
     public ApiKey simpleApiKey(GigaChatApiProperties gigaChatApiProperties) {
         return new SimpleApiKey(gigaChatApiProperties.getApiKey());
@@ -200,12 +198,10 @@ public class GigaChatAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnExpression(
             """
-            T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.auth.certs.ssl-bundle:}') ||
-                    (T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.auth.certs.certificate:}') &&
-                    T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.auth.certs.private-key:}')) ||
-                    (T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.client-certificate:}') &&
-                    T(org.springframework.util.StringUtils).hasText('${spring.ai.gigachat.client-key:}'))
-                    """)
+            '${spring.ai.gigachat.auth.certs.ssl-bundle:}' > '' ||
+            ('${spring.ai.gigachat.auth.certs.certificate:}' > '' && '${spring.ai.gigachat.auth.certs.private-key:}' > '') ||
+            ('${spring.ai.gigachat.client-certificate:}' > '' && '${spring.ai.gigachat.client-key:}' > '')
+            """)
     public ApiKey noopApiKey() {
         return new NoopApiKey();
     }
