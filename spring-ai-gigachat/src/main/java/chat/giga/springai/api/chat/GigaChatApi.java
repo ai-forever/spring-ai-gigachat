@@ -86,9 +86,9 @@ public class GigaChatApi {
             @Nullable TrustManagerFactory tmf) {
         if (properties.isBearer()) {
             final GigaChatBearerAuthApi gigaChatBearerAuthApi =
-                    new GigaChatBearerAuthApi(properties, restClientBuilder, null, tmf);
-            restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi, apiKey));
-            webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi, apiKey));
+                    new GigaChatBearerAuthApi(properties, apiKey, restClientBuilder, null, tmf);
+            restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
+            webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
         }
 
         var internalProps = properties.getInternal();

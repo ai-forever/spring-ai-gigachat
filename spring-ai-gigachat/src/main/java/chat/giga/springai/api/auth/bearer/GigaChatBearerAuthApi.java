@@ -13,6 +13,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
+import org.springframework.ai.model.ApiKey;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -41,7 +42,16 @@ public class GigaChatBearerAuthApi {
             RestClient.Builder builder,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
-        this.apiKey = apiProperties.getApiKey();
+        this(apiProperties, null, builder, kmf, tmf);
+    }
+
+    public GigaChatBearerAuthApi(
+            GigaChatApiProperties apiProperties,
+            @Nullable ApiKey apiKey,
+            RestClient.Builder builder,
+            @Nullable KeyManagerFactory kmf,
+            @Nullable TrustManagerFactory tmf) {
+        this.apiKey = apiKey != null ? apiKey.getValue() : apiProperties.getApiKey();
         this.scope = apiProperties.getScope();
         boolean isUnsafeSsl = apiProperties.isUnsafeSsl();
         SSLFactory sslFactory = HttpClientUtils.buildSslFactory(kmf, tmf, isUnsafeSsl);
