@@ -26,8 +26,7 @@ public class BearerTokenInterceptor implements ClientHttpRequestInterceptor {
     public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) {
         String token = apiKey != null ? apiKey.getValue() : tokenRenewer.getAccessToken();
 
-        if (token != null && !token.isEmpty())
-            request.getHeaders().setBearerAuth(token);
+        if (token != null && !token.isEmpty()) request.getHeaders().setBearerAuth(token);
 
         return execution.execute(request, body);
     }

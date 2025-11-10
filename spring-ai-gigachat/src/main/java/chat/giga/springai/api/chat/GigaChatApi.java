@@ -67,20 +67,13 @@ public class GigaChatApi {
     }
 
     public GigaChatApi(
-        GigaChatApiProperties properties,
-        RestClient.Builder restClientBuilder,
-        WebClient.Builder webClientBuilder,
-        ResponseErrorHandler responseErrorHandler,
-        @Nullable KeyManagerFactory kmf,
-        @Nullable TrustManagerFactory tmf) {
-        this(
-                properties,
-                null,
-                restClientBuilder,
-                webClientBuilder,
-                responseErrorHandler,
-                kmf,
-                tmf);
+            GigaChatApiProperties properties,
+            RestClient.Builder restClientBuilder,
+            WebClient.Builder webClientBuilder,
+            ResponseErrorHandler responseErrorHandler,
+            @Nullable KeyManagerFactory kmf,
+            @Nullable TrustManagerFactory tmf) {
+        this(properties, null, restClientBuilder, webClientBuilder, responseErrorHandler, kmf, tmf);
     }
 
     public GigaChatApi(

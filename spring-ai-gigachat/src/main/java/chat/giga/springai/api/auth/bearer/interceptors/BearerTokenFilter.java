@@ -25,8 +25,7 @@ public class BearerTokenFilter implements ExchangeFilterFunction {
     public Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
         String token = apiKey != null ? apiKey.getValue() : tokenRenewer.getAccessToken();
 
-        if (token == null || token.isEmpty())
-            return next.exchange(request);
+        if (token == null || token.isEmpty()) return next.exchange(request);
 
         return next.exchange(ClientRequest.from(request)
                 .header("Authorization", "Bearer " + token)
