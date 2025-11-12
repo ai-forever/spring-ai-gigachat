@@ -21,6 +21,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
+import org.springframework.ai.model.ApiKey;
+import org.springframework.ai.model.SimpleApiKey;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureWebClient;
@@ -183,9 +185,14 @@ public abstract class GigaChatBearerAuthApiTest {
             }
 
             @Bean
+            public SimpleApiKey simpleApiKey(GigaChatApiProperties apiProperties) {
+                return new SimpleApiKey(apiProperties.getApiKey());
+            }
+
+            @Bean
             public GigaChatBearerAuthApi gigaChatBearerAuthApi(
-                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
-                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder));
+                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder, ApiKey apiKey) {
+                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder, apiKey));
             }
         }
     }
@@ -209,9 +216,14 @@ public abstract class GigaChatBearerAuthApiTest {
             }
 
             @Bean
+            public SimpleApiKey apiKey(GigaChatApiProperties apiProperties) {
+                return new SimpleApiKey(apiProperties.getApiKey());
+            }
+
+            @Bean
             public GigaChatBearerAuthApi gigaChatBearerAuthApi(
-                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
-                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder));
+                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder, ApiKey apiKey) {
+                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder, apiKey));
             }
         }
     }
@@ -232,9 +244,14 @@ public abstract class GigaChatBearerAuthApiTest {
             }
 
             @Bean
+            public SimpleApiKey apiKey(GigaChatApiProperties apiProperties) {
+                return new SimpleApiKey(apiProperties.getApiKey());
+            }
+
+            @Bean
             public GigaChatBearerAuthApi gigaChatBearerAuthApi(
-                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder) {
-                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder));
+                    GigaChatApiProperties apiProperties, RestClient.Builder restClientBuilder, ApiKey apiKey) {
+                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder, apiKey));
             }
         }
     }

@@ -13,6 +13,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
+import org.springframework.ai.model.ApiKey;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -45,7 +46,7 @@ public class GigaChatOAuthClient {
     /**
      * ApiKey OAuth client credentials (Base64-encoded for Basic Auth).
      */
-    private final String apiKey;
+    private final ApiKey apiKey;
 
     /**
      * Creates auth client with default RestClient.Builder and SSL configuration.
@@ -53,8 +54,9 @@ public class GigaChatOAuthClient {
      * @param apiProperties API configuration including auth URL, timeouts, SSL settings
      * @param builder RestClient.Builder with custom interceptors, filters, or observers
      */
-    public GigaChatOAuthClient(final GigaChatApiProperties apiProperties, final RestClient.Builder builder) {
-        this(apiProperties, builder, null, null);
+    public GigaChatOAuthClient(
+            final GigaChatApiProperties apiProperties, final RestClient.Builder builder, final ApiKey apiKey) {
+        this(apiProperties, builder, null, null, apiKey);
     }
 
     /**
@@ -69,7 +71,8 @@ public class GigaChatOAuthClient {
             final GigaChatApiProperties apiProperties,
             final RestClient.Builder builder,
             @Nullable KeyManagerFactory kmf,
-            @Nullable TrustManagerFactory tmf) {
+            @Nullable TrustManagerFactory tmf,
+            final ApiKey apiKey) {
         boolean isUnsafeSsl = apiProperties.isUnsafeSsl();
         SSLFactory sslFactory = HttpClientUtils.buildSslFactory(kmf, tmf, isUnsafeSsl);
 
@@ -88,7 +91,7 @@ public class GigaChatOAuthClient {
                 .requestFactory(clientHttpRequestFactory)
                 .build();
 
-        this.apiKey = apiProperties.getApiKey();
+        this.apiKey = apiKey;
         this.scope = apiProperties.getScope();
     }
 
@@ -136,10 +139,10 @@ public class GigaChatOAuthClient {
      * @param headers target HttpHeaders object
      * @param apiKey OAuth client credentials
      */
-    private void buildAuthHeaders(HttpHeaders headers, String apiKey) {
+    private void buildAuthHeaders(HttpHeaders headers, ApiKey apiKey) {
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.setBasicAuth(apiKey);
+        headers.setBasicAuth(apiKey.getValue());
         headers.set("RqUID", UUID.randomUUID().toString());
         headers.set(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT);
     }

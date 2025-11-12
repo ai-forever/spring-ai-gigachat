@@ -36,7 +36,6 @@ public class HttpClientUtils {
             log.warn("Unsafe HTTP client is used");
             return sslFactoryBuilder
                     .withTrustingAllCertificatesWithoutValidation()
-                    .withUnsafeHostnameVerifier()
                     .build();
         }
         if (tmf != null) {

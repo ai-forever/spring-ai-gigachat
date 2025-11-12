@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.model.ChatModelDescription;
 import org.springframework.ai.model.ModelOptionsUtils;
+import org.springframework.ai.model.SimpleApiKey;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -74,8 +75,9 @@ public class GigaChatApi {
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
         if (properties.isBearer()) {
+            final SimpleApiKey apiKey = new SimpleApiKey(properties.getApiKey());
             final GigaChatOAuthClient gigaChatOAuthClient =
-                    new GigaChatOAuthClient(properties, restClientBuilder, null, tmf);
+                    new GigaChatOAuthClient(properties, restClientBuilder, null, tmf, apiKey);
             final GigaChatBearerAuthApi gigaChatBearerAuthApi = new GigaChatBearerAuthApi(gigaChatOAuthClient);
             restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
             webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
