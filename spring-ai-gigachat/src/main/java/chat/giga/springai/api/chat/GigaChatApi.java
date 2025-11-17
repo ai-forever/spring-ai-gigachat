@@ -86,7 +86,7 @@ public class GigaChatApi {
             ResponseErrorHandler responseErrorHandler,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
-        if (properties.isBearer()) {
+        if (apiKey != null || properties.isBearer()) {
             if (apiKey == null) {
                 apiKey = new SimpleApiKey(properties.getApiKey());
             }
