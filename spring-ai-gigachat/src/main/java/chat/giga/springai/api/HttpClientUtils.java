@@ -4,7 +4,6 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
-import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
@@ -27,22 +26,21 @@ public class HttpClientUtils {
                 .build();
     }
 
-    @SneakyThrows
     public static SSLFactory buildSslFactory(
             @Nullable KeyManagerFactory kmf, @Nullable TrustManagerFactory tmf, boolean unsafeSsl) {
         SSLFactory.Builder sslFactoryBuilder = SSLFactory.builder();
         if (kmf != null) {
             sslFactoryBuilder = sslFactoryBuilder.withIdentityMaterial(kmf);
         }
-
         if (unsafeSsl) {
             log.warn("Unsafe HTTP client is used");
-            sslFactoryBuilder = sslFactoryBuilder.withTrustingAllCertificatesWithoutValidation();
-        } else if (tmf != null) {
-            sslFactoryBuilder = sslFactoryBuilder.withTrustMaterial(tmf);
-        } else {
-            sslFactoryBuilder = sslFactoryBuilder.withDefaultTrustMaterial();
+            return sslFactoryBuilder
+                    .withTrustingAllCertificatesWithoutValidation()
+                    .build();
         }
-        return sslFactoryBuilder.build();
+        if (tmf != null) {
+            return sslFactoryBuilder.withTrustMaterial(tmf).build();
+        }
+        return sslFactoryBuilder.withDefaultTrustMaterial().build();
     }
 }

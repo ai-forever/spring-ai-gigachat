@@ -5,6 +5,7 @@ import static chat.giga.springai.api.HttpClientUtils.buildSslFactory;
 
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.auth.bearer.GigaChatBearerAuthApi;
+import chat.giga.springai.api.auth.bearer.GigaChatOAuthClient;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenFilter;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenInterceptor;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
@@ -22,9 +23,9 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.content.Media;
-import org.springframework.ai.model.ApiKey;
 import org.springframework.ai.model.ChatModelDescription;
 import org.springframework.ai.model.ModelOptionsUtils;
+import org.springframework.ai.model.SimpleApiKey;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -73,20 +74,11 @@ public class GigaChatApi {
             ResponseErrorHandler responseErrorHandler,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
-        this(properties, null, restClientBuilder, webClientBuilder, responseErrorHandler, kmf, tmf);
-    }
-
-    public GigaChatApi(
-            GigaChatApiProperties properties,
-            @Nullable ApiKey apiKey,
-            RestClient.Builder restClientBuilder,
-            WebClient.Builder webClientBuilder,
-            ResponseErrorHandler responseErrorHandler,
-            @Nullable KeyManagerFactory kmf,
-            @Nullable TrustManagerFactory tmf) {
-        if (apiKey != null || properties.isBearer()) {
-            final GigaChatBearerAuthApi gigaChatBearerAuthApi =
-                    new GigaChatBearerAuthApi(properties, apiKey, restClientBuilder, null, tmf);
+        if (properties.isBearer()) {
+            final SimpleApiKey apiKey = new SimpleApiKey(properties.getApiKey());
+            final GigaChatOAuthClient gigaChatOAuthClient =
+                    new GigaChatOAuthClient(properties, restClientBuilder, null, tmf, apiKey);
+            final GigaChatBearerAuthApi gigaChatBearerAuthApi = new GigaChatBearerAuthApi(gigaChatOAuthClient);
             restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
             webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
         }
