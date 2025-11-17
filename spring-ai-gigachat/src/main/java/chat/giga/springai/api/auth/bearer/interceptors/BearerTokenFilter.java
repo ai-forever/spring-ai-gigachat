@@ -37,7 +37,7 @@ public record BearerTokenFilter(ApiKey tokenRenewer) implements ExchangeFilterFu
     @Override
     @SuppressWarnings("NullableProblems")
     public Mono<ClientResponse> filter(ClientRequest request, ExchangeFunction next) {
-        String token = tokenRenewer.getAccessToken();
+        String token = tokenRenewer.getValue();
 
         if (token == null || token.isEmpty()) return next.exchange(request);
 
