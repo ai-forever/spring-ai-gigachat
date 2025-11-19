@@ -13,7 +13,6 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
-import org.springframework.ai.model.ApiKey;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -44,19 +43,22 @@ public class GigaChatOAuthClient {
     private final GigaChatApiScope scope;
 
     /**
-     * ApiKey OAuth client credentials (Base64-encoded for Basic Auth).
+     * GigaAuthToken OAuth client credentials (Base64-encoded for Basic Auth).
      */
-    private final ApiKey apiKey;
+    private final GigaAuthToken authToken;
 
     /**
      * Creates auth client with default RestClient.Builder and SSL configuration.
      *
      * @param apiProperties API configuration including auth URL, timeouts, SSL settings
      * @param builder RestClient.Builder with custom interceptors, filters, or observers
+     * @param authToken token to use for authentication
      */
     public GigaChatOAuthClient(
-            final GigaChatApiProperties apiProperties, final RestClient.Builder builder, final ApiKey apiKey) {
-        this(apiProperties, builder, null, null, apiKey);
+            final GigaChatApiProperties apiProperties,
+            final RestClient.Builder builder,
+            final GigaAuthToken authToken) {
+        this(apiProperties, builder, null, null, authToken);
     }
 
     /**
@@ -66,13 +68,14 @@ public class GigaChatOAuthClient {
      * @param builder RestClient.Builder with custom interceptors, filters, or observers
      * @param kmf custom KeyManagerFactory for client certificates, null to use defaults
      * @param tmf custom TrustManagerFactory for server validation, null to use defaults
+     * @param authToken token to use for authentication
      */
     public GigaChatOAuthClient(
             final GigaChatApiProperties apiProperties,
             final RestClient.Builder builder,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf,
-            final ApiKey apiKey) {
+            final GigaAuthToken authToken) {
         boolean isUnsafeSsl = apiProperties.isUnsafeSsl();
         SSLFactory sslFactory = HttpClientUtils.buildSslFactory(kmf, tmf, isUnsafeSsl);
 
@@ -91,7 +94,7 @@ public class GigaChatOAuthClient {
                 .requestFactory(clientHttpRequestFactory)
                 .build();
 
-        this.apiKey = apiKey;
+        this.authToken = authToken;
         this.scope = apiProperties.getScope();
     }
 
@@ -120,7 +123,7 @@ public class GigaChatOAuthClient {
     GigaChatAccessTokenResponse requestToken() {
         return this.restClient
                 .post()
-                .headers(headers -> buildAuthHeaders(headers, this.apiKey))
+                .headers(headers -> buildAuthHeaders(headers, this.authToken))
                 .body("scope=" + this.scope)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, ((request, response) -> {
@@ -137,12 +140,12 @@ public class GigaChatOAuthClient {
      * Builds HTTP headers for OAuth 2.0 token request.
      *
      * @param headers target HttpHeaders object
-     * @param apiKey OAuth client credentials
+     * @param authToken OAuth client credentials
      */
-    private void buildAuthHeaders(HttpHeaders headers, ApiKey apiKey) {
+    private void buildAuthHeaders(HttpHeaders headers, GigaAuthToken authToken) {
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        headers.setBasicAuth(apiKey.getValue());
+        headers.setBasicAuth(authToken.getValue());
         headers.set("RqUID", UUID.randomUUID().toString());
         headers.set(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT);
     }

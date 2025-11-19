@@ -5,6 +5,9 @@ import chat.giga.springai.GigaChatModel;
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.GigaChatInternalProperties;
 import chat.giga.springai.api.auth.GigaChatAuthProperties;
+import chat.giga.springai.api.auth.bearer.GigaAuthToken;
+import chat.giga.springai.api.auth.bearer.NoopGigaAuthToken;
+import chat.giga.springai.api.auth.bearer.SimpleGigaAuthToken;
 import chat.giga.springai.api.chat.GigaChatApi;
 import io.micrometer.observation.ObservationRegistry;
 import javax.net.ssl.KeyManagerFactory;
@@ -16,9 +19,6 @@ import nl.altindag.ssl.util.KeyManagerUtils;
 import nl.altindag.ssl.util.TrustManagerUtils;
 import org.springframework.ai.chat.observation.ChatModelObservationConvention;
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationConvention;
-import org.springframework.ai.model.ApiKey;
-import org.springframework.ai.model.NoopApiKey;
-import org.springframework.ai.model.SimpleApiKey;
 import org.springframework.ai.model.SpringAIModelProperties;
 import org.springframework.ai.model.chat.observation.autoconfigure.ChatObservationAutoConfiguration;
 import org.springframework.ai.model.tool.DefaultToolExecutionEligibilityPredicate;
@@ -30,7 +30,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
@@ -71,7 +70,7 @@ public class GigaChatAutoConfiguration {
     @SneakyThrows
     public GigaChatApi gigaChatApi(
             GigaChatApiProperties gigaChatApiProperties,
-            ApiKey apiKey,
+            GigaAuthToken authToken,
             ObjectProvider<RestClient.Builder> restClientBuilderProvider,
             ObjectProvider<WebClient.Builder> webClientBuilderProvider,
             ResponseErrorHandler responseErrorHandler,
@@ -107,7 +106,7 @@ public class GigaChatAutoConfiguration {
         }
         return new GigaChatApi(
                 gigaChatApiProperties,
-                apiKey,
+                authToken,
                 restClientBuilderProvider.getIfAvailable(RestClient::builder),
                 webClientBuilderProvider.getIfAvailable(WebClient::builder),
                 responseErrorHandler,
@@ -184,25 +183,10 @@ public class GigaChatAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnExpression(
-            """
-            '${spring.ai.gigachat.auth.bearer.api-key:}' > '' ||
-            ('${spring.ai.gigachat.auth.bearer.client-id:}' > '' && '${spring.ai.gigachat.auth.bearer.client-secret:}' > '') ||
-            ('${spring.ai.gigachat.client-id:}' > '' && '${spring.ai.gigachat.client-secret:}' > '')
-            """)
-    public ApiKey simpleApiKey(GigaChatApiProperties gigaChatApiProperties) {
-        return new SimpleApiKey(gigaChatApiProperties.getApiKey());
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnExpression(
-            """
-            '${spring.ai.gigachat.auth.certs.ssl-bundle:}' > '' ||
-            ('${spring.ai.gigachat.auth.certs.certificate:}' > '' && '${spring.ai.gigachat.auth.certs.private-key:}' > '') ||
-            ('${spring.ai.gigachat.client-certificate:}' > '' && '${spring.ai.gigachat.client-key:}' > '')
-            """)
-    public ApiKey noopApiKey() {
-        return new NoopApiKey();
+    public GigaAuthToken simpleGigaAuthToken(GigaChatApiProperties gigaChatApiProperties) {
+        if (gigaChatApiProperties.getAuth().isBearerAuth()) {
+            return new SimpleGigaAuthToken(gigaChatApiProperties.getApiKey());
+        }
+        return new NoopGigaAuthToken();
     }
 }
