@@ -184,7 +184,7 @@ public class GigaChatAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public GigaAuthToken simpleGigaAuthToken(GigaChatApiProperties gigaChatApiProperties) {
-        if (gigaChatApiProperties.getAuth().isBearerAuth()) {
+        if (gigaChatApiProperties.isBearer()) {
             return new SimpleGigaAuthToken(gigaChatApiProperties.getApiKey());
         }
         return new NoopGigaAuthToken();
