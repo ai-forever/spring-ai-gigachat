@@ -44,6 +44,7 @@
 - [Дополнительная метаинформация в ответе ChatResponse](docs/response-metadata.md)
   - [Получение всей переписки с GigaChat под капотом Spring AI](docs/response-metadata.md#получение-всей-переписки-с-gigachat-под-капотом-spring-ai)
   - [Получение идентификаторов загруженных файлов при использовании Multimodality](docs/response-metadata.md#получение-иденификаторов-загруженных-файлов-при-использовании-multimodality)
+- [GigaChat Аутентификация: Использование GigaAuthToken](docs/auth.md)
 - [Примеры](#примеры)
 
 ## Требования
