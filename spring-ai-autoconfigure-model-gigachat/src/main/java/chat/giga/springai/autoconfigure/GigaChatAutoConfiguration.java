@@ -25,10 +25,10 @@ import org.springframework.ai.model.tool.DefaultToolExecutionEligibilityPredicat
 import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.model.tool.ToolExecutionEligibilityPredicate;
 import org.springframework.ai.model.tool.autoconfigure.ToolCallingAutoConfiguration;
+import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.retry.autoconfigure.SpringAiRetryAutoConfiguration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -55,13 +55,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 @EnableConfigurationProperties({GigaChatChatProperties.class, GigaChatEmbeddingProperties.class})
 @ConditionalOnClass(GigaChatApi.class)
 @ConditionalOnProperty(name = SpringAIModelProperties.CHAT_MODEL, havingValue = "gigachat", matchIfMissing = true)
-@ImportAutoConfiguration(
-        classes = {
-            SpringAiRetryAutoConfiguration.class,
-            RestClientAutoConfiguration.class,
-            WebClientAutoConfiguration.class,
-            ToolCallingAutoConfiguration.class
-        })
 @Slf4j
 public class GigaChatAutoConfiguration {
 
@@ -73,7 +66,7 @@ public class GigaChatAutoConfiguration {
             GigaAuthToken authToken,
             ObjectProvider<RestClient.Builder> restClientBuilderProvider,
             ObjectProvider<WebClient.Builder> webClientBuilderProvider,
-            ResponseErrorHandler responseErrorHandler,
+            ObjectProvider<ResponseErrorHandler> responseErrorHandlerProvider,
             ObjectProvider<SslBundles> sslBundlesProvider) {
         KeyManagerFactory keyManagerFactory = null;
         TrustManagerFactory trustManagerFactory = null;
@@ -109,7 +102,7 @@ public class GigaChatAutoConfiguration {
                 authToken,
                 restClientBuilderProvider.getIfAvailable(RestClient::builder),
                 webClientBuilderProvider.getIfAvailable(WebClient::builder),
-                responseErrorHandler,
+                responseErrorHandlerProvider.getIfAvailable(() -> RetryUtils.DEFAULT_RESPONSE_ERROR_HANDLER),
                 keyManagerFactory,
                 trustManagerFactory);
     }
@@ -119,8 +112,8 @@ public class GigaChatAutoConfiguration {
     public GigaChatModel gigaChatChatModel(
             GigaChatApi gigaChatApi,
             GigaChatChatProperties chatProperties,
-            RetryTemplate retryTemplate,
-            ToolCallingManager toolCallingManager,
+            ObjectProvider<RetryTemplate> retryTemplateProvider,
+            ObjectProvider<ToolCallingManager> toolCallingManagerProvider,
             ObjectProvider<ObservationRegistry> observationRegistry,
             ObjectProvider<ChatModelObservationConvention> observationConvention,
             ObjectProvider<ToolExecutionEligibilityPredicate> toolExecutionEligibilityPredicate,
@@ -128,8 +121,9 @@ public class GigaChatAutoConfiguration {
         final GigaChatModel gigaChatModel = GigaChatModel.builder()
                 .gigaChatApi(gigaChatApi)
                 .defaultOptions(chatProperties.getOptions())
-                .retryTemplate(retryTemplate)
-                .toolCallingManager(toolCallingManager)
+                .retryTemplate(retryTemplateProvider.getIfAvailable(() -> RetryUtils.DEFAULT_RETRY_TEMPLATE))
+                .toolCallingManager(
+                        toolCallingManagerProvider.getIfAvailable(() -> GigaChatModel.DEFAULT_TOOL_CALLING_MANAGER))
                 .observationRegistry(observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP))
                 .toolExecutionEligibilityPredicate(
                         toolExecutionEligibilityPredicate.getIfUnique(DefaultToolExecutionEligibilityPredicate::new))
@@ -145,13 +139,13 @@ public class GigaChatAutoConfiguration {
     public GigaChatEmbeddingModel gigaChatEmbeddingModel(
             GigaChatApi gigaChatApi,
             GigaChatEmbeddingProperties gigaChatEmbeddingProperties,
-            RetryTemplate retryTemplate,
+            ObjectProvider<RetryTemplate> retryTemplateProvider,
             ObjectProvider<ObservationRegistry> observationRegistry,
             ObjectProvider<EmbeddingModelObservationConvention> observationConvention) {
         GigaChatEmbeddingModel gigaChatEmbeddingModel = new GigaChatEmbeddingModel(
                 gigaChatApi,
                 gigaChatEmbeddingProperties.getOptions(),
-                retryTemplate,
+                retryTemplateProvider.getIfAvailable(() -> RetryUtils.DEFAULT_RETRY_TEMPLATE),
                 observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP));
 
         observationConvention.ifAvailable(gigaChatEmbeddingModel::setObservationConvention);

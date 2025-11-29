@@ -406,32 +406,35 @@ public class GigaChatModelTest {
                                 UserMessage.builder()
                                         .text("Отправь письмо на support@chat.giga")
                                         .build(),
-                                new AssistantMessage(
-                                        "",
-                                        Map.of(),
-                                        List.of(new AssistantMessage.ToolCall(
+                                AssistantMessage.builder()
+                                        .content("")
+                                        .toolCalls(List.of(new AssistantMessage.ToolCall(
                                                 "sendEmail",
                                                 "function",
                                                 "sendEmail",
-                                                "{\"address\": \"support@chat.giga\"}"))),
-                                new ToolResponseMessage(List.of(new ToolResponseMessage.ToolResponse(
-                                        "sendEmail", "sendEmail", "{\"status\": \"sent\"}"))))),
+                                                "{\"address\": \"support@chat.giga\"}")))
+                                        .build(),
+                                ToolResponseMessage.builder()
+                                        .responses(List.of(new ToolResponseMessage.ToolResponse(
+                                                "sendEmail", "sendEmail", "{\"status\": \"sent\"}")))
+                                        .build())),
                         new HashMap<>() {
                             {
                                 put(
                                         GigaChatModel.INTERNAL_CONVERSATION_HISTORY,
                                         List.of(
-                                                new AssistantMessage(
-                                                        "",
-                                                        Map.of(),
-                                                        List.of(
-                                                                new AssistantMessage.ToolCall(
-                                                                        "sendEmail",
-                                                                        "function",
-                                                                        "sendEmail",
-                                                                        "{\"address\": \"support@chat.giga\"}"))),
-                                                new ToolResponseMessage(List.of(new ToolResponseMessage.ToolResponse(
-                                                        "sendEmail", "sendEmail", "{\"status\": \"sent\"}")))));
+                                                AssistantMessage.builder()
+                                                        .content("")
+                                                        .toolCalls(List.of(new AssistantMessage.ToolCall(
+                                                                "sendEmail",
+                                                                "function",
+                                                                "sendEmail",
+                                                                "{\"address\": \"support@chat.giga\"}")))
+                                                        .build(),
+                                                ToolResponseMessage.builder()
+                                                        .responses(List.of(new ToolResponseMessage.ToolResponse(
+                                                                "sendEmail", "sendEmail", "{\"status\": \"sent\"}")))
+                                                        .build()));
                                 put(GigaChatModel.UPLOADED_MEDIA_IDS, null);
                             }
                         }),

@@ -71,8 +71,7 @@
 <dependency>
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-starter-model-gigachat</artifactId>
-    <version>1.0.6</version>
-    <!-- или 1.1.0-M3.001 - для работы с релизом Spring AI 1.1.0-M3 -->
+    <version>1.1.0</version>
 </dependency>
 ```
 

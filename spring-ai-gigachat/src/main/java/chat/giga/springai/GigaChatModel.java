@@ -48,7 +48,7 @@ public class GigaChatModel implements ChatModel {
             new DefaultChatModelObservationConvention();
     public static final String INTERNAL_CONVERSATION_HISTORY = "GigaChatInternalConversationHistory";
     public static final String UPLOADED_MEDIA_IDS = "GigaChatUploadedMediaIds";
-    private static final ToolCallingManager DEFAULT_TOOL_CALLING_MANAGER =
+    public static final ToolCallingManager DEFAULT_TOOL_CALLING_MANAGER =
             ToolCallingManager.builder().build();
 
     /**
@@ -497,7 +497,11 @@ public class GigaChatModel implements ChatModel {
         } else {
             toolCalls = List.of();
         }
-        var assistantMessage = new AssistantMessage(message.getContent(), metadata, toolCalls);
+        var assistantMessage = AssistantMessage.builder()
+                .content(message.getContent())
+                .toolCalls(toolCalls)
+                .properties(metadata)
+                .build();
         var generationMetadata = ChatGenerationMetadata.builder()
                 .finishReason(choice.getFinishReason())
                 .build();

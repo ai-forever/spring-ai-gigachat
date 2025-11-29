@@ -6,7 +6,7 @@
 
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-parent</artifactId>
-    <version>1.1.0-M3.001</version>
+    <version>1.1.0</version>
     <packaging>pom</packaging>
 
     <name>Spring AI model - GigaChat - Parent</name>
@@ -59,8 +59,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.29.1</allure-bom.version>
         <aspectj.version>1.9.24</aspectj.version>
-        <spring-boot.version>3.5.6</spring-boot.version>
-        <spring-ai.version>1.1.0-M3</spring-ai.version>
+        <spring-boot.version>3.5.7</spring-boot.version>
+        <spring-ai.version>1.1.0</spring-ai.version>
         <ayza.version>10.0.0</ayza.version>
         <lombok.version>1.18.38</lombok.version>
         <wiremock-spring-boot.version>3.10.6</wiremock-spring-boot.version>
@@ -339,6 +339,8 @@
                                     <includes>
                                         <include>**/*IT.java</include>
                                     </includes>
+                                    <forkCount>1</forkCount>
+                                    <parallel>none</parallel>
                                 </configuration>
                             </execution>
                         </executions>
