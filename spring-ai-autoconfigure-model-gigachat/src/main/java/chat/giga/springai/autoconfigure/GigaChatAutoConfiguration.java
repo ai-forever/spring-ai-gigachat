@@ -9,6 +9,7 @@ import chat.giga.springai.api.auth.bearer.GigaAuthToken;
 import chat.giga.springai.api.auth.bearer.NoopGigaAuthToken;
 import chat.giga.springai.api.auth.bearer.SimpleGigaAuthToken;
 import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.image.GigaChatImageModel;
 import io.micrometer.observation.ObservationRegistry;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
@@ -19,6 +20,8 @@ import nl.altindag.ssl.util.KeyManagerUtils;
 import nl.altindag.ssl.util.TrustManagerUtils;
 import org.springframework.ai.chat.observation.ChatModelObservationConvention;
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationConvention;
+import org.springframework.ai.image.ImageModel;
+import org.springframework.ai.image.observation.ImageModelObservationConvention;
 import org.springframework.ai.model.SpringAIModelProperties;
 import org.springframework.ai.model.chat.observation.autoconfigure.ChatObservationAutoConfiguration;
 import org.springframework.ai.model.tool.DefaultToolExecutionEligibilityPredicate;
@@ -52,7 +55,7 @@ import org.springframework.web.reactive.function.client.WebClient;
             ChatObservationAutoConfiguration.class,
             ToolCallingAutoConfiguration.class
         })
-@EnableConfigurationProperties({GigaChatChatProperties.class, GigaChatEmbeddingProperties.class})
+@EnableConfigurationProperties({GigaChatChatProperties.class, GigaChatEmbeddingProperties.class, GigaChatImageProperties.class})
 @ConditionalOnClass(GigaChatApi.class)
 @ConditionalOnProperty(name = SpringAIModelProperties.CHAT_MODEL, havingValue = "gigachat", matchIfMissing = true)
 @Slf4j
@@ -183,4 +186,25 @@ public class GigaChatAutoConfiguration {
         }
         return new NoopGigaAuthToken();
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ImageModel gigaChatImageModel(
+            GigaChatApi gigaChatApi,
+            GigaChatChatProperties chatProperties,
+            ObjectProvider<RetryTemplate> retryTemplateProvider,
+            ObjectProvider<ObservationRegistry> observationRegistry,
+            ObjectProvider<ImageModelObservationConvention> observationConvention) {
+
+        GigaChatImageModel gigaChatImageModel = new GigaChatImageModel(
+                gigaChatApi,
+                chatProperties.getOptions(),
+                observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP),
+                retryTemplateProvider.getIfAvailable(() -> RetryUtils.DEFAULT_RETRY_TEMPLATE));
+
+        observationConvention.ifAvailable(gigaChatImageModel::setObservationConvention);
+
+        return gigaChatImageModel;
+    }
+
 }

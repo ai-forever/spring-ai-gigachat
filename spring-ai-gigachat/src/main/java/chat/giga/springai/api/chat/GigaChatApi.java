@@ -236,6 +236,19 @@ public class GigaChatApi {
                 .toEntity(DeleteFileResponse.class);
     }
 
+    public byte[] downloadFile(String fileId) {
+        return downloadFile(fileId, null);
+    }
+
+    public byte[] downloadFile(String fileId, @Nullable HttpHeaders headers) {
+        return this.restClient
+                .get()
+                .uri("/files/{fileId}/content", fileId)
+                .headers(applyHeaders(headers))
+                .retrieve()
+                .body(byte[].class);
+    }
+
     public ResponseEntity<ModelsResponse> models() {
         return this.restClient.get().uri("/models").retrieve().toEntity(ModelsResponse.class);
     }

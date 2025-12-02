@@ -23,6 +23,8 @@ spring:
           model: GigaChat-2
           http-headers:
             x-client-id: ${spring.application.name}
+      image:
+        enabled: true
 
 logging:
   level:
