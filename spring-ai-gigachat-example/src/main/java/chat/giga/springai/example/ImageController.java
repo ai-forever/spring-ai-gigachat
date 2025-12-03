@@ -2,6 +2,7 @@ package chat.giga.springai.example;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
+import chat.giga.springai.image.GigaChatImageOptions;
 import org.springframework.ai.image.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,10 +27,7 @@ public class ImageController {
     @PostMapping(value = "/generate", consumes = APPLICATION_JSON_VALUE)
     public Map<String, Object> generate(@RequestBody GenerateImageRequest request) {
         ImagePrompt prompt = new ImagePrompt(
-                List.of(
-                        new ImageMessage(request.prompt(), 1.0f)
-                ),
-                ImageOptionsBuilder.builder().build()
+                List.of(new ImageMessage(request.prompt(), 1.0f))
         );
         ImageResponse response = imageModel.call(prompt);
         ImageGeneration result = response.getResult();
@@ -45,8 +43,8 @@ public class ImageController {
     public byte[] generateRaw(@RequestBody GenerateImageRequest request) {
         ImagePrompt pr = new ImagePrompt(
                 List.of(new ImageMessage(request.prompt(), 1.0f)),
-                ImageOptionsBuilder.builder().build()
-        );
+                GigaChatImageOptions.builder().model("GigaChat-2-Max").build());
+
         ImageResponse resp = imageModel.call(pr);
 
         String b64 = resp.getResult().getOutput().getB64Json();

@@ -24,7 +24,7 @@ class GigaChatImageModelTest {
     public static final String GIGA_CHAT_2_MAX = "GigaChat-2-Max";
     GigaChatApi gigaChatApi = Mockito.mock(GigaChatApi.class);
 
-    GigaChatOptions defaultOptions = GigaChatOptions.builder()
+    GigaChatImageOptions defaultOptions = GigaChatImageOptions.builder()
             .model("GigaChat-2-Max")
             .build();
 

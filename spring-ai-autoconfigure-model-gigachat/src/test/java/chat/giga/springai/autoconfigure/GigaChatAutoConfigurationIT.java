@@ -8,6 +8,7 @@ import chat.giga.springai.GigaChatEmbeddingModel;
 import chat.giga.springai.GigaChatModel;
 import java.util.List;
 import chat.giga.springai.image.GigaChatImageModel;
+import chat.giga.springai.image.GigaChatImageOptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -71,11 +72,8 @@ public class GigaChatAutoConfigurationIT {
     @DisplayName("Тест взаимодействия с chat моделью для генерации изображений")
     void imageInteractionTest() {
         ImagePrompt prompt = new ImagePrompt(
-                List.of(
-                        new ImageMessage("Нарисуй розового кота в стиле акварели", 1.0f)
-                ),
-                ImageOptionsBuilder.builder().build()
-        );
+                List.of(new ImageMessage("Нарисуй розового кота в стиле акварели", 1.0f)),
+                GigaChatImageOptions.builder().build());
         ImageResponse response = gigaChatImageModel.call(prompt);
         assertThat("Запрос в imageModel", response, is(not(nullValue())));
     }

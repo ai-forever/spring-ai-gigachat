@@ -10,6 +10,7 @@ import chat.giga.springai.api.auth.bearer.NoopGigaAuthToken;
 import chat.giga.springai.api.auth.bearer.SimpleGigaAuthToken;
 import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.image.GigaChatImageModel;
+import chat.giga.springai.image.GigaChatImageOptions;
 import io.micrometer.observation.ObservationRegistry;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
@@ -189,16 +190,17 @@ public class GigaChatAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(name = SpringAIModelProperties.IMAGE_MODEL, havingValue = "gigachat", matchIfMissing = true)
     public ImageModel gigaChatImageModel(
             GigaChatApi gigaChatApi,
-            GigaChatChatProperties chatProperties,
+            GigaChatImageProperties properties,
             ObjectProvider<RetryTemplate> retryTemplateProvider,
             ObjectProvider<ObservationRegistry> observationRegistry,
             ObjectProvider<ImageModelObservationConvention> observationConvention) {
 
         GigaChatImageModel gigaChatImageModel = new GigaChatImageModel(
                 gigaChatApi,
-                chatProperties.getOptions(),
+                properties.getOptions(),
                 observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP),
                 retryTemplateProvider.getIfAvailable(() -> RetryUtils.DEFAULT_RETRY_TEMPLATE));
 
