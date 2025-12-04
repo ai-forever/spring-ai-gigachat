@@ -6,9 +6,9 @@ import static org.hamcrest.Matchers.*;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
 import chat.giga.springai.GigaChatModel;
-import java.util.List;
 import chat.giga.springai.image.GigaChatImageModel;
 import chat.giga.springai.image.GigaChatImageOptions;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.image.ImageMessage;
-import org.springframework.ai.image.ImageOptionsBuilder;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,5 +76,4 @@ public class GigaChatAutoConfigurationIT {
         ImageResponse response = gigaChatImageModel.call(prompt);
         assertThat("Запрос в imageModel", response, is(not(nullValue())));
     }
-
 }

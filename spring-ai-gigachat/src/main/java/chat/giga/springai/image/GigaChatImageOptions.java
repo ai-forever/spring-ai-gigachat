@@ -9,9 +9,9 @@ import org.springframework.ai.image.ImageOptions;
 @Builder
 public class GigaChatImageOptions implements ImageOptions {
 
-    public static final String SYSTEM_PROMPT = "You are an artist. If the user asks you to draw something," +
-            "generate an image using the built-in text2image function" +
-            "and return a tag in the form <img src=\"FILE_ID\"/>.";
+    public static final String SYSTEM_PROMPT = "You are an artist. If the user asks you to draw something,"
+            + "generate an image using the built-in text2image function"
+            + "and return a tag in the form <img src=\"FILE_ID\"/>.";
 
     @Builder.Default
     private String style = SYSTEM_PROMPT;

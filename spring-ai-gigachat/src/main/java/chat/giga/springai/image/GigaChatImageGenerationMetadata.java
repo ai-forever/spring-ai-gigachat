@@ -51,5 +51,4 @@ public class GigaChatImageGenerationMetadata implements ImageGenerationMetadata 
     public String toString() {
         return "file_id=" + fileId;
     }
-
 }

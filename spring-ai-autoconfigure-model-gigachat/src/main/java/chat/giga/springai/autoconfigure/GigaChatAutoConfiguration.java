@@ -10,7 +10,6 @@ import chat.giga.springai.api.auth.bearer.NoopGigaAuthToken;
 import chat.giga.springai.api.auth.bearer.SimpleGigaAuthToken;
 import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.image.GigaChatImageModel;
-import chat.giga.springai.image.GigaChatImageOptions;
 import io.micrometer.observation.ObservationRegistry;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
@@ -56,7 +55,11 @@ import org.springframework.web.reactive.function.client.WebClient;
             ChatObservationAutoConfiguration.class,
             ToolCallingAutoConfiguration.class
         })
-@EnableConfigurationProperties({GigaChatChatProperties.class, GigaChatEmbeddingProperties.class, GigaChatImageProperties.class})
+@EnableConfigurationProperties({
+    GigaChatChatProperties.class,
+    GigaChatEmbeddingProperties.class,
+    GigaChatImageProperties.class
+})
 @ConditionalOnClass(GigaChatApi.class)
 @ConditionalOnProperty(name = SpringAIModelProperties.CHAT_MODEL, havingValue = "gigachat", matchIfMissing = true)
 @Slf4j
@@ -208,5 +211,4 @@ public class GigaChatAutoConfiguration {
 
         return gigaChatImageModel;
     }
-
 }

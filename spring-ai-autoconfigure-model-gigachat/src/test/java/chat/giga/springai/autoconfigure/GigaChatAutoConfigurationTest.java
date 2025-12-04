@@ -5,11 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
 import chat.giga.springai.GigaChatModel;
-import chat.giga.springai.image.GigaChatImageModel;
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.GigaChatInternalProperties;
 import chat.giga.springai.api.auth.GigaChatAuthProperties;
 import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.image.GigaChatImageModel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -114,16 +114,12 @@ public class GigaChatAutoConfigurationTest {
 
     @DisplayName("Параметризованный тест автоконфигурации кастомных параметров Image модели")
     @ParameterizedTest
-    @CsvSource({
-            "openai, false",
-            "gigachat, true"
-    })
+    @CsvSource({"openai, false", "gigachat, true"})
     void customImagePropertiesAutoConfigurationTest(String propertyValue, boolean beanShouldExist) {
 
         contextRunner
                 .withPropertyValues("spring.ai.model.image=" + propertyValue)
                 .run(context -> {
-
                     if (beanShouldExist) {
                         assertThat(context).hasSingleBean(GigaChatImageModel.class);
                     } else {

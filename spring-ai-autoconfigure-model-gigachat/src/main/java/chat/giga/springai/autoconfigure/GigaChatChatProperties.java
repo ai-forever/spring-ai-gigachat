@@ -21,5 +21,4 @@ public class GigaChatChatProperties {
     public GigaChatOptions getOptions() {
         return this.options;
     }
-    
 }
