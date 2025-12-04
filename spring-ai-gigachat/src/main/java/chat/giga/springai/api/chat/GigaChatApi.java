@@ -94,11 +94,13 @@ public class GigaChatApi {
             ResponseErrorHandler responseErrorHandler,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
-        final GigaChatOAuthClient gigaChatOAuthClient =
-                new GigaChatOAuthClient(properties, restClientBuilder, null, tmf, authToken);
-        final GigaChatBearerAuthApi gigaChatBearerAuthApi = new GigaChatBearerAuthApi(gigaChatOAuthClient);
-        restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
-        webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
+        if (properties.isBearer()) {
+            final GigaChatOAuthClient gigaChatOAuthClient =
+                    new GigaChatOAuthClient(properties, restClientBuilder, null, tmf, authToken);
+            final GigaChatBearerAuthApi gigaChatBearerAuthApi = new GigaChatBearerAuthApi(gigaChatOAuthClient);
+            restClientBuilder.requestInterceptor(new BearerTokenInterceptor(gigaChatBearerAuthApi));
+            webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
+        }
 
         var internalProps = properties.getInternal();
 
