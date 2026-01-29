@@ -45,8 +45,17 @@ import reactor.core.publisher.Flux;
  * Implementation of Spring AI {@link ChatModel} for GigaChat API.
  * Supports both synchronous and streaming chat completions.
  *
+ * <p>Features:</p>
+ * <ul>
+ *   <li>Blocking and streaming chat completions</li>
+ *   <li>Function calling support</li>
+ *   <li>Image and file attachments</li>
+ *   <li>Observability (metrics, traces, logs)</li>
+ * </ul>
+ *
  * @see ChatModel
  * @see GigaChatApi
+ * @since 1.0.0
  */
 @Slf4j
 public class GigaChatModel implements ChatModel {
