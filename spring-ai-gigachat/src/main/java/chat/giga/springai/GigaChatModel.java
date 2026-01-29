@@ -328,6 +328,9 @@ public class GigaChatModel implements ChatModel {
                                     .functionCall(new CompletionResponse.FunctionCall()
                                             .setName(toolCall.name())
                                             .setArguments(toolCall.arguments()));
+                        } else if (message.getMetadata().containsKey("functions_state_id")) {
+                            messageBuilder.functionsStateId(
+                                    (String) message.getMetadata().get("functions_state_id"));
                         }
                         return List.of(messageBuilder.build());
                     } else if (message instanceof ToolResponseMessage toolResponseMessage) {
@@ -476,18 +479,17 @@ public class GigaChatModel implements ChatModel {
     private Generation buildGeneration(String id, CompletionResponse.Choice choice, boolean streaming) {
         CompletionResponse.MessagesRes message = streaming ? choice.getDelta() : choice.getMessage();
         String finishReason = choice.getFinishReason() != null ? choice.getFinishReason() : "";
-        Map<String, Object> metadata = Map.of(
-                "id",
-                id,
-                "index",
-                choice.getIndex(),
-                "role",
-                message.getRole() != null ? message.getRole().name() : "",
-                "finishReason",
-                finishReason);
+        String functionsStateId = message.getFunctionsStateId();
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("id", id);
+        metadata.put("index", choice.getIndex());
+        metadata.put("role", message.getRole() != null ? message.getRole().name() : "");
+        metadata.put("finishReason", finishReason);
+        if (functionsStateId != null) {
+            metadata.put("functions_state_id", functionsStateId);
+        }
         List<AssistantMessage.ToolCall> toolCalls;
         if (CompletionResponse.FinishReason.FUNCTION_CALL.equals(finishReason)) {
-            String functionsStateId = message.getFunctionsStateId();
             AssistantMessage.ToolCall toolCall = new AssistantMessage.ToolCall(
                     functionsStateId,
                     "function",
@@ -500,7 +502,7 @@ public class GigaChatModel implements ChatModel {
         var assistantMessage = AssistantMessage.builder()
                 .content(message.getContent())
                 .toolCalls(toolCalls)
-                .properties(metadata)
+                .properties(Collections.unmodifiableMap(metadata))
                 .build();
         var generationMetadata = ChatGenerationMetadata.builder()
                 .finishReason(choice.getFinishReason())
