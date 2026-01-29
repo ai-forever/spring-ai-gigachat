@@ -52,11 +52,11 @@ jobs:
             - Provide feedback in Russian if PR description is in Russian, otherwise in English
 
             OUTPUT FORMAT:
-            - If no issues found: just comment "LGTM" (nothing else)
-            - If issues found: list them concisely with inline comments where applicable
+            - If no issues found: approve PR with `gh pr review --approve` and comment "LGTM"
+            - If issues found: list them concisely with inline comments, do NOT approve
             - Do NOT include internal checklists or verbose explanations
             - Keep it short and actionable
 
           claude_args: |
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Glob,Grep"
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Read,Glob,Grep"
 
