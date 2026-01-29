@@ -42,7 +42,7 @@ public class GigaChatApiTest {
 
         final GigaChatApi gigaChatApi = new GigaChatApi(
                 properties,
-                new SimpleGigaAuthToken(properties.getApiKey()),
+                new SimpleGigaAuthToken(properties.getAuth().getApiKey()),
                 mockRestClientBuilder,
                 mockWebClientBuilder,
                 RetryUtils.DEFAULT_RESPONSE_ERROR_HANDLER,

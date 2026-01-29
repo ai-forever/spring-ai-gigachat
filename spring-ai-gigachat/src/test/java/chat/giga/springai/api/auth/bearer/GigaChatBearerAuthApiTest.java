@@ -184,7 +184,7 @@ public abstract class GigaChatBearerAuthApiTest {
 
             @Bean
             public SimpleGigaAuthToken simpleGigaAuthToken(GigaChatApiProperties apiProperties) {
-                return new SimpleGigaAuthToken(apiProperties.getApiKey());
+                return new SimpleGigaAuthToken(apiProperties.getAuth().getApiKey());
             }
 
             @Bean
@@ -217,37 +217,7 @@ public abstract class GigaChatBearerAuthApiTest {
 
             @Bean
             public SimpleGigaAuthToken simpleGigaAuthToken(GigaChatApiProperties apiProperties) {
-                return new SimpleGigaAuthToken(apiProperties.getApiKey());
-            }
-
-            @Bean
-            public GigaChatBearerAuthApi gigaChatBearerAuthApi(
-                    GigaChatApiProperties apiProperties,
-                    RestClient.Builder restClientBuilder,
-                    GigaAuthToken authToken) {
-                return new GigaChatBearerAuthApi(new GigaChatOAuthClient(apiProperties, restClientBuilder, authToken));
-            }
-        }
-    }
-
-    @ContextConfiguration(classes = OldGigaChatBearerAuthApiTest.Config.class)
-    public static class OldGigaChatBearerAuthApiTest extends GigaChatBearerAuthApiTest {
-        @Configuration
-        public static class Config {
-            @Bean
-            public GigaChatApiProperties gigaChatApiProperties(@Value("${wiremock.server.baseUrl}") String baseUrl) {
-                return GigaChatApiProperties.builder()
-                        .authUrl(baseUrl + "/api/v2/oauth")
-                        .scope(GigaChatApiScope.GIGACHAT_API_CORP)
-                        .clientId("id")
-                        .clientSecret("secret")
-                        .unsafeSsl(true)
-                        .build();
-            }
-
-            @Bean
-            public SimpleGigaAuthToken simpleGigaAuthToken(GigaChatApiProperties apiProperties) {
-                return new SimpleGigaAuthToken(apiProperties.getApiKey());
+                return new SimpleGigaAuthToken(apiProperties.getAuth().getApiKey());
             }
 
             @Bean
