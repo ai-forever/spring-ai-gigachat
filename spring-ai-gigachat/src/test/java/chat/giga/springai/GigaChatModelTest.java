@@ -101,6 +101,30 @@ public class GigaChatModelTest {
     }
 
     @Test
+    void testGigaChatOptions_withFunctionsStateIdAndFinishReasonStop() {
+        var functionCallback = GigaTools.from(new TestTool());
+
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .toolCallbacks(List.of(functionCallback))
+                        .build());
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        when(response.getChoices())
+                .thenReturn(List.of(new CompletionResponse.Choice()
+                        .setMessage(new CompletionResponse.MessagesRes().setFunctionsStateId("uuid"))));
+
+        ChatResponse chatResponse = gigaChatModel.internalCall(prompt, null);
+
+        assertTrue(chatResponse.getResult().getOutput().getMetadata().containsKey("functions_state_id"));
+        assertEquals("uuid", chatResponse.getResult().getOutput().getMetadata().get("functions_state_id"));
+    }
+
+    @Test
     void testGigaChatOptions_withFunctionCallEmptyAndTool() {
         var functionCallback = GigaTools.from(new TestTool());
 
