@@ -41,6 +41,13 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
+/**
+ * Implementation of Spring AI {@link ChatModel} for GigaChat API.
+ * Supports both synchronous and streaming chat completions.
+ *
+ * @see ChatModel
+ * @see GigaChatApi
+ */
 @Slf4j
 public class GigaChatModel implements ChatModel {
     public static final String DEFAULT_MODEL_NAME = GigaChatApi.ChatModel.GIGA_CHAT_2.getName();
