@@ -6,6 +6,9 @@
   <a href="https://central.sonatype.com/artifact/chat.giga/spring-ai-starter-model-gigachat">
     <img alt="Maven Central Version" src="https://img.shields.io/maven-central/v/chat.giga/spring-ai-starter-model-gigachat">
   </a>
+  <a href="https://github.com/ai-forever/spring-ai-gigachat/actions/workflows/maven-build.yml">
+    <img alt="Build Status" src="https://github.com/ai-forever/spring-ai-gigachat/actions/workflows/maven-build.yml/badge.svg">
+  </a>
   <p>
     <img src="docs/img/spring-ai-gigachat-logo-2048-2048.png" alt="Логотип" width="300">
   </p>
