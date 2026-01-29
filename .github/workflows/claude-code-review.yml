@@ -1,17 +1,19 @@
-name: Claude Code Review
+name: Claude Code
 
 on:
+  # Auto-review on PR events (works for both internal PRs and forks)
   pull_request_target:
     types: [opened, synchronize, ready_for_review, reopened]
+  # Interactive mode: respond to @claude mentions in comments
+  issue_comment:
+    types: [created]
 
 jobs:
-  claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
+  claude:
+    # Run for PR events OR when @claude is mentioned in a comment
+    if: |
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -20,23 +22,22 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout PR code
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
-      - name: Run Claude Code Review
-        id: claude-review
+      - name: Run Claude
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             Review this pull request. Focus on:
-            - Code quality and best practices
+            - Code quality and best practices for Java/Spring
             - Potential bugs or issues
             - Security concerns
             - Performance considerations
-            Provide constructive feedback.
+            Provide constructive feedback in Russian or English based on PR language.
 
