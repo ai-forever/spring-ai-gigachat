@@ -95,13 +95,13 @@ public class GigaChatAuthProperties {
             if (StringUtils.hasText(this.apiKey)) {
                 return this.apiKey;
             }
-        if (StringUtils.hasText(this.apiKey)) {
-            return this.apiKey;
-        }
-        if (StringUtils.hasText(this.clientId) && StringUtils.hasText(this.clientSecret)) {
-            return HttpHeaders.encodeBasicAuth(this.clientId, this.clientSecret, StandardCharsets.UTF_8);
-        }
-        return null;
+            if (StringUtils.hasText(this.apiKey)) {
+                return this.apiKey;
+            }
+            if (StringUtils.hasText(this.clientId) && StringUtils.hasText(this.clientSecret)) {
+                return HttpHeaders.encodeBasicAuth(this.clientId, this.clientSecret, StandardCharsets.UTF_8);
+            }
+            return null;
         }
     }
 
