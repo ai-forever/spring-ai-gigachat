@@ -234,3 +234,4 @@ spring:
 ## Примеры
 
 Примеры работы с библиотекой - в отдельном модуле [spring-ai-gigachat-example](./spring-ai-gigachat-example/README.md).
+
