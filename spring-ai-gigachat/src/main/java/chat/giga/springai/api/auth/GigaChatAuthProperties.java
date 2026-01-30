@@ -89,7 +89,7 @@ public class GigaChatAuthProperties {
         /**
          * Returns {@link #apiKey} if present.
          * Otherwise, build api key as base64-encoded '{@link #clientId}:{@link #clientSecret}' pair.
-         * @return
+         * @return base64-encoded api key or {@code null} if neither apiKey nor clientId/clientSecret are present
          */
         public String buildApiKey() {
             if (StringUtils.hasText(this.apiKey)) {

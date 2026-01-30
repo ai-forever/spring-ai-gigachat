@@ -126,6 +126,10 @@ public class GigaChatEmbeddingModel extends AbstractEmbeddingModel {
 
     @Override
     public int dimensions() {
-        return KNOWN_EMBEDDING_DIMENSIONS.computeIfAbsent(this.defaultOptions.getModel(), model -> super.dimensions());
+        String model = this.defaultOptions.getModel();
+        if (model == null) {
+            return super.dimensions();
+        }
+        return KNOWN_EMBEDDING_DIMENSIONS.computeIfAbsent(model, m -> super.dimensions());
     }
 }

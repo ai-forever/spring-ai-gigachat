@@ -143,7 +143,6 @@ public class GigaChatApi {
         GIGA_CHAT_2("GigaChat-2"),
         GIGA_CHAT_2_MAX("GigaChat-2-Max"),
         GIGA_CHAT_2_PRO("GigaChat-2-Pro");
-        // мб нужно добавить новые модели?
 
         public final String value;
 
