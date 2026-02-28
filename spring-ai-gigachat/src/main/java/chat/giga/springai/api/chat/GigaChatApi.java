@@ -50,6 +50,7 @@ public class GigaChatApi {
 
     private final RestClient restClient;
     private final WebClient webClient;
+    private final String baseUrl;
 
     public GigaChatApi(GigaChatApiProperties properties) {
         this(properties, null, null);
@@ -93,6 +94,7 @@ public class GigaChatApi {
             ResponseErrorHandler responseErrorHandler,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
+        this.baseUrl = properties.getBaseUrl();
         var authProps = properties.getAuth();
         var internalProps = properties.getInternal();
 
@@ -252,6 +254,11 @@ public class GigaChatApi {
                 .headers(applyHeaders(headers))
                 .retrieve()
                 .body(byte[].class);
+    }
+
+    public String getFileUrl(String fileId) {
+        String base = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        return base + "/files/" + fileId + "/content";
     }
 
     public ResponseEntity<ModelsResponse> models() {

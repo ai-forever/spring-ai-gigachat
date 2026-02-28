@@ -131,6 +131,21 @@ curl localhost:8080/sendWithHeaders -d "Расскажи шутку" -H "Content
 curl localhost:8080/sendWithHeaders -d "Расскажи шутку" -H "x-request-id:1234567890" -H "Content-Type:application/json"
 ```
 
+## Примеры генерации изображений
+
+[ImageController.java](src/main/java/chat/giga/springai/example/ImageController.java)
+
+```shell
+# Генерация изображения с возвратом base64
+curl localhost:8080/image/base64 -d "Нарисуй кота в шляпе" -H "Content-Type:application/json"
+
+# Генерация изображения с указанием конкретной модели и возвратом в формате JPEG
+curl localhost:8080/image/raw -d "Нарисуй пейзаж с горами и озером" -H "Content-Type:application/json" -H "Accept:image/jpeg" -o test.jpg
+
+# Генерация изображения с возвратом ссылки на сгенерированный файл
+curl localhost:8080/image/url -d "Нарисуй супермена" -H "Content-Type:application/json"
+```
+
 ## Внешние примеры
 
 Еще больше примеров Вы можете найти в официальном репозитории Spring

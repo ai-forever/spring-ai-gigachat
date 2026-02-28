@@ -11,13 +11,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.image.Image;
-import org.springframework.ai.image.ImageGeneration;
-import org.springframework.ai.image.ImageGenerationMetadata;
-import org.springframework.ai.image.ImageModel;
-import org.springframework.ai.image.ImagePrompt;
-import org.springframework.ai.image.ImageResponse;
-import org.springframework.ai.image.ImageResponseMetadata;
+import org.springframework.ai.image.*;
 import org.springframework.ai.image.observation.DefaultImageModelObservationConvention;
 import org.springframework.ai.image.observation.ImageModelObservationContext;
 import org.springframework.ai.image.observation.ImageModelObservationConvention;
@@ -88,16 +82,37 @@ public class GigaChatImageModel implements ImageModel {
             return new ImageResponse(List.of());
         }
 
+        String responseFormat = prompt.getOptions().getResponseFormat();
+        if (GigaChatImageOptions.RESPONSE_FORMAT_URL.equals(responseFormat)) {
+            return buildUrlImageResponse(fileId);
+        }
+
         byte[] imageBytes = gigaChatApi.downloadFile(fileId);
         if (imageBytes == null) {
             throw new IllegalStateException("Failed to download image for fileId: " + fileId);
         }
 
-        return buildImageResponse(fileId, imageBytes);
+        return buildBase64ImageResponse(fileId, imageBytes);
     }
 
-    private ImagePrompt normalizePrompt(ImagePrompt prompt) {
-        return prompt.getOptions() == null ? new ImagePrompt(prompt.getInstructions(), defaultOptions) : prompt;
+    // Package-private for testing purposes
+    ImagePrompt normalizePrompt(ImagePrompt prompt) {
+        if (prompt.getOptions() == null) { // safeguard against changes in Spring AI logic
+            return new ImagePrompt(prompt.getInstructions(), defaultOptions);
+        }
+
+        // Merge options: use values from prompt if present, otherwise use defaults
+        ImageOptions promptOptions = prompt.getOptions();
+        GigaChatImageOptions mergedOptions = GigaChatImageOptions.builder()
+                .model(promptOptions.getModel() != null ? promptOptions.getModel() : defaultOptions.getModel())
+                .style(promptOptions.getStyle() != null ? promptOptions.getStyle() : defaultOptions.getStyle())
+                .responseFormat(
+                        promptOptions.getResponseFormat() != null
+                                ? promptOptions.getResponseFormat()
+                                : defaultOptions.getResponseFormat())
+                .build();
+
+        return new ImagePrompt(prompt.getInstructions(), mergedOptions);
     }
 
     private CompletionResponse executeCompletion(CompletionRequest request) {
@@ -113,14 +128,19 @@ public class GigaChatImageModel implements ImageModel {
                 || completion.getChoices().isEmpty();
     }
 
-    private ImageResponse buildImageResponse(String fileId, byte[] imageBytes) {
-
+    private ImageResponse buildBase64ImageResponse(String fileId, byte[] imageBytes) {
         String base64 = Base64.getEncoder().encodeToString(imageBytes);
-
         Image image = new Image(null, base64);
         ImageGenerationMetadata metadata = new GigaChatImageGenerationMetadata(fileId);
         ImageGeneration generation = new ImageGeneration(image, metadata);
+        return new ImageResponse(List.of(generation), new ImageResponseMetadata());
+    }
 
+    private ImageResponse buildUrlImageResponse(String fileId) {
+        String url = gigaChatApi.getFileUrl(fileId);
+        Image image = new Image(url, null);
+        ImageGenerationMetadata metadata = new GigaChatImageGenerationMetadata(fileId);
+        ImageGeneration generation = new ImageGeneration(image, metadata);
         return new ImageResponse(List.of(generation), new ImageResponseMetadata());
     }
 
