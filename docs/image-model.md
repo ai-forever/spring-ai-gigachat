@@ -39,6 +39,7 @@ ImageResponse response = imageModel.call(prompt);
 String base64 = response.getResult().getOutput().getB64Json();
 
 // Получение идентификатора файла (fileId) для последующего использования
+// fileId доступен в метаданных для обоих форматов ответа (b64_json и url)
 String fileId = ((GigaChatImageGenerationMetadata) response.getResult().getMetadata()).getFileId();
 ```
 
@@ -56,6 +57,9 @@ ImageResponse response = imageModel.call(prompt);
 
 // Получение URL изображения
 String imageUrl = response.getResult().getOutput().getUrl();
+
+// fileId также доступен в метаданных (как и для формата b64_json)
+String fileId = ((GigaChatImageGenerationMetadata) response.getResult().getMetadata()).getFileId();
 ```
 
 ### Когда использовать Base64:
@@ -66,7 +70,7 @@ String imageUrl = response.getResult().getOutput().getUrl();
 
 ### Когда использовать URL:
 
-- Необходимо получить `fileId` для повторного использования изображения
+- Нужно избежать скачивания файла на сервер
 - Важно минимизировать размер ответа API
 - Не требуется локальное хранение или обработка
 

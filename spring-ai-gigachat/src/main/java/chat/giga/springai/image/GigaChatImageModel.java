@@ -11,7 +11,14 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.image.*;
+import org.springframework.ai.image.Image;
+import org.springframework.ai.image.ImageGeneration;
+import org.springframework.ai.image.ImageGenerationMetadata;
+import org.springframework.ai.image.ImageModel;
+import org.springframework.ai.image.ImageOptions;
+import org.springframework.ai.image.ImagePrompt;
+import org.springframework.ai.image.ImageResponse;
+import org.springframework.ai.image.ImageResponseMetadata;
 import org.springframework.ai.image.observation.DefaultImageModelObservationConvention;
 import org.springframework.ai.image.observation.ImageModelObservationContext;
 import org.springframework.ai.image.observation.ImageModelObservationConvention;
@@ -95,8 +102,7 @@ public class GigaChatImageModel implements ImageModel {
         return buildBase64ImageResponse(fileId, imageBytes);
     }
 
-    // Package-private for testing purposes
-    ImagePrompt normalizePrompt(ImagePrompt prompt) {
+    private ImagePrompt normalizePrompt(ImagePrompt prompt) {
         if (prompt.getOptions() == null) { // safeguard against changes in Spring AI logic
             return new ImagePrompt(prompt.getInstructions(), defaultOptions);
         }
@@ -164,11 +170,14 @@ public class GigaChatImageModel implements ImageModel {
 
         List<CompletionRequest.Message> messages = new ArrayList<>();
 
-        CompletionRequest.Message sys = new CompletionRequest.Message();
-        sys.setRole(CompletionRequest.Role.system);
-        sys.setContent(prompt.getOptions().getStyle());
-
-        messages.add(sys);
+        // Add system message only if style is provided
+        String style = prompt.getOptions().getStyle();
+        if (style != null) {
+            CompletionRequest.Message sys = new CompletionRequest.Message();
+            sys.setRole(CompletionRequest.Role.system);
+            sys.setContent(style);
+            messages.add(sys);
+        }
 
         if (prompt.getInstructions().size() > 1) {
             log.warn("GigaChat only supports one instruction, using the first one");

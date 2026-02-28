@@ -2,11 +2,9 @@ package chat.giga.springai.image;
 
 import chat.giga.springai.GigaChatModel;
 import lombok.Builder;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.image.ImageOptions;
 
-@Setter
 @Slf4j
 @Builder
 public class GigaChatImageOptions implements ImageOptions {
@@ -14,7 +12,8 @@ public class GigaChatImageOptions implements ImageOptions {
     public static final String RESPONSE_FORMAT_B64_JSON = "b64_json";
     public static final String RESPONSE_FORMAT_URL = "url";
 
-    private String style;
+    @Builder.Default
+    private String style = null;
 
     @Builder.Default
     private String model = GigaChatModel.DEFAULT_MODEL_NAME;

@@ -4,11 +4,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 
 import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.ai.image.ImageMessage;
 import org.springframework.ai.image.ImageOptionsBuilder;
@@ -19,7 +21,8 @@ import org.springframework.retry.support.RetryTemplate;
 
 class GigaChatImageModelTest {
 
-    public static final String GIGA_CHAT_2_MAX = "GigaChat-2-Max";
+    private static final String GIGA_CHAT_2_MAX = "GigaChat-2-Max";
+
     GigaChatApi gigaChatApi = Mockito.mock(GigaChatApi.class);
 
     GigaChatImageOptions defaultOptions =
@@ -103,6 +106,100 @@ class GigaChatImageModelTest {
         Mockito.verify(gigaChatApi, Mockito.never()).downloadFile(any());
     }
 
+    @Test
+    void testOptionsMerging_usesPromptOptionsWhenProvided() {
+        CompletionResponse completionResponse = createCompletionResponse();
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+
+        Mockito.when(gigaChatApi.chatCompletionEntity(requestCaptor.capture()))
+                .thenReturn(ResponseEntity.ok(completionResponse));
+
+        GigaChatImageOptions promptOptions = GigaChatImageOptions.builder()
+                .model("CustomModel")
+                .style("Custom style")
+                .responseFormat(GigaChatImageOptions.RESPONSE_FORMAT_URL)
+                .build();
+
+        ImagePrompt prompt = new ImagePrompt(List.of(new ImageMessage("Draw a bird", 1.0f)), promptOptions);
+
+        imageModel.call(prompt);
+
+        CompletionRequest capturedRequest = requestCaptor.getValue();
+        assertNotNull(capturedRequest);
+        assertEquals("CustomModel", capturedRequest.getModel());
+
+        var systemMessage = capturedRequest.getMessages().stream()
+                .filter(m -> m.getRole() == CompletionRequest.Role.system)
+                .findFirst()
+                .orElse(null);
+        assertNotNull(systemMessage);
+        assertEquals("Custom style", systemMessage.getContent());
+    }
+
+    @Test
+    void testOptionsMerging_usesDefaultOptionsWhenPromptOptionsAreNull() {
+        CompletionResponse completionResponse = createCompletionResponse();
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+
+        Mockito.when(gigaChatApi.chatCompletionEntity(requestCaptor.capture()))
+                .thenReturn(ResponseEntity.ok(completionResponse));
+
+        byte[] fakeJpg = new byte[] {1, 2, 3, 4};
+        Mockito.when(gigaChatApi.downloadFile("11111111-2222-3333-4444-555555555555"))
+                .thenReturn(fakeJpg);
+
+        ImagePrompt prompt = new ImagePrompt(List.of(new ImageMessage("Draw a dog", 1.0f)));
+
+        imageModel.call(prompt);
+
+        CompletionRequest capturedRequest = requestCaptor.getValue();
+        assertNotNull(capturedRequest);
+        assertEquals("GigaChat-2-Max", capturedRequest.getModel());
+
+        var systemMessage = capturedRequest.getMessages().stream()
+                .filter(m -> m.getRole() == CompletionRequest.Role.system)
+                .findFirst()
+                .orElse(null);
+        assertNull(systemMessage, "System message should not be present when defaultOptions.style is null");
+    }
+
+    @Test
+    void testOptionsMerging_mergesPromptAndDefaultOptions() {
+        CompletionResponse completionResponse = createCompletionResponse();
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+
+        Mockito.when(gigaChatApi.chatCompletionEntity(requestCaptor.capture()))
+                .thenReturn(ResponseEntity.ok(completionResponse));
+
+        byte[] fakeJpg = new byte[] {1, 2, 3, 4};
+        Mockito.when(gigaChatApi.downloadFile("11111111-2222-3333-4444-555555555555"))
+                .thenReturn(fakeJpg);
+
+        GigaChatImageOptions promptOptions = GigaChatImageOptions.builder()
+                .model(null)
+                .style("Custom style")
+                .responseFormat(null)
+                .build();
+
+        ImagePrompt prompt = new ImagePrompt(List.of(new ImageMessage("Draw a cat", 1.0f)), promptOptions);
+
+        imageModel.call(prompt);
+
+        CompletionRequest capturedRequest = requestCaptor.getValue();
+        assertNotNull(capturedRequest);
+        assertEquals(
+                "GigaChat-2-Max", capturedRequest.getModel(), "Should use default model when prompt model is null");
+
+        var systemMessage = capturedRequest.getMessages().stream()
+                .filter(m -> m.getRole() == CompletionRequest.Role.system)
+                .findFirst()
+                .orElse(null);
+        assertNotNull(systemMessage);
+        assertEquals("Custom style", systemMessage.getContent());
+
+        Mockito.verify(gigaChatApi, Mockito.times(1)).downloadFile("11111111-2222-3333-4444-555555555555");
+    }
+
     private CompletionResponse createCompletionResponse() {
         CompletionResponse.MessagesRes message = new CompletionResponse.MessagesRes();
         message.setRole(CompletionResponse.Role.assistant);
@@ -118,70 +215,5 @@ class GigaChatImageModelTest {
         completionResponse.setModel(GIGA_CHAT_2_MAX);
         completionResponse.setUsage(null);
         return completionResponse;
-    }
-
-    @Test
-    void testNormalizePromptWithNullOptions() {
-        ImagePrompt prompt = new ImagePrompt(List.of(new ImageMessage("Draw a dog", 1.0f)));
-
-        ImagePrompt normalizedPrompt = imageModel.normalizePrompt(prompt);
-
-        assertNotNull(normalizedPrompt.getOptions());
-        assertEquals(defaultOptions.getModel(), normalizedPrompt.getOptions().getModel());
-        assertEquals(defaultOptions.getStyle(), normalizedPrompt.getOptions().getStyle());
-    }
-
-    @Test
-    void testNormalizePromptWithOptionsWithNullFields() {
-        GigaChatImageOptions options = GigaChatImageOptions.builder()
-                .model(null) // Explicitly set model to null
-                .style("Custom style")
-                .build();
-
-        ImagePrompt prompt = new ImagePrompt(List.of(new ImageMessage("Draw a cat", 1.0f)), options);
-
-        ImagePrompt normalizedPrompt = imageModel.normalizePrompt(prompt);
-
-        assertNotNull(normalizedPrompt.getOptions());
-        // Should use default model since prompt model is null
-        assertEquals(defaultOptions.getModel(), normalizedPrompt.getOptions().getModel());
-        // Should use custom style since it's not null
-        assertEquals("Custom style", normalizedPrompt.getOptions().getStyle());
-    }
-
-    @Test
-    void testNormalizePromptWithOptionsWithNonNullFields() {
-        GigaChatImageOptions options = GigaChatImageOptions.builder()
-                .model("CustomModel")
-                .style("Custom style")
-                .build();
-
-        ImagePrompt prompt = new ImagePrompt(List.of(new ImageMessage("Draw a bird", 1.0f)), options);
-
-        ImagePrompt normalizedPrompt = imageModel.normalizePrompt(prompt);
-
-        assertNotNull(normalizedPrompt.getOptions());
-        // Should use custom model since it's not null
-        assertEquals("CustomModel", normalizedPrompt.getOptions().getModel());
-        // Should use custom style since it's not null
-        assertEquals("Custom style", normalizedPrompt.getOptions().getStyle());
-    }
-
-    @Test
-    void testNormalizePromptWithOptionsWithNullStyle() {
-        GigaChatImageOptions options = GigaChatImageOptions.builder()
-                .model("CustomModel")
-                .style(null) // Explicitly set style to null
-                .build();
-
-        ImagePrompt prompt = new ImagePrompt(List.of(new ImageMessage("Draw a fish", 1.0f)), options);
-
-        ImagePrompt normalizedPrompt = imageModel.normalizePrompt(prompt);
-
-        assertNotNull(normalizedPrompt.getOptions());
-        // Should use custom model since it's not null
-        assertEquals("CustomModel", normalizedPrompt.getOptions().getModel());
-        // Should use default style since prompt style is null
-        assertEquals(defaultOptions.getStyle(), normalizedPrompt.getOptions().getStyle());
     }
 }
