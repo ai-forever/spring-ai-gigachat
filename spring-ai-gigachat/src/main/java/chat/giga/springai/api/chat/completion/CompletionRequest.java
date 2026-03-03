@@ -116,7 +116,8 @@ public class CompletionRequest {
             @JsonProperty("return_parameters") @JsonRawValue String returnParameters) {}
 
     public record FewShotExample(
-            @JsonProperty("request") String request, @JsonProperty("params") @JsonRawValue String params) {}
+            @JsonProperty("request") String request,
+            @JsonProperty("params") @JsonRawValue String params) {}
 
     public enum Role {
         system,

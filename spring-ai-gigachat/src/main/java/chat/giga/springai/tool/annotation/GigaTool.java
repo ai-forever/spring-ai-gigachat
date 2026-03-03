@@ -1,7 +1,12 @@
 package chat.giga.springai.tool.annotation;
 
 import chat.giga.springai.tool.execution.GigaToolCallResultConverter;
-import java.lang.annotation.*;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Inherited;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.execution.ToolCallResultConverter;
 import org.springframework.core.annotation.AliasFor;
