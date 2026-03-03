@@ -154,7 +154,8 @@ public class GigaChatImageModel implements ImageModel {
         String content = response.getChoices().get(0).getMessage().getContent();
         Matcher matcher = IMG_ID_PATTERN.matcher(content);
         if (!matcher.find()) {
-            throw new IllegalStateException("No <img src=\"...\"> tag found in GigaChat response: " + content);
+            log.warn("No <img src=\"...\"> tag found in GigaChat response: {}", content);
+            return null;
         }
 
         return matcher.group(1);
