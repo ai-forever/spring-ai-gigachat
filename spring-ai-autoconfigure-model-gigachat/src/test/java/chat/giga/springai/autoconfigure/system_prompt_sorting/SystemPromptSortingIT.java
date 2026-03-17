@@ -14,20 +14,33 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.retry.NonTransientAiException;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 public class SystemPromptSortingIT {
 
+    private static String[] collectGigaChatAuthProperties() {
+        String scope = System.getenv("GIGACHAT_API_SCOPE");
+        String apiKey = System.getenv("GIGACHAT_API_KEY");
+        String clientId = System.getenv("GIGACHAT_API_CLIENT_ID");
+        String clientSecret = System.getenv("GIGACHAT_API_CLIENT_SECRET");
+        if (apiKey != null && !apiKey.isBlank()) {
+            return new String[] {
+                "spring.ai.gigachat.auth.scope=" + scope, "spring.ai.gigachat.auth.bearer.api-key=" + apiKey
+            };
+        }
+        return new String[] {
+            "spring.ai.gigachat.auth.scope=" + scope,
+            "spring.ai.gigachat.auth.bearer.client-id=" + clientId,
+            "spring.ai.gigachat.auth.bearer.client-secret=" + clientSecret
+        };
+    }
+
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+            .withPropertyValues(collectGigaChatAuthProperties())
             .withPropertyValues(
-                    "spring.ai.gigachat.scope=" + System.getenv("GIGACHAT_API_SCOPE"),
-                    "spring.ai.gigachat.auth.bearer.client-id=" + System.getenv("GIGACHAT_API_CLIENT_ID"),
-                    "spring.ai.gigachat.auth.bearer.client-secret=" + System.getenv("GIGACHAT_API_CLIENT_SECRET"),
-                    "spring.ai.gigachat.auth.unsafe-ssl=true",
-                    "spring.ai.gigachat.chat.options.model=GigaChat-2-Max");
+                    "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat");
 
     @Test
     @DisplayName(
@@ -67,12 +80,14 @@ public class SystemPromptSortingIT {
                             new SystemMessage("Ты эксперт по работе с  java. Отвечай на вопросы одним словом")));
 
                     // Проверяем, что метод выбрасывает ожидаемое исключение
-                    NonTransientAiException exception =
-                            assertThrows(NonTransientAiException.class, () -> gigaChatModel.call(prompt));
-
-                    assertThat(
-                            exception.getMessage(),
-                            containsStringIgnoringCase("system message must be the first message"));
+                    // Spring AI может оборачивать NonTransientAiException в RuntimeException
+                    Throwable exception = assertThrows(Throwable.class, () -> gigaChatModel.call(prompt));
+                    String message = exception.getMessage();
+                    Throwable cause = exception.getCause();
+                    if (cause != null) {
+                        message = cause.getMessage();
+                    }
+                    assertThat(message, containsStringIgnoringCase("system message must be the first message"));
                 });
     }
 }

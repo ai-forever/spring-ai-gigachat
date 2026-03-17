@@ -18,19 +18,19 @@ import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.model.tool.autoconfigure.ToolCallingAutoConfiguration;
 import org.springframework.ai.retry.autoconfigure.SpringAiRetryAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.http.client.reactive.ClientHttpConnectorAutoConfiguration;
 import org.springframework.boot.autoconfigure.ssl.SslAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientAutoConfiguration;
+import org.springframework.boot.http.client.autoconfigure.reactive.ReactiveHttpClientAutoConfiguration;
+import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.webclient.autoconfigure.WebClientAutoConfiguration;
 
 public class GigaChatAutoConfigurationTest {
 
     AutoConfigurations gigaChatOnlyAutoConfigurations = AutoConfigurations.of(GigaChatAutoConfiguration.class);
     AutoConfigurations sslBundlesAutoConfigurations = AutoConfigurations.of(
-            GigaChatAutoConfiguration.class, SslAutoConfiguration.class, ClientHttpConnectorAutoConfiguration.class);
+            GigaChatAutoConfiguration.class, SslAutoConfiguration.class, ReactiveHttpClientAutoConfiguration.class);
     AutoConfigurations gigaChatFullAutoConfigurations = AutoConfigurations.of(
             GigaChatAutoConfiguration.class,
             SpringAiRetryAutoConfiguration.class,
@@ -38,7 +38,7 @@ public class GigaChatAutoConfigurationTest {
             WebClientAutoConfiguration.class,
             ToolCallingAutoConfiguration.class,
             SslAutoConfiguration.class,
-            ClientHttpConnectorAutoConfiguration.class);
+            ReactiveHttpClientAutoConfiguration.class);
 
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")

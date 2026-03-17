@@ -52,8 +52,9 @@
 
 ## Требования
 
-- Java 17+
-- Spring Boot 3.4/3.5
+- Java 21+
+- Spring Boot 4.0+
+- Spring AI 2.0
 
 ## Быстрый старт
 

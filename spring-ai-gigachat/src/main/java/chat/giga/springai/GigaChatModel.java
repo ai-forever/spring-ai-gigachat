@@ -33,10 +33,10 @@ import org.springframework.ai.model.tool.*;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.support.UsageCalculator;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
-import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
@@ -134,8 +134,13 @@ public class GigaChatModel implements ChatModel {
                         () -> observationContext,
                         this.observationRegistry)
                 .observe(() -> {
-                    ResponseEntity<CompletionResponse> completionEntity = this.retryTemplate.execute(
-                            ctx -> this.gigaChatApi.chatCompletionEntity(request, buildHeaders(prompt.getOptions())));
+                    ResponseEntity<CompletionResponse> completionEntity;
+                    try {
+                        completionEntity = this.retryTemplate.execute(() ->
+                                this.gigaChatApi.chatCompletionEntity(request, buildHeaders(prompt.getOptions())));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e.getCause() != null ? e.getCause() : e);
+                    }
 
                     CompletionResponse completionResponse = completionEntity.getBody();
 
@@ -204,8 +209,13 @@ public class GigaChatModel implements ChatModel {
                     .parentObservation(contextView.getOrDefault(ObservationThreadLocalAccessor.KEY, null))
                     .start();
 
-            Flux<CompletionResponse> response = this.retryTemplate.execute(
-                    ctx -> this.gigaChatApi.chatCompletionStream(request, buildHeaders(prompt.getOptions())));
+            Flux<CompletionResponse> response;
+            try {
+                response = this.retryTemplate.execute(
+                        () -> this.gigaChatApi.chatCompletionStream(request, buildHeaders(prompt.getOptions())));
+            } catch (Exception e) {
+                return Flux.error(new RuntimeException(e.getCause() != null ? e.getCause() : e));
+            }
 
             Flux<ChatResponse> chatResponseFlux = response.switchMap(completionResponse -> {
                         if (completionResponse == null) {

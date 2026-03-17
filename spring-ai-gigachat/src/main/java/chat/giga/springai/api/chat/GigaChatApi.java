@@ -32,7 +32,6 @@ import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.client.reactive.JdkClientHttpConnector;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -260,7 +259,7 @@ public class GigaChatApi {
 
     private Consumer<HttpHeaders> applyHeaders(@Nullable HttpHeaders headers) {
         return httpHeaders -> {
-            if (!CollectionUtils.isEmpty(headers)) {
+            if (headers != null && !headers.isEmpty()) {
                 httpHeaders.addAll(headers);
             }
             httpHeaders.set(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT);

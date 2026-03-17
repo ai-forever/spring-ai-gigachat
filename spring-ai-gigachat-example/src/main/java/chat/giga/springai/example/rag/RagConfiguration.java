@@ -19,7 +19,13 @@ public class RagConfiguration {
             @Value("${rag.min-chunk-length-to-embed:5}") int minChunkLengthToEmbed,
             @Value("${rag.max-num-chunks:10000}") int maxNumChunks,
             @Value("${rag.keep-separator:true}") boolean keepSeparator) {
-        return new TokenTextSplitter(chunkSize, minChunkSizeChars, minChunkLengthToEmbed, maxNumChunks, keepSeparator);
+        return TokenTextSplitter.builder()
+                .withChunkSize(chunkSize)
+                .withMinChunkSizeChars(minChunkSizeChars)
+                .withMinChunkLengthToEmbed(minChunkLengthToEmbed)
+                .withMaxNumChunks(maxNumChunks)
+                .withKeepSeparator(keepSeparator)
+                .build();
     }
 
     @Bean

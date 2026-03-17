@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.auth.GigaChatApiScope;
 import chat.giga.springai.api.auth.GigaChatAuthProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import java.util.stream.Stream;
@@ -23,7 +22,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureWebClient;
+import org.springframework.boot.restclient.test.autoconfigure.AutoConfigureRestClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -35,10 +34,11 @@ import org.springframework.web.client.RestClient;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 import org.wiremock.spring.InjectWireMock;
+import tools.jackson.databind.ObjectMapper;
 
 @EnableWireMock({@ConfigureWireMock(name = "auth-api")})
 @ExtendWith(SpringExtension.class)
-@AutoConfigureWebClient
+@AutoConfigureRestClient
 public abstract class GigaChatBearerAuthApiTest {
 
     @Autowired

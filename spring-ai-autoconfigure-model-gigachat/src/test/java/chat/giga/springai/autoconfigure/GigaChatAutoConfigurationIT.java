@@ -59,6 +59,7 @@ public class GigaChatAutoConfigurationIT {
     }
 
     @Test
+    @org.junit.jupiter.api.Disabled("Embedding требует платного тарифа GigaChat (HTTP 402)")
     @DisplayName("Тест взаимодействия с embedding моделью")
     void embeddingInteractionTest() {
         EmbeddingRequest embeddingRequest =
