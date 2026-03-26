@@ -1,19 +1,18 @@
 package chat.giga.springai;
 
 import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.api.chat.embedding.EmbeddingsModel;
 import chat.giga.springai.api.chat.embedding.EmbeddingsRequest;
 import chat.giga.springai.api.chat.embedding.EmbeddingsResponse;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.embedding.Embedding;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.embedding.EmbeddingRequest;
-import org.springframework.ai.embedding.EmbeddingResponse;
-import org.springframework.ai.embedding.EmbeddingResponseMetadata;
+import org.springframework.ai.embedding.*;
 import org.springframework.ai.embedding.observation.DefaultEmbeddingModelObservationConvention;
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationContext;
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationConvention;
@@ -24,17 +23,17 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 @Slf4j
-public class GigaChatEmbeddingModel implements EmbeddingModel {
-    private static final int DIMENSIONS_NOT_SET = -1;
-
+public class GigaChatEmbeddingModel extends AbstractEmbeddingModel {
     private static final EmbeddingModelObservationConvention DEFAULT_OBSERVATION_CONVENTION =
             new DefaultEmbeddingModelObservationConvention();
+
+    private static final Map<String, Integer> KNOWN_EMBEDDING_DIMENSIONS = Stream.of(EmbeddingsModel.values())
+            .collect(Collectors.toMap(EmbeddingsModel::getName, EmbeddingsModel::getDimensions));
 
     private final GigaChatApi gigaChatApi;
     private final GigaChatEmbeddingOptions defaultOptions;
     private final RetryTemplate retryTemplate;
     private final ObservationRegistry observationRegistry;
-    private volatile int dimensions = DIMENSIONS_NOT_SET;
 
     private EmbeddingModelObservationConvention observationConvention;
 
@@ -47,7 +46,6 @@ public class GigaChatEmbeddingModel implements EmbeddingModel {
         this.defaultOptions = defaultOptions;
         this.retryTemplate = retryTemplate;
         this.observationRegistry = observationRegistry;
-        this.dimensions = Objects.requireNonNullElse(defaultOptions.getDimensions(), DIMENSIONS_NOT_SET);
     }
 
     @Override
@@ -128,9 +126,10 @@ public class GigaChatEmbeddingModel implements EmbeddingModel {
 
     @Override
     public int dimensions() {
-        if (this.dimensions == DIMENSIONS_NOT_SET) {
-            this.dimensions = this.embed("Test String").length;
+        String model = this.defaultOptions.getModel();
+        if (model == null) {
+            return super.dimensions();
         }
-        return this.dimensions;
+        return KNOWN_EMBEDDING_DIMENSIONS.computeIfAbsent(model, m -> super.dimensions());
     }
 }

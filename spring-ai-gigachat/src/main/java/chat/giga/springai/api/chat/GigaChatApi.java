@@ -4,11 +4,7 @@ import static chat.giga.springai.api.HttpClientUtils.buildHttpClient;
 import static chat.giga.springai.api.HttpClientUtils.buildSslFactory;
 
 import chat.giga.springai.api.GigaChatApiProperties;
-import chat.giga.springai.api.auth.bearer.GigaAuthToken;
-import chat.giga.springai.api.auth.bearer.GigaChatBearerAuthApi;
-import chat.giga.springai.api.auth.bearer.GigaChatOAuthClient;
-import chat.giga.springai.api.auth.bearer.NoopGigaAuthToken;
-import chat.giga.springai.api.auth.bearer.SimpleGigaAuthToken;
+import chat.giga.springai.api.auth.bearer.*;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenFilter;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenInterceptor;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
@@ -26,8 +22,7 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.content.Media;
-import org.springframework.ai.model.ChatModelDescription;
-import org.springframework.ai.model.ModelOptionsUtils;
+import org.springframework.ai.model.*;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -46,6 +41,8 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 public class GigaChatApi {
+    public static final String DEFAULT_BASE_URL = "https://gigachat.devices.sberbank.ru/api/v1/";
+    public static final String DEFAULT_COMPLETIONS_PATH = "/chat/completions";
     public static final String USER_AGENT_SPRING_AI_GIGACHAT = "Spring-AI-GigaChat";
     public static final String PROVIDER_NAME = "gigachat";
     public static final String X_REQUEST_ID = "x-request-id";
@@ -78,7 +75,9 @@ public class GigaChatApi {
             @Nullable TrustManagerFactory tmf) {
         this(
                 properties,
-                properties.isBearer() ? new SimpleGigaAuthToken(properties.getApiKey()) : new NoopGigaAuthToken(),
+                properties.getAuth().isBearerAuth()
+                        ? new SimpleGigaAuthToken(properties.getAuth().getApiKey())
+                        : new NoopGigaAuthToken(),
                 restClientBuilder,
                 webClientBuilder,
                 responseErrorHandler,
@@ -94,7 +93,10 @@ public class GigaChatApi {
             ResponseErrorHandler responseErrorHandler,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
-        if (properties.isBearer()) {
+        var authProps = properties.getAuth();
+        var internalProps = properties.getInternal();
+
+        if (authProps.isBearerAuth()) {
             final GigaChatOAuthClient gigaChatOAuthClient =
                     new GigaChatOAuthClient(properties, restClientBuilder, null, tmf, authToken);
             final GigaChatBearerAuthApi gigaChatBearerAuthApi = new GigaChatBearerAuthApi(gigaChatOAuthClient);
@@ -102,10 +104,8 @@ public class GigaChatApi {
             webClientBuilder.filter(new BearerTokenFilter(gigaChatBearerAuthApi));
         }
 
-        var internalProps = properties.getInternal();
-
-        var clientHttpRequestFactory = new JdkClientHttpRequestFactory(buildHttpClient(
-                buildSslFactory(kmf, tmf, properties.isUnsafeSsl()), internalProps.getConnectTimeout()));
+        var clientHttpRequestFactory = new JdkClientHttpRequestFactory(
+                buildHttpClient(buildSslFactory(kmf, tmf, authProps.isUnsafeSsl()), internalProps.getConnectTimeout()));
         if (internalProps.getReadTimeout() != null) {
             clientHttpRequestFactory.setReadTimeout(internalProps.getReadTimeout());
         }
@@ -117,8 +117,8 @@ public class GigaChatApi {
                 .baseUrl(properties.getBaseUrl())
                 .build();
 
-        var clientHttpConnector = new JdkClientHttpConnector(buildHttpClient(
-                buildSslFactory(kmf, tmf, properties.isUnsafeSsl()), internalProps.getConnectTimeout()));
+        var clientHttpConnector = new JdkClientHttpConnector(
+                buildHttpClient(buildSslFactory(kmf, tmf, authProps.isUnsafeSsl()), internalProps.getConnectTimeout()));
         if (internalProps.getReadTimeout() != null) {
             clientHttpConnector.setReadTimeout(internalProps.getReadTimeout());
         }
@@ -130,12 +130,15 @@ public class GigaChatApi {
     }
 
     /**
-     * <a href="https://developers.sber.ru/docs/ru/gigachat/models">Список доступных моделей</a>
+     * <a href="https://developers.sber.ru/docs/ru/gigachat/models/main">Список доступных моделей</a>
      */
     @AllArgsConstructor
     public enum ChatModel implements ChatModelDescription {
+        @Deprecated
         GIGA_CHAT("GigaChat"),
+        @Deprecated
         GIGA_CHAT_PRO("GigaChat-Pro"),
+        @Deprecated
         GIGA_CHAT_MAX("GigaChat-Max"),
         GIGA_CHAT_2("GigaChat-2"),
         GIGA_CHAT_2_MAX("GigaChat-2-Max"),
@@ -159,7 +162,7 @@ public class GigaChatApi {
         Assert.isTrue(!chatRequest.getStream(), "Request must set the stream property to false.");
         return this.restClient
                 .post()
-                .uri("/chat/completions")
+                .uri(DEFAULT_COMPLETIONS_PATH)
                 .headers(applyHeaders(headers))
                 .body(chatRequest)
                 .retrieve()
@@ -176,7 +179,7 @@ public class GigaChatApi {
         Assert.isTrue(chatRequest.getStream(), "Request must set the steam property to true.");
         return this.webClient
                 .post()
-                .uri("/chat/completions")
+                .uri(DEFAULT_COMPLETIONS_PATH)
                 .headers(applyHeaders(headers))
                 .body(Mono.just(chatRequest), CompletionRequest.class)
                 .exchangeToFlux(rs -> {

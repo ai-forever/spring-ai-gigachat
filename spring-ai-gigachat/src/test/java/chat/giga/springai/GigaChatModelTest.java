@@ -78,7 +78,7 @@ public class GigaChatModelTest {
         var prompt = new Prompt(
                 List.of(new UserMessage("Hello")),
                 GigaChatOptions.builder()
-                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
                         .functionCallMode(GigaChatOptions.FunctionCallMode.CUSTOM_FUNCTION)
                         .functionCallParam(functionCallParam)
                         .toolCallbacks(List.of(functionCallback))
@@ -107,7 +107,7 @@ public class GigaChatModelTest {
         var prompt = new Prompt(
                 List.of(new UserMessage("Hello")),
                 GigaChatOptions.builder()
-                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
                         .toolCallbacks(List.of(functionCallback))
                         .build());
 
@@ -152,7 +152,7 @@ public class GigaChatModelTest {
         var prompt = new Prompt(
                 List.of(new UserMessage("Hello")),
                 GigaChatOptions.builder()
-                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
                         .functionCallMode(callMode)
                         .build());
 
@@ -175,7 +175,7 @@ public class GigaChatModelTest {
         var prompt = new Prompt(
                 List.of(new UserMessage("Hello")),
                 GigaChatOptions.builder()
-                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
                         .functionCallMode(callMode)
                         .toolCallbacks(List.of(functionCallback))
                         .build());
@@ -195,7 +195,9 @@ public class GigaChatModelTest {
     void testGigaChatOptions_withDefault() {
         var prompt = new Prompt(
                 List.of(new UserMessage("Hello")),
-                GigaChatOptions.builder().model(GigaChatApi.ChatModel.GIGA_CHAT).build());
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
+                        .build());
 
         when(gigaChatApi.chatCompletionEntity(any(), any()))
                 .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
@@ -214,7 +216,7 @@ public class GigaChatModelTest {
         var prompt = new Prompt(
                 List.of(new UserMessage("Hello")),
                 GigaChatOptions.builder()
-                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
                         .httpHeaders(Map.of(GigaChatCachingAdvisor.X_SESSION_ID, sessionId))
                         .build());
 
@@ -238,13 +240,13 @@ public class GigaChatModelTest {
         var prompt = new Prompt(
                 List.of(new UserMessage("Hello, test!")),
                 GigaChatOptions.builder()
-                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
                         .toolCallbacks(GigaTools.from(spyTestTool))
                         .build());
 
         var functionCallResponse = new CompletionResponse()
                 .setId(UUID.randomUUID().toString())
-                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT_2.getName())
                 .setChoices(List.of(new CompletionResponse.Choice()
                         .setIndex(1)
                         .setFinishReason(CompletionResponse.FinishReason.FUNCTION_CALL)
@@ -263,7 +265,7 @@ public class GigaChatModelTest {
 
         var finalResponsePart1 = new CompletionResponse()
                 .setId(UUID.randomUUID().toString())
-                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT_2.getName())
                 .setChoices(List.of(new CompletionResponse.Choice()
                         .setIndex(2)
                         .setDelta(new CompletionResponse.MessagesRes()
@@ -272,7 +274,7 @@ public class GigaChatModelTest {
 
         var finalResponsePart2 = new CompletionResponse()
                 .setId(UUID.randomUUID().toString())
-                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT_2.getName())
                 .setChoices(List.of(new CompletionResponse.Choice()
                         .setIndex(2)
                         .setDelta(new CompletionResponse.MessagesRes().setContent(""))

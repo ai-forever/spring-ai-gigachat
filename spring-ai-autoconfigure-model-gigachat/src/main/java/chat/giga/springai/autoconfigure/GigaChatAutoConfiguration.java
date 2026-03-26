@@ -94,11 +94,6 @@ public class GigaChatAutoConfiguration {
                         auth.getCerts().getCertificate().getInputStream(),
                         auth.getCerts().getPrivateKey().getInputStream()));
             }
-        } else if (gigaChatApiProperties.getClientKey() != null
-                && gigaChatApiProperties.getClientCertificate() != null) {
-            keyManagerFactory = KeyManagerUtils.createKeyManagerFactory(PemUtils.loadIdentityMaterial(
-                    gigaChatApiProperties.getClientCertificate().getInputStream(),
-                    gigaChatApiProperties.getClientKey().getInputStream()));
         }
         if (trustManagerFactory == null && auth.getCerts().getCaCerts() != null) {
             trustManagerFactory = TrustManagerUtils.createTrustManagerFactory(
@@ -184,9 +179,9 @@ public class GigaChatAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public GigaAuthToken simpleGigaAuthToken(GigaChatApiProperties gigaChatApiProperties) {
-        if (gigaChatApiProperties.isBearer()) {
-            return new SimpleGigaAuthToken(gigaChatApiProperties.getApiKey());
+    public GigaAuthToken simpleGigaAuthToken(GigaChatAuthProperties gigaChatAuthProperties) {
+        if (gigaChatAuthProperties.isBearerAuth()) {
+            return new SimpleGigaAuthToken(gigaChatAuthProperties.getApiKey());
         }
         return new NoopGigaAuthToken();
     }

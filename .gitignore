@@ -32,3 +32,6 @@ build/
 .gigaide/
 
 **/allure-results
+
+### MacOS ###
+.DS_Store
