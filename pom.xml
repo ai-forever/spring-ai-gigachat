@@ -59,12 +59,12 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.32.0</allure-bom.version>
         <aspectj.version>1.9.25.1</aspectj.version>
-        <spring-boot.version>3.5.10</spring-boot.version>
-        <spring-ai.version>1.1.2</spring-ai.version>
+        <spring-boot.version>3.5.13</spring-boot.version>
+        <spring-ai.version>1.1.4</spring-ai.version>
         <ayza.version>10.0.3</ayza.version>
         <lombok.version>1.18.42</lombok.version>
         <wiremock-spring-boot.version>3.10.6</wiremock-spring-boot.version>
-        <commons-lang3.version>3.18.0</commons-lang3.version>
+        <commons-lang3.version>3.20.0</commons-lang3.version>
 
         <maven.deploy.plugin.version>3.1.4</maven.deploy.plugin.version>
     </properties>
