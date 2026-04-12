@@ -4,6 +4,7 @@ import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.embedding.EmbeddingsModel;
 import chat.giga.springai.api.chat.embedding.EmbeddingsRequest;
 import chat.giga.springai.api.chat.embedding.EmbeddingsResponse;
+import chat.giga.springai.support.GigaRetryTemplate;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,7 @@ public class GigaChatEmbeddingModel extends AbstractEmbeddingModel {
 
     private final GigaChatApi gigaChatApi;
     private final GigaChatEmbeddingOptions defaultOptions;
-    private final RetryTemplate retryTemplate;
+    private final GigaRetryTemplate retryTemplate;
     private final ObservationRegistry observationRegistry;
 
     private EmbeddingModelObservationConvention observationConvention;
@@ -44,7 +45,7 @@ public class GigaChatEmbeddingModel extends AbstractEmbeddingModel {
             ObservationRegistry observationRegistry) {
         this.gigaChatApi = gigaChatApi;
         this.defaultOptions = defaultOptions;
-        this.retryTemplate = retryTemplate;
+        this.retryTemplate = new GigaRetryTemplate(retryTemplate);
         this.observationRegistry = observationRegistry;
     }
 
@@ -68,13 +69,8 @@ public class GigaChatEmbeddingModel extends AbstractEmbeddingModel {
                         () -> observationContext,
                         this.observationRegistry)
                 .observe(() -> {
-                    ResponseEntity<EmbeddingsResponse> embeddingsResponseResponseEntity;
-                    try {
-                        embeddingsResponseResponseEntity =
-                                this.retryTemplate.execute(() -> gigaChatApi.embeddings(embeddingsRequest));
-                    } catch (Exception e) {
-                        throw new RuntimeException(e.getCause() != null ? e.getCause() : e);
-                    }
+                    ResponseEntity<EmbeddingsResponse> embeddingsResponseResponseEntity =
+                            this.retryTemplate.execute(() -> gigaChatApi.embeddings(embeddingsRequest));
 
                     Optional<EmbeddingsResponse> embeddingsResponseOptional = Optional.ofNullable(
                                     embeddingsResponseResponseEntity)

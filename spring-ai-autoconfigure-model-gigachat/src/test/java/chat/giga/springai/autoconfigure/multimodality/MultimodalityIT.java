@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import chat.giga.springai.GigaChatModel;
+import chat.giga.springai.autoconfigure.GigaChatAuthTestProperties;
 import chat.giga.springai.autoconfigure.GigaChatAutoConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,26 +19,9 @@ import org.springframework.util.MimeTypeUtils;
 
 public class MultimodalityIT {
 
-    private static String[] collectGigaChatAuthProperties() {
-        String scope = System.getenv("GIGACHAT_API_SCOPE");
-        String apiKey = System.getenv("GIGACHAT_API_KEY");
-        String clientId = System.getenv("GIGACHAT_API_CLIENT_ID");
-        String clientSecret = System.getenv("GIGACHAT_API_CLIENT_SECRET");
-        if (apiKey != null && !apiKey.isBlank()) {
-            return new String[] {
-                "spring.ai.gigachat.auth.scope=" + scope, "spring.ai.gigachat.auth.bearer.api-key=" + apiKey
-            };
-        }
-        return new String[] {
-            "spring.ai.gigachat.auth.scope=" + scope,
-            "spring.ai.gigachat.auth.bearer.client-id=" + clientId,
-            "spring.ai.gigachat.auth.bearer.client-secret=" + clientSecret
-        };
-    }
-
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
-            .withPropertyValues(collectGigaChatAuthProperties())
+            .withPropertyValues(GigaChatAuthTestProperties.fromEnv())
             .withPropertyValues(
                     "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat");
 
