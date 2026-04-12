@@ -22,8 +22,8 @@ import org.springframework.ai.image.observation.DefaultImageModelObservationConv
 import org.springframework.ai.image.observation.ImageModelObservationContext;
 import org.springframework.ai.image.observation.ImageModelObservationConvention;
 import org.springframework.ai.image.observation.ImageModelObservationDocumentation;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.ResponseEntity;
-import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 
 @Slf4j
@@ -101,8 +101,12 @@ public class GigaChatImageModel implements ImageModel {
     }
 
     private CompletionResponse executeCompletion(CompletionRequest request) {
-        ResponseEntity<CompletionResponse> entity =
-                retryTemplate.execute(ctx -> gigaChatApi.chatCompletionEntity(request));
+        ResponseEntity<CompletionResponse> entity;
+        try {
+            entity = retryTemplate.execute(() -> gigaChatApi.chatCompletionEntity(request));
+        } catch (Exception e) {
+            throw new RuntimeException(e.getCause() != null ? e.getCause() : e);
+        }
 
         return Optional.ofNullable(entity).map(ResponseEntity::getBody).orElse(null);
     }

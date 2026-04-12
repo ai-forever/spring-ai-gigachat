@@ -17,8 +17,8 @@ import org.springframework.ai.embedding.observation.DefaultEmbeddingModelObserva
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationContext;
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationConvention;
 import org.springframework.ai.embedding.observation.EmbeddingModelObservationDocumentation;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.ResponseEntity;
-import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -68,8 +68,13 @@ public class GigaChatEmbeddingModel extends AbstractEmbeddingModel {
                         () -> observationContext,
                         this.observationRegistry)
                 .observe(() -> {
-                    ResponseEntity<EmbeddingsResponse> embeddingsResponseResponseEntity =
-                            this.retryTemplate.execute(ctx -> gigaChatApi.embeddings(embeddingsRequest));
+                    ResponseEntity<EmbeddingsResponse> embeddingsResponseResponseEntity;
+                    try {
+                        embeddingsResponseResponseEntity =
+                                this.retryTemplate.execute(() -> gigaChatApi.embeddings(embeddingsRequest));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e.getCause() != null ? e.getCause() : e);
+                    }
 
                     Optional<EmbeddingsResponse> embeddingsResponseOptional = Optional.ofNullable(
                                     embeddingsResponseResponseEntity)

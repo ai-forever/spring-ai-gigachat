@@ -1,6 +1,5 @@
 package chat.giga.springai.api.chat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +12,7 @@ import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.util.StreamUtils;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @SuppressWarnings("NullableProblems")

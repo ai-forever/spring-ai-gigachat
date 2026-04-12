@@ -14,8 +14,8 @@ import org.springframework.ai.image.ImageMessage;
 import org.springframework.ai.image.ImageOptionsBuilder;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.ResponseEntity;
-import org.springframework.retry.support.RetryTemplate;
 
 class GigaChatImageModelTest {
 
@@ -25,7 +25,7 @@ class GigaChatImageModelTest {
     GigaChatImageOptions defaultOptions =
             GigaChatImageOptions.builder().model("GigaChat-2-Max").build();
 
-    RetryTemplate retryTemplate = RetryTemplate.defaultInstance();
+    RetryTemplate retryTemplate = org.springframework.ai.retry.RetryUtils.DEFAULT_RETRY_TEMPLATE;
 
     GigaChatImageModel imageModel =
             new GigaChatImageModel(gigaChatApi, defaultOptions, ObservationRegistry.NOOP, retryTemplate);
