@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.retry.NonTransientAiException;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.retry.TransientAiException;
+import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
+import org.springframework.core.retry.Retryable;
 
 /**
  * Проверяет, что {@link GigaRetryTemplate#execute} распаковывает оригинальное исключение из
@@ -142,6 +144,103 @@ class GigaRetryTemplateTest {
         @DisplayName("null delegate — IllegalArgumentException")
         void nullDelegateRejected() {
             assertThrows(IllegalArgumentException.class, () -> new GigaRetryTemplate(null));
+        }
+    }
+
+    /**
+     * Защищённые границы — проверка контрактов Spring 7 и поведения на «сломанном»/нестандартном
+     * {@link RetryTemplate}. Этот класс отвечает на ревью-замечание про сценарий
+     * {@code RuntimeException} напрямую из {@code RetryTemplate.execute()} с {@code cause == null}.
+     */
+    @Nested
+    @DisplayName("Защищённые границы и hardening")
+    class BrokenDelegateHardening {
+
+        /**
+         * Факт из исходников Spring Framework 7.0.6: {@code RetryException(message, cause)}
+         * защищён {@code Objects.requireNonNull(cause, ...)}. Это значит, что реальный
+         * {@code RetryException} в путь «cause == null» физически не попадёт — NPE
+         * выбросится раньше в конструкторе.
+         */
+        @Test
+        @DisplayName("Факт Spring 7: RetryException запрещает null cause в конструкторе")
+        void retryExceptionForbidsNullCauseByContract() {
+            assertThrows(NullPointerException.class, () -> new RetryException("boom", (Throwable) null));
+        }
+
+        /**
+         * Факт из исходников Spring 7.0.6: {@code RetryTemplate.execute()} объявлен
+         * {@code throws RetryException} и внутри метода — только {@code throw retryException}.
+         * Любое исключение из action ловится через {@code catch (Throwable)} и заворачивается.
+         * Проверяем, что даже для «голого» {@link RuntimeException} без message/cause дефолтный
+         * {@link RetryTemplate} гарантированно оборачивает его в {@link RetryException}, а не
+         * пробрасывает напрямую.
+         */
+        @Test
+        @DisplayName("Факт Spring 7: дефолтный RetryTemplate всегда оборачивает RuntimeException в RetryException")
+        void defaultRetryTemplateAlwaysWrapsIntoRetryException() {
+            RetryTemplate fast = new RetryTemplate();
+            fast.setRetryPolicy(RetryPolicy.builder()
+                    .maxRetries(0)
+                    .delay(Duration.ofMillis(1))
+                    .build());
+
+            RetryException thrown = assertThrows(
+                    RetryException.class,
+                    () -> fast.execute(() -> {
+                        throw new RuntimeException(); // без message/cause
+                    }));
+
+            assertNotNull(thrown.getCause(), "getCause() защищён Objects.requireNonNull — не null");
+            assertEquals(RuntimeException.class, thrown.getCause().getClass());
+        }
+
+        /**
+         * Ревью-сценарий: если в будущем (или через пользовательский subclass) {@code RetryTemplate}
+         * бросит {@code RuntimeException} <b>напрямую</b> и с {@code cause == null}, то текущий
+         * fallback {@code new RuntimeException(cause != null ? cause : e)} обернул бы исходный
+         * {@code RuntimeException} в ещё один {@code RuntimeException}, потеряв тип.
+         *
+         * <p>Этот тест симулирует такое поведение через subclass и проверяет, что {@link GigaRetryTemplate}
+         * пробрасывает исходное исключение с сохранением типа — т.е. hardening работает.
+         */
+        @Test
+        @DisplayName("Сломанный RetryTemplate, бросающий RuntimeException напрямую (cause=null) — тип сохраняется")
+        void directRuntimeExceptionWithNullCauseIsPropagatedByType() {
+            RetryTemplate brokenTemplate = new RetryTemplate() {
+                @Override
+                public <R> R execute(Retryable<R> retryable) {
+                    throw new IllegalStateException("direct runtime without cause");
+                }
+            };
+            GigaRetryTemplate wrapper = new GigaRetryTemplate(brokenTemplate);
+
+            IllegalStateException thrown =
+                    assertThrows(IllegalStateException.class, () -> wrapper.execute(() -> "never"));
+
+            assertEquals("direct runtime without cause", thrown.getMessage());
+            assertNull(thrown.getCause(), "симуляция: cause намеренно null");
+        }
+
+        /**
+         * Ещё одно проявление того же сценария: прямой {@link NonTransientAiException} (важный для
+         * Spring AI тип) с {@code cause == null}. Без hardening мы бы потеряли его тип и клиентский
+         * {@code catch(NonTransientAiException)} не сработал бы.
+         */
+        @Test
+        @DisplayName("Прямой NonTransientAiException из сломанного RetryTemplate — ловится по типу")
+        void directNonTransientAiExceptionWithNullCausePreservesType() {
+            RetryTemplate brokenTemplate = new RetryTemplate() {
+                @Override
+                public <R> R execute(Retryable<R> retryable) {
+                    throw new NonTransientAiException("model not found");
+                }
+            };
+            GigaRetryTemplate wrapper = new GigaRetryTemplate(brokenTemplate);
+
+            NonTransientAiException thrown =
+                    assertThrows(NonTransientAiException.class, () -> wrapper.execute(() -> "never"));
+            assertEquals("model not found", thrown.getMessage());
         }
     }
 }

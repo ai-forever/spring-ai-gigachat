@@ -42,8 +42,15 @@ public final class GigaRetryTemplate {
         try {
             return delegate.execute(action);
         } catch (Exception e) {
+            // Штатный путь Spring 7: RetryException с ненулевым cause (Objects.requireNonNull
+            // в конструкторе RetryException). Пробрасываем cause как есть, сохраняя тип.
             final Throwable cause = e.getCause();
             if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            // Hardening: если делегат (subclass или будущий Spring) выбросил RuntimeException
+            // напрямую — не оборачиваем его в ещё один RuntimeException, сохраняем исходный тип.
+            if (e instanceof RuntimeException re) {
                 throw re;
             }
             throw new RuntimeException(cause != null ? cause : e);
