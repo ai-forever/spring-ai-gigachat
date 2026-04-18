@@ -7,6 +7,7 @@ import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.models.ModelDescription;
+import chat.giga.springai.support.GigaRetryTemplate;
 import chat.giga.springai.tool.definition.GigaToolDefinition;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
@@ -62,9 +63,10 @@ public class GigaChatModel implements ChatModel {
     private final GigaChatOptions defaultOptions;
 
     /**
-     * The retry template used to retry the GigaChat API calls.
+     * The retry template used to retry the GigaChat API calls. Wrapped in {@link GigaRetryTemplate}
+     * to preserve original exception types on {@code RetryException} unwrapping.
      */
-    private final RetryTemplate retryTemplate;
+    private final GigaRetryTemplate retryTemplate;
 
     /**
      * The observation registry used for instrumentation.
@@ -105,7 +107,7 @@ public class GigaChatModel implements ChatModel {
         this.gigaChatApi = gigaChatApi;
         this.defaultOptions = defaultOptions;
         this.toolCallingManager = toolCallingManager;
-        this.retryTemplate = retryTemplate;
+        this.retryTemplate = new GigaRetryTemplate(retryTemplate);
         this.observationRegistry = observationRegistry;
         this.internalProperties = internalProperties;
         this.toolExecutionEligibilityPredicate = toolExecutionEligibilityPredicate;
@@ -134,13 +136,8 @@ public class GigaChatModel implements ChatModel {
                         () -> observationContext,
                         this.observationRegistry)
                 .observe(() -> {
-                    ResponseEntity<CompletionResponse> completionEntity;
-                    try {
-                        completionEntity = this.retryTemplate.execute(() ->
-                                this.gigaChatApi.chatCompletionEntity(request, buildHeaders(prompt.getOptions())));
-                    } catch (Exception e) {
-                        throw new RuntimeException(e.getCause() != null ? e.getCause() : e);
-                    }
+                    ResponseEntity<CompletionResponse> completionEntity = this.retryTemplate.execute(
+                            () -> this.gigaChatApi.chatCompletionEntity(request, buildHeaders(prompt.getOptions())));
 
                     CompletionResponse completionResponse = completionEntity.getBody();
 
@@ -209,13 +206,8 @@ public class GigaChatModel implements ChatModel {
                     .parentObservation(contextView.getOrDefault(ObservationThreadLocalAccessor.KEY, null))
                     .start();
 
-            Flux<CompletionResponse> response;
-            try {
-                response = this.retryTemplate.execute(
-                        () -> this.gigaChatApi.chatCompletionStream(request, buildHeaders(prompt.getOptions())));
-            } catch (Exception e) {
-                return Flux.error(new RuntimeException(e.getCause() != null ? e.getCause() : e));
-            }
+            Flux<CompletionResponse> response = this.retryTemplate.execute(
+                    () -> this.gigaChatApi.chatCompletionStream(request, buildHeaders(prompt.getOptions())));
 
             Flux<ChatResponse> chatResponseFlux = response.switchMap(completionResponse -> {
                         if (completionResponse == null) {

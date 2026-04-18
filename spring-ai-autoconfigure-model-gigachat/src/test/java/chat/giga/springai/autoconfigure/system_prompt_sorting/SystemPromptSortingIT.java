@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import chat.giga.springai.GigaChatModel;
+import chat.giga.springai.autoconfigure.GigaChatAuthTestProperties;
 import chat.giga.springai.autoconfigure.GigaChatAutoConfiguration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -14,31 +15,15 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.retry.NonTransientAiException;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 public class SystemPromptSortingIT {
 
-    private static String[] collectGigaChatAuthProperties() {
-        String scope = System.getenv("GIGACHAT_API_SCOPE");
-        String apiKey = System.getenv("GIGACHAT_API_KEY");
-        String clientId = System.getenv("GIGACHAT_API_CLIENT_ID");
-        String clientSecret = System.getenv("GIGACHAT_API_CLIENT_SECRET");
-        if (apiKey != null && !apiKey.isBlank()) {
-            return new String[] {
-                "spring.ai.gigachat.auth.scope=" + scope, "spring.ai.gigachat.auth.bearer.api-key=" + apiKey
-            };
-        }
-        return new String[] {
-            "spring.ai.gigachat.auth.scope=" + scope,
-            "spring.ai.gigachat.auth.bearer.client-id=" + clientId,
-            "spring.ai.gigachat.auth.bearer.client-secret=" + clientSecret
-        };
-    }
-
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
-            .withPropertyValues(collectGigaChatAuthProperties())
+            .withPropertyValues(GigaChatAuthTestProperties.fromEnv())
             .withPropertyValues(
                     "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat");
 
@@ -79,15 +64,13 @@ public class SystemPromptSortingIT {
                             new UserMessage("Кто создал Java?"),
                             new SystemMessage("Ты эксперт по работе с  java. Отвечай на вопросы одним словом")));
 
-                    // Проверяем, что метод выбрасывает ожидаемое исключение
-                    // Spring AI может оборачивать NonTransientAiException в RuntimeException
-                    Throwable exception = assertThrows(Throwable.class, () -> gigaChatModel.call(prompt));
-                    String message = exception.getMessage();
-                    Throwable cause = exception.getCause();
-                    if (cause != null) {
-                        message = cause.getMessage();
-                    }
-                    assertThat(message, containsStringIgnoringCase("system message must be the first message"));
+                    // GigaRetryUtils.executeWithRetry сохраняет тип исключения из RetryException,
+                    // поэтому вызывающий код получает NonTransientAiException напрямую.
+                    NonTransientAiException exception =
+                            assertThrows(NonTransientAiException.class, () -> gigaChatModel.call(prompt));
+                    assertThat(
+                            exception.getMessage(),
+                            containsStringIgnoringCase("system message must be the first message"));
                 });
     }
 }

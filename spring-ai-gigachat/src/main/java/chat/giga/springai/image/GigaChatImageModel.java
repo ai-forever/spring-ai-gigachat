@@ -3,6 +3,7 @@ package chat.giga.springai.image;
 import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
+import chat.giga.springai.support.GigaRetryTemplate;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -38,7 +39,7 @@ public class GigaChatImageModel implements ImageModel {
     private final GigaChatApi gigaChatApi;
     private final GigaChatImageOptions defaultOptions;
     private final ObservationRegistry observationRegistry;
-    private final RetryTemplate retryTemplate;
+    private final GigaRetryTemplate retryTemplate;
 
     private ImageModelObservationConvention observationConvention;
 
@@ -51,7 +52,7 @@ public class GigaChatImageModel implements ImageModel {
         this.gigaChatApi = gigaChatApi;
         this.defaultOptions = defaultOptions;
         this.observationRegistry = observationRegistry;
-        this.retryTemplate = retryTemplate;
+        this.retryTemplate = new GigaRetryTemplate(retryTemplate);
     }
 
     @Override
@@ -101,12 +102,8 @@ public class GigaChatImageModel implements ImageModel {
     }
 
     private CompletionResponse executeCompletion(CompletionRequest request) {
-        ResponseEntity<CompletionResponse> entity;
-        try {
-            entity = retryTemplate.execute(() -> gigaChatApi.chatCompletionEntity(request));
-        } catch (Exception e) {
-            throw new RuntimeException(e.getCause() != null ? e.getCause() : e);
-        }
+        ResponseEntity<CompletionResponse> entity =
+                retryTemplate.execute(() -> gigaChatApi.chatCompletionEntity(request));
 
         return Optional.ofNullable(entity).map(ResponseEntity::getBody).orElse(null);
     }
