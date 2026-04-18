@@ -7,7 +7,7 @@
     <parent>
         <groupId>chat.giga</groupId>
         <artifactId>spring-ai-gigachat-parent</artifactId>
-        <version>2.0.0-M3</version>
+        <version>2.0.0-M4</version>
     </parent>
 
     <artifactId>spring-ai-autoconfigure-model-gigachat</artifactId>
