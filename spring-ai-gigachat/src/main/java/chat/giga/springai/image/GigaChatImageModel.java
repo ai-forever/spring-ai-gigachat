@@ -15,6 +15,7 @@ import org.springframework.ai.image.Image;
 import org.springframework.ai.image.ImageGeneration;
 import org.springframework.ai.image.ImageGenerationMetadata;
 import org.springframework.ai.image.ImageModel;
+import org.springframework.ai.image.ImageOptions;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
 import org.springframework.ai.image.ImageResponseMetadata;
@@ -88,16 +89,36 @@ public class GigaChatImageModel implements ImageModel {
             return new ImageResponse(List.of());
         }
 
+        String responseFormat = prompt.getOptions().getResponseFormat();
+        if (GigaChatImageOptions.RESPONSE_FORMAT_URL.equals(responseFormat)) {
+            return buildUrlImageResponse(fileId);
+        }
+
         byte[] imageBytes = gigaChatApi.downloadFile(fileId);
         if (imageBytes == null) {
             throw new IllegalStateException("Failed to download image for fileId: " + fileId);
         }
 
-        return buildImageResponse(fileId, imageBytes);
+        return buildBase64ImageResponse(fileId, imageBytes);
     }
 
     private ImagePrompt normalizePrompt(ImagePrompt prompt) {
-        return prompt.getOptions() == null ? new ImagePrompt(prompt.getInstructions(), defaultOptions) : prompt;
+        if (prompt.getOptions() == null) { // safeguard against changes in Spring AI logic
+            return new ImagePrompt(prompt.getInstructions(), defaultOptions);
+        }
+
+        // Merge options: use values from prompt if present, otherwise use defaults
+        ImageOptions promptOptions = prompt.getOptions();
+        GigaChatImageOptions mergedOptions = GigaChatImageOptions.builder()
+                .model(promptOptions.getModel() != null ? promptOptions.getModel() : defaultOptions.getModel())
+                .style(promptOptions.getStyle() != null ? promptOptions.getStyle() : defaultOptions.getStyle())
+                .responseFormat(
+                        promptOptions.getResponseFormat() != null
+                                ? promptOptions.getResponseFormat()
+                                : defaultOptions.getResponseFormat())
+                .build();
+
+        return new ImagePrompt(prompt.getInstructions(), mergedOptions);
     }
 
     private CompletionResponse executeCompletion(CompletionRequest request) {
@@ -113,14 +134,19 @@ public class GigaChatImageModel implements ImageModel {
                 || completion.getChoices().isEmpty();
     }
 
-    private ImageResponse buildImageResponse(String fileId, byte[] imageBytes) {
-
+    private ImageResponse buildBase64ImageResponse(String fileId, byte[] imageBytes) {
         String base64 = Base64.getEncoder().encodeToString(imageBytes);
-
         Image image = new Image(null, base64);
         ImageGenerationMetadata metadata = new GigaChatImageGenerationMetadata(fileId);
         ImageGeneration generation = new ImageGeneration(image, metadata);
+        return new ImageResponse(List.of(generation), new ImageResponseMetadata());
+    }
 
+    private ImageResponse buildUrlImageResponse(String fileId) {
+        String url = gigaChatApi.getFileUrl(fileId);
+        Image image = new Image(url, null);
+        ImageGenerationMetadata metadata = new GigaChatImageGenerationMetadata(fileId);
+        ImageGeneration generation = new ImageGeneration(image, metadata);
         return new ImageResponse(List.of(generation), new ImageResponseMetadata());
     }
 
@@ -128,7 +154,8 @@ public class GigaChatImageModel implements ImageModel {
         String content = response.getChoices().get(0).getMessage().getContent();
         Matcher matcher = IMG_ID_PATTERN.matcher(content);
         if (!matcher.find()) {
-            throw new IllegalStateException("No <img src=\"...\"> tag found in GigaChat response: " + content);
+            log.warn("No <img src=\"...\"> tag found in GigaChat response: {}", content);
+            return null;
         }
 
         return matcher.group(1);
@@ -144,11 +171,14 @@ public class GigaChatImageModel implements ImageModel {
 
         List<CompletionRequest.Message> messages = new ArrayList<>();
 
-        CompletionRequest.Message sys = new CompletionRequest.Message();
-        sys.setRole(CompletionRequest.Role.system);
-        sys.setContent(prompt.getOptions().getStyle());
-
-        messages.add(sys);
+        // Add system message only if style is provided
+        String style = prompt.getOptions().getStyle();
+        if (style != null) {
+            CompletionRequest.Message sys = new CompletionRequest.Message();
+            sys.setRole(CompletionRequest.Role.system);
+            sys.setContent(style);
+            messages.add(sys);
+        }
 
         if (prompt.getInstructions().size() > 1) {
             log.warn("GigaChat only supports one instruction, using the first one");
