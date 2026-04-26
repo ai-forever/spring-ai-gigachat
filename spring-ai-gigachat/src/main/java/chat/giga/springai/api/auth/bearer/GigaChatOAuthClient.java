@@ -106,7 +106,8 @@ public class GigaChatOAuthClient {
      * @param expiresAt expiration timestamp in milliseconds since epoch
      */
     record GigaChatAccessTokenResponse(
-            @JsonProperty("access_token") String accessToken, @JsonProperty("expires_at") Long expiresAt) {}
+            @JsonProperty("access_token") String accessToken,
+            @JsonProperty("expires_at") Long expiresAt) {}
 
     /**
      * Requests a new access token from the GigaChat OAuth 2.0 endpoint.

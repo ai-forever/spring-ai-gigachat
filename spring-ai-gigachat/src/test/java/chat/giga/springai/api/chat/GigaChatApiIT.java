@@ -2,7 +2,13 @@ package chat.giga.springai.api.chat;
 
 import static chat.giga.springai.GigaChatModel.DEFAULT_MODEL_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.auth.GigaChatApiScope;

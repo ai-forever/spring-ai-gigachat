@@ -2,7 +2,10 @@ package chat.giga.springai.autoconfigure;
 
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
 import chat.giga.springai.GigaChatModel;

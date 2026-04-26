@@ -1,6 +1,8 @@
 package chat.giga.springai.api.chat;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.Mockito.never;
 
 import chat.giga.springai.api.GigaChatApiProperties;
@@ -23,8 +25,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class GigaChatApiTest {
 
     @Test
-    @DisplayName(
-            """
+    @DisplayName("""
             Тест проверяет добавление BearerTokenInterceptor/BearerTokenFilter
             в RestClient.Builder и WebClient.Builder при bearer-авторизации
             """)
@@ -54,8 +55,7 @@ public class GigaChatApiTest {
     }
 
     @Test
-    @DisplayName(
-            """
+    @DisplayName("""
             Тест проверяет отсутствие BearerTokenInterceptor/BearerTokenFilter
             в RestClient.Builder и WebClient.Builder при авторизации по TLS-сертификату
             """)
