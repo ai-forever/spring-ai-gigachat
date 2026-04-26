@@ -12,6 +12,7 @@ import chat.giga.springai.api.chat.completion.CompletionResponse;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.Base64;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -22,6 +23,11 @@ import org.springframework.ai.image.ImageResponse;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.ResponseEntity;
 
+/**
+ * Unit tests for {@link GigaChatImageModel}, covering the happy-path generation flow and the
+ * propagation of the API-reported model into {@link GigaChatImageResponseMetadata} (which in
+ * turn feeds the {@code gen_ai.response.model} observation tag).
+ */
 class GigaChatImageModelTest {
 
     private static final String GIGA_CHAT_2_MAX = "GigaChat-2-Max";
@@ -36,6 +42,13 @@ class GigaChatImageModelTest {
     GigaChatImageModel imageModel =
             new GigaChatImageModel(gigaChatApi, defaultOptions, ObservationRegistry.NOOP, retryTemplate);
 
+    /**
+     * End-to-end sanity check: a stubbed {@code /chat/completions} returns a single choice
+     * with an {@code <img src="..."/>} tag, the file is "downloaded", and the resulting
+     * {@link ImageResponse} contains a base64-encoded payload, the original {@code fileId}
+     * inside {@link GigaChatImageGenerationMetadata} and the API-reported model inside
+     * {@link GigaChatImageResponseMetadata}.
+     */
     @Test
     void testSuccessfulImageGenerationB64Json() {
         CompletionResponse completionResponse = createCompletionResponse();
@@ -67,6 +80,9 @@ class GigaChatImageModelTest {
         assertEquals(
                 "11111111-2222-3333-4444-555555555555",
                 ((GigaChatImageGenerationMetadata) gen.getMetadata()).getFileId());
+
+        assertInstanceOf(GigaChatImageResponseMetadata.class, response.getMetadata());
+        assertEquals(GIGA_CHAT_2_MAX, ((GigaChatImageResponseMetadata) response.getMetadata()).getModel());
 
         Mockito.verify(gigaChatApi, Mockito.times(1)).chatCompletionEntity(any());
         Mockito.verify(gigaChatApi, Mockito.times(1)).downloadFile("11111111-2222-3333-4444-555555555555");
@@ -201,6 +217,45 @@ class GigaChatImageModelTest {
         assertEquals("Custom style", systemMessage.getContent());
 
         Mockito.verify(gigaChatApi, Mockito.times(1)).downloadFile("11111111-2222-3333-4444-555555555555");
+    }
+
+    /**
+     * Verifies that the response metadata carries the model reported by the API rather than
+     * the one requested. GigaChat may route the request to a sub-version (e.g. request
+     * {@code GigaChat-2}, get back {@code GigaChat-2-Pro}); the observation tag must reflect
+     * the model that actually served the call.
+     */
+    @Test
+    @DisplayName("Response metadata carries the actual API model even when it differs from the requested one")
+    void responseMetadataReflectsActualModelFromApi() {
+        String actualModel = "GigaChat-2-Pro";
+
+        CompletionResponse.MessagesRes message = new CompletionResponse.MessagesRes();
+        message.setRole(CompletionResponse.Role.assistant);
+        message.setContent("Generated <img src=\"22222222-3333-4444-5555-666666666666\"/>");
+
+        CompletionResponse.Choice choice = new CompletionResponse.Choice();
+        choice.setMessage(message);
+        choice.setFinishReason(CompletionResponse.FinishReason.STOP);
+        choice.setIndex(0);
+
+        CompletionResponse completionResponse = new CompletionResponse();
+        completionResponse.setChoices(List.of(choice));
+        completionResponse.setModel(actualModel);
+        completionResponse.setUsage(null);
+
+        Mockito.when(gigaChatApi.chatCompletionEntity(any())).thenReturn(ResponseEntity.ok(completionResponse));
+        Mockito.when(gigaChatApi.downloadFile("22222222-3333-4444-5555-666666666666"))
+                .thenReturn(new byte[] {9, 9, 9});
+
+        ImagePrompt prompt = new ImagePrompt(
+                List.of(new ImageMessage("Draw something", 1.0f)),
+                ImageOptionsBuilder.builder().build());
+
+        ImageResponse response = imageModel.call(prompt);
+
+        assertInstanceOf(GigaChatImageResponseMetadata.class, response.getMetadata());
+        assertEquals(actualModel, ((GigaChatImageResponseMetadata) response.getMetadata()).getModel());
     }
 
     private CompletionResponse createCompletionResponse() {
