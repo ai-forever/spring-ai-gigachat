@@ -40,7 +40,9 @@ public class WeatherToolController {
     record City(@JsonPropertyDescription("Название города") String name) {}
 
     // response
-    record CityTemperature(@JsonPropertyDescription("Температура в градусах цельсия") Integer temperature) {}
+    record CityTemperature(
+            @JsonPropertyDescription("Температура в градусах цельсия")
+            Integer temperature) {}
 
     /**
      * Пример использования стандартного для Spring AI функционала вызова внешних функций через FunctionCallback
@@ -132,10 +134,7 @@ public class WeatherToolController {
                 //                generateOutputSchema = false,
                 fewShotExamples = {@FewShotExample(request = "Сколько градусов в Москве будет завтра?", params = "{}")})
         @FewShotExample(request = "Сколько градусов в Питере будет завтра?", params = "{}")
-        @FewShotExample(
-                request = "Какая температура была в Москве 12 июля 2023 года?",
-                params =
-                        """
+        @FewShotExample(request = "Какая температура была в Москве 12 июля 2023 года?", params = """
                          {
                            "cityName": "Москва",
                            "date": "2023-07-12"
