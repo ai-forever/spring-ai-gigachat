@@ -9,19 +9,22 @@ import org.springframework.ai.image.ImageOptions;
 @Builder
 public class GigaChatImageOptions implements ImageOptions {
 
-    public static final String SYSTEM_PROMPT = "You are an artist. If the user asks you to draw something,"
-            + "generate an image using the built-in text2image function"
-            + "and return a tag in the form <img src=\"FILE_ID\"/>.";
+    public static final String RESPONSE_FORMAT_B64_JSON = "b64_json";
+    public static final String RESPONSE_FORMAT_URL = "url";
 
     @Builder.Default
-    private String style = SYSTEM_PROMPT;
+    private String style = null;
 
     @Builder.Default
     private String model = GigaChatModel.DEFAULT_MODEL_NAME;
 
-    public GigaChatImageOptions(String style, String model) {
+    @Builder.Default
+    private String responseFormat = RESPONSE_FORMAT_B64_JSON;
+
+    public GigaChatImageOptions(String style, String model, String responseFormat) {
         this.style = style;
         this.model = model;
+        this.responseFormat = responseFormat;
     }
 
     @Override
@@ -49,20 +52,11 @@ public class GigaChatImageOptions implements ImageOptions {
 
     @Override
     public String getResponseFormat() {
-        // GigaChat does not support ResponseFormat
-        return null;
+        return responseFormat;
     }
 
     @Override
     public String getStyle() {
         return style;
-    }
-
-    public void setStyle(String style) {
-        this.style = style;
-    }
-
-    public void setModel(String model) {
-        this.model = model;
     }
 }

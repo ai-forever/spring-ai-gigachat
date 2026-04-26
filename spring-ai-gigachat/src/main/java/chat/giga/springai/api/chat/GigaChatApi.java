@@ -4,7 +4,11 @@ import static chat.giga.springai.api.HttpClientUtils.buildHttpClient;
 import static chat.giga.springai.api.HttpClientUtils.buildSslFactory;
 
 import chat.giga.springai.api.GigaChatApiProperties;
-import chat.giga.springai.api.auth.bearer.*;
+import chat.giga.springai.api.auth.bearer.GigaAuthToken;
+import chat.giga.springai.api.auth.bearer.GigaChatBearerAuthApi;
+import chat.giga.springai.api.auth.bearer.GigaChatOAuthClient;
+import chat.giga.springai.api.auth.bearer.NoopGigaAuthToken;
+import chat.giga.springai.api.auth.bearer.SimpleGigaAuthToken;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenFilter;
 import chat.giga.springai.api.auth.bearer.interceptors.BearerTokenInterceptor;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
@@ -22,7 +26,8 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.content.Media;
-import org.springframework.ai.model.*;
+import org.springframework.ai.model.ChatModelDescription;
+import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -49,6 +54,7 @@ public class GigaChatApi {
 
     private final RestClient restClient;
     private final WebClient webClient;
+    private final String baseUrl;
 
     public GigaChatApi(GigaChatApiProperties properties) {
         this(properties, null, null);
@@ -92,6 +98,7 @@ public class GigaChatApi {
             ResponseErrorHandler responseErrorHandler,
             @Nullable KeyManagerFactory kmf,
             @Nullable TrustManagerFactory tmf) {
+        this.baseUrl = properties.getBaseUrl();
         var authProps = properties.getAuth();
         var internalProps = properties.getInternal();
 
@@ -251,6 +258,11 @@ public class GigaChatApi {
                 .headers(applyHeaders(headers))
                 .retrieve()
                 .body(byte[].class);
+    }
+
+    public String getFileUrl(String fileId) {
+        String base = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        return base + "/files/" + fileId + "/content";
     }
 
     public ResponseEntity<ModelsResponse> models() {
