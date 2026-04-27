@@ -6,7 +6,7 @@
 
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-example</artifactId>
-    <version>1.1.2</version>
+    <version>1.1.4</version>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -127,10 +127,11 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>2.44.5</version>
+                <version>3.3.0</version>
                 <configuration>
                     <java>
                         <palantirJavaFormat/>
+                        <forbidWildcardImports/>
                     </java>
                     <markdown>
                         <includes>

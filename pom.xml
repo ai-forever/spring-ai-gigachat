@@ -6,7 +6,7 @@
 
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-parent</artifactId>
-    <version>1.1.2</version>
+    <version>1.1.4</version>
     <packaging>pom</packaging>
 
     <name>Spring AI model - GigaChat - Parent</name>
