@@ -47,6 +47,32 @@ curl "localhost:8080/actor-films" -d "Назови 5 популярных фил
 
 Пример ответа: `{"actor":"Сергей Безруков","movies":["Бригада","Есенин","Адмиралъ","Высоцкий. Спасибо, что живой","Участок"]}`
 
+## Virtual Function Structured Output (гарантированный JSON)
+
+[StructuredOutputVirtualFunctionController](src/main/java/chat/giga/springai/example/StructuredOutputVirtualFunctionController.java)
+
+Использует механизм function calling для гарантированного получения ответа в заданном JSON-формате.
+Под капотом создаётся виртуальная функция с JSON Schema, и модель вызывает её с данными в качестве аргументов.
+
+Подробнее: [Structured Output Documentation](../docs/structured-output.md)
+
+```shell
+# Получить фильмографию режиссёра
+curl "localhost:8080/structured-virtual-function/actor-films?actor=Тарантино"
+
+# Получить информацию о книге
+curl "localhost:8080/structured-virtual-function/book-info?query=Война%20и%20мир"
+```
+
+Примеры ответов:
+```json
+{"actor":"Квентин Тарантино","movies":["Криминальное чтиво","Убить Билла","Бесславные ублюдки","Джанго освобождённый","Однажды в Голливуде"]}
+```
+
+```json
+{"title":"Война и мир","author":"Лев Николаевич Толстой","year":1869,"genre":"роман-эпопея"}
+```
+
 ## Примеры со стримингом ответа
 
 [StreamAnswerController](src/main/java/chat/giga/springai/example/StreamAnswerController.java)

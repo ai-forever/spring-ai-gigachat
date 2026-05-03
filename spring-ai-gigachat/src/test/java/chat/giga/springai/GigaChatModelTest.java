@@ -491,4 +491,117 @@ public class GigaChatModelTest {
                             }
                         }));
     }
+
+    @Test
+    @DisplayName("Generation metadata contains finishReason for regular response")
+    void testGenerationMetadata_regularResponse_containsFinishReason() {
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder().model(GigaChatApi.ChatModel.GIGA_CHAT).build());
+
+        var completionResponse = new CompletionResponse()
+                .setId("test-id")
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(0)
+                        .setFinishReason(CompletionResponse.FinishReason.STOP)
+                        .setMessage(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("Hello!"))));
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(completionResponse, HttpStatusCode.valueOf(200)));
+
+        ChatResponse chatResponse = gigaChatModel.call(prompt);
+
+        assertNotNull(chatResponse.getResult().getMetadata());
+        assertEquals("stop", chatResponse.getResult().getMetadata().getFinishReason());
+    }
+
+    @Test
+    @DisplayName("Generation metadata contains finishReason for structured output response")
+    void testGenerationMetadata_structuredOutputResponse_containsFinishReason() {
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .outputSchema("{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}")
+                        .build());
+
+        var completionResponse = new CompletionResponse()
+                .setId("test-id")
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(0)
+                        .setFinishReason(CompletionResponse.FinishReason.FUNCTION_CALL)
+                        .setMessage(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("")
+                                .setFunctionCall(new CompletionResponse.FunctionCall(
+                                        "_structured_output_function", "{\"name\":\"John\"}")))));
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(completionResponse, HttpStatusCode.valueOf(200)));
+
+        ChatResponse chatResponse = gigaChatModel.call(prompt);
+
+        assertNotNull(chatResponse.getResult().getMetadata());
+        assertEquals("function_call", chatResponse.getResult().getMetadata().getFinishReason());
+        assertEquals("{\"name\":\"John\"}", chatResponse.getResult().getOutput().getText());
+    }
+
+    @Test
+    @DisplayName("Generation metadata is reused for both regular and structured output paths")
+    void testGenerationMetadata_isReusedConsistently() {
+        // Test regular path
+        var regularPrompt = new Prompt(
+                List.of(new UserMessage("Regular")),
+                GigaChatOptions.builder().model(GigaChatApi.ChatModel.GIGA_CHAT).build());
+
+        var regularResponse = new CompletionResponse()
+                .setId("regular-id")
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(0)
+                        .setFinishReason(CompletionResponse.FinishReason.STOP)
+                        .setMessage(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("Regular response"))));
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(regularResponse, HttpStatusCode.valueOf(200)));
+
+        ChatResponse regularChatResponse = gigaChatModel.call(regularPrompt);
+
+        // Test structured output path
+        var structuredPrompt = new Prompt(
+                List.of(new UserMessage("Structured")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT)
+                        .outputSchema("{\"type\":\"object\"}")
+                        .build());
+
+        var structuredResponse = new CompletionResponse()
+                .setId("structured-id")
+                .setModel(GigaChatApi.ChatModel.GIGA_CHAT.getName())
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(0)
+                        .setFinishReason(CompletionResponse.FinishReason.STOP)
+                        .setMessage(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("")
+                                .setFunctionCall(
+                                        new CompletionResponse.FunctionCall("_structured_output_function", "{}")))));
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(structuredResponse, HttpStatusCode.valueOf(200)));
+
+        ChatResponse structuredChatResponse = gigaChatModel.call(structuredPrompt);
+
+        // Both should have metadata with finishReason
+        assertNotNull(regularChatResponse.getResult().getMetadata());
+        assertNotNull(structuredChatResponse.getResult().getMetadata());
+        assertEquals("stop", regularChatResponse.getResult().getMetadata().getFinishReason());
+        assertEquals("stop", structuredChatResponse.getResult().getMetadata().getFinishReason());
+    }
 }

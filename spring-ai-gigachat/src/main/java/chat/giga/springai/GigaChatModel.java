@@ -8,6 +8,7 @@ import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.models.ModelDescription;
 import chat.giga.springai.tool.definition.GigaToolDefinition;
+import chat.giga.springai.tool.structured.StructuredOutputHelper;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
@@ -298,11 +299,14 @@ public class GigaChatModel implements ChatModel {
                     runtimeOptions.getToolCallbacks(), this.defaultOptions.getToolCallbacks()));
             requestOptions.setToolContext(ToolCallingChatOptions.mergeToolContext(
                     runtimeOptions.getToolContext(), this.defaultOptions.getToolContext()));
+            requestOptions.setOutputSchema(ModelOptionsUtils.mergeOption(
+                    runtimeOptions.getOutputSchema(), this.defaultOptions.getOutputSchema()));
         } else {
             requestOptions.setInternalToolExecutionEnabled(this.defaultOptions.getInternalToolExecutionEnabled());
             requestOptions.setToolNames(this.defaultOptions.getToolNames());
             requestOptions.setToolCallbacks(this.defaultOptions.getToolCallbacks());
             requestOptions.setToolContext(this.defaultOptions.getToolContext());
+            requestOptions.setOutputSchema(this.defaultOptions.getOutputSchema());
         }
 
         ToolCallingChatOptions.validateToolCallbacks(requestOptions.getToolCallbacks());
@@ -384,6 +388,10 @@ public class GigaChatModel implements ChatModel {
         if (!CollectionUtils.isEmpty(toolDefinitions)) {
             request.setFunctions(this.getFunctionDescriptions(toolDefinitions));
         }
+
+        // Handle virtual function structured output
+        StructuredOutputHelper.addToRequest(request, requestOptions.getOutputSchema());
+
         return request;
     }
 
@@ -507,6 +515,24 @@ public class GigaChatModel implements ChatModel {
         if (functionsStateId != null) {
             metadata.put("functions_state_id", functionsStateId);
         }
+
+        // generationMetadata переиспользуется в разных сценариях:
+        // 1. финальный ответ в виде structured output
+        // 2. tool call + ответ пользователю
+        // 3. ответ пользователю без tool call
+        var generationMetadata = ChatGenerationMetadata.builder()
+                .finishReason(choice.getFinishReason())
+                .build();
+
+        // Handle structured output function call - extract content from function arguments
+        if (StructuredOutputHelper.isStructuredOutputCall(message)) {
+            var structuredAssistantMessage = AssistantMessage.builder()
+                    .content(StructuredOutputHelper.extractContent(message))
+                    .properties(Collections.unmodifiableMap(metadata))
+                    .build();
+            return new Generation(structuredAssistantMessage, generationMetadata);
+        }
+
         List<AssistantMessage.ToolCall> toolCalls;
         if (CompletionResponse.FinishReason.FUNCTION_CALL.equals(finishReason)) {
             AssistantMessage.ToolCall toolCall = new AssistantMessage.ToolCall(
@@ -522,9 +548,6 @@ public class GigaChatModel implements ChatModel {
                 .content(message.getContent())
                 .toolCalls(toolCalls)
                 .properties(Collections.unmodifiableMap(metadata))
-                .build();
-        var generationMetadata = ChatGenerationMetadata.builder()
-                .finishReason(choice.getFinishReason())
                 .build();
         return new Generation(assistantMessage, generationMetadata);
     }

@@ -15,6 +15,7 @@ import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Getter;
+import org.springframework.ai.model.tool.StructuredOutputChatOptions;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.lang.Nullable;
@@ -22,7 +23,7 @@ import org.springframework.util.Assert;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class GigaChatOptions implements ToolCallingChatOptions {
+public class GigaChatOptions implements ToolCallingChatOptions, StructuredOutputChatOptions {
 
     @JsonProperty("model")
     private String model;
@@ -79,6 +80,13 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
     @JsonProperty("http_headers")
     private Map<String, String> httpHeaders = new HashMap<>();
+
+    /**
+     * JSON schema for virtual function structured output.
+     * When set, the model will return structured output matching this schema.
+     */
+    @JsonIgnore
+    private String outputSchema;
 
     @Override
     public String getModel() {
@@ -188,6 +196,19 @@ public class GigaChatOptions implements ToolCallingChatOptions {
         this.internalToolExecutionEnabled = internalToolExecutionEnabled;
     }
 
+    @Override
+    @Nullable
+    @JsonIgnore
+    public String getOutputSchema() {
+        return outputSchema;
+    }
+
+    @Override
+    @JsonIgnore
+    public void setOutputSchema(@Nullable String outputSchema) {
+        this.outputSchema = outputSchema;
+    }
+
     @Getter
     @AllArgsConstructor
     public enum FunctionCallMode {
@@ -220,7 +241,8 @@ public class GigaChatOptions implements ToolCallingChatOptions {
                 .functionCallMode(this.functionCallMode)
                 .functionCallParam(this.functionCallParam)
                 .profanityCheck(this.profanityCheck)
-                .httpHeaders(this.httpHeaders);
+                .httpHeaders(this.httpHeaders)
+                .outputSchema(this.outputSchema);
     }
 
     public static class Builder {
@@ -315,6 +337,11 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
         public Builder httpHeaders(Map<String, String> httpHeaders) {
             this.options.setHttpHeaders(httpHeaders);
+            return this;
+        }
+
+        public Builder outputSchema(String outputSchema) {
+            this.options.setOutputSchema(outputSchema);
             return this;
         }
 

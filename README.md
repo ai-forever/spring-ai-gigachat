@@ -22,6 +22,7 @@
   - блокирующий вызов, когда ответ от LLM приходит полностью
   - потоковая генерация токенов через Server Sent Events (SSE)
 - Вызов внешних функций, в том числе через Model Context Protocol (MCP)
+- [Structured Output](docs/structured-output.md) — получение ответов в строго типизированном формате (Java records)
 - Работа с файлами и изображениями - можно спросить, что изображено на Вашей фотографии
 - Вызов Embedding модели - может использоваться для построения RAG-системы
 - **Генерация изображений** - создание изображений по текстовому описанию
@@ -42,6 +43,9 @@
   - [Использование @GigaTool](docs/tools.md#использование-gigatool)
   - [Управление вызовом функций](docs/tools.md#управление-вызовом-функций)
   - [Принудительный вызов функции](docs/tools.md#принудительный-вызов-функции)
+- [Structured Output](docs/structured-output.md)
+  - [Virtual Function Structured Output](docs/structured-output.md#virtual-function-structured-output-рекомендуется)
+  - [Комбинация с Tool Calling](docs/structured-output.md#комбинация-с-tool-calling)
 - [Отправка HTTP-заголовков в GigaChat](docs/custom-http-headers.md)
   - [Статические значения HTTP-заголовоков](docs/custom-http-headers.md#статические-значения-http-заголовоков)
   - [Динамически вычисляемые значения HTTP-заголовоков](docs/custom-http-headers.md#динамически-вычисляемые-значения-http-заголовоков)
@@ -237,3 +241,4 @@ spring:
 ## Примеры
 
 Примеры работы с библиотекой - в отдельном модуле [spring-ai-gigachat-example](./spring-ai-gigachat-example/README.md).
+
