@@ -10,6 +10,7 @@ import chat.giga.springai.api.auth.GigaChatAuthProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 /**
  * HTTP client for GigaChat OAuth 2.0 token endpoint.
@@ -129,11 +131,23 @@ public class GigaChatOAuthClient {
                 .body("scope=" + this.scope)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, ((request, response) -> {
+                    String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                    String contentType = response.getHeaders().getContentType() != null
+                            ? response.getHeaders().getContentType().toString()
+                            : "unknown";
+
                     log.warn(
-                            "Token request returned error status: {}, but attempting to parse response body",
-                            response.getStatusCode());
+                            "Token request failed with status {} and content type {}. Response body: {}",
+                            response.getStatusCode(), contentType, body);
                     // Allow parsing response body even on error status
                     // API may return valid token with 4xx/5xx status
+
+                    if (!contentType.contains("json")) {
+                        String truncatedBody = body.length() > 500 ? body.substring(0, 500) + "..." : body;
+                        throw new RestClientException(
+                                "Token request failed with non-JSON response (status " + response.getStatusCode() + 
+                                ", content type " + contentType + "): " + truncatedBody);
+                    }
                 }))
                 .body(GigaChatAccessTokenResponse.class);
     }
