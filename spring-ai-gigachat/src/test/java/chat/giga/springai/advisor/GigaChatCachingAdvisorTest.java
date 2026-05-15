@@ -1,5 +1,6 @@
 package chat.giga.springai.advisor;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -7,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import chat.giga.springai.GigaChatOptions;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -127,6 +129,33 @@ class GigaChatCachingAdvisorTest {
 
         assertNull(requestCaptor.getValue().context().get(GigaChatCachingAdvisor.X_SESSION_ID));
         assertNull(getSessionId(requestCaptor.getValue().prompt().getOptions()));
+    }
+
+    @Test
+    @DisplayName("Адвизор не мутирует переданную immutable map httpHeaders")
+    void testAdviseCall_withImmutableHttpHeaders() {
+        Map<String, String> immutableHeaders = Map.of("X-Existing-Header", "existing-value");
+        GigaChatOptions options =
+                GigaChatOptions.builder().httpHeaders(immutableHeaders).build();
+        ChatClientRequest request = ChatClientRequest.builder()
+                .prompt(Prompt.builder()
+                        .messages(mockMessage)
+                        .chatOptions(options)
+                        .build())
+                .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
+                .build();
+
+        assertDoesNotThrow(() -> advisor.adviseCall(request, chain));
+
+        ArgumentCaptor<ChatClientRequest> requestCaptor = ArgumentCaptor.forClass(ChatClientRequest.class);
+        verify(chain).nextCall(requestCaptor.capture());
+
+        GigaChatOptions resultOptions =
+                (GigaChatOptions) requestCaptor.getValue().prompt().getOptions();
+        assertEquals(X_SESSION_ID_VALUE, resultOptions.getHttpHeaders().get(GigaChatCachingAdvisor.X_SESSION_ID));
+        assertEquals("existing-value", resultOptions.getHttpHeaders().get("X-Existing-Header"));
+        assertEquals(1, immutableHeaders.size());
+        assertNull(immutableHeaders.get(GigaChatCachingAdvisor.X_SESSION_ID));
     }
 
     private String getSessionId(ChatOptions options) {
