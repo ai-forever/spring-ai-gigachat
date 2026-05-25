@@ -179,8 +179,9 @@ public class GigaChatOAuthClient {
                     }
 
                     // Try to parse JSON even for error HTTP response codes (API may return valid token with 4xx/5xx)
+                    GigaChatAccessTokenResponse parsed;
                     try {
-                        return objectMapper.readValue(bodyBytes, GigaChatAccessTokenResponse.class);
+                        parsed = objectMapper.readValue(bodyBytes, GigaChatAccessTokenResponse.class);
                     } catch (Exception e) {
                         log.warn(
                                 "Token request failed: status={}, contentType={}, body={}",
@@ -192,6 +193,16 @@ public class GigaChatOAuthClient {
                                 "Auth endpoint returned unparseable JSON (status="
                                         + response.getStatusCode() + "): " + truncatedBody, e);
                     }
+                    if (parsed.accessToken() == null || parsed.expiresAt() == null) {
+                        log.warn(
+                                "Token request failed: missing fields: status={}, body={}",
+                                response.getStatusCode(),
+                                truncatedBody);
+                        throw new RestClientException(
+                                "Auth endpoint returned JSON error without access_token or expires_at (status="
+                                        + response.getStatusCode() + "): " + truncatedBody);
+                    }
+                    return parsed;
                 });
     }
 
