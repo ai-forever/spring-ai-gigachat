@@ -4,12 +4,8 @@ import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import io.micrometer.observation.ObservationRegistry;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.image.Image;
 import org.springframework.ai.image.ImageGeneration;
@@ -29,9 +25,7 @@ import org.springframework.util.Assert;
 
 @Slf4j
 public class GigaChatImageModel implements ImageModel {
-
     private static final String FUNCTION_CALL_AUTO = "auto";
-    private static final Pattern IMG_ID_PATTERN = Pattern.compile("<img\\s+src=\"([a-fA-F0-9\\-]{36})\"");
 
     private static final ImageModelObservationConvention DEFAULT_OBSERVATION_CONVENTION =
             new DefaultImageModelObservationConvention();
@@ -152,13 +146,13 @@ public class GigaChatImageModel implements ImageModel {
 
     private String extractFileId(CompletionResponse response) {
         String content = response.getChoices().get(0).getMessage().getContent();
-        Matcher matcher = IMG_ID_PATTERN.matcher(content);
-        if (!matcher.find()) {
+        Set<String> fileIds = GigaChatImageExtractorUtil.extract(content);
+        if (fileIds.isEmpty()) {
             log.warn("No <img src=\"...\"> tag found in GigaChat response: {}", content);
             return null;
         }
 
-        return matcher.group(1);
+        return fileIds.iterator().next();
     }
 
     private CompletionRequest buildCompletionRequest(ImagePrompt prompt) {

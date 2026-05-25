@@ -7,18 +7,13 @@ import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.models.ModelDescription;
+import chat.giga.springai.image.GigaChatImageExtractorUtil;
 import chat.giga.springai.tool.definition.GigaToolDefinition;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -52,12 +47,14 @@ import org.springframework.ai.model.tool.ToolExecutionResult;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.support.UsageCalculator;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.MimeTypeUtils;
 import reactor.core.publisher.Flux;
 
 @Slf4j
@@ -522,11 +519,30 @@ public class GigaChatModel implements ChatModel {
                 .content(message.getContent())
                 .toolCalls(toolCalls)
                 .properties(Collections.unmodifiableMap(metadata))
+                .media(extractImageMediaFromTextContent(message.getContent()))
                 .build();
         var generationMetadata = ChatGenerationMetadata.builder()
                 .finishReason(choice.getFinishReason())
                 .build();
         return new Generation(assistantMessage, generationMetadata);
+    }
+
+    private List<Media> extractImageMediaFromTextContent(String content) {
+        List<Media> media = new ArrayList<>();
+
+        if (content != null) {
+            for (String fileId : GigaChatImageExtractorUtil.extract(content)) {
+                byte[] imageBytes = gigaChatApi.downloadFile(fileId);
+                media.add(Media.builder()
+                        .id(fileId)
+                        .mimeType(MimeTypeUtils.IMAGE_JPEG)
+                        .data(new ByteArrayResource(imageBytes))
+                        .build());
+                gigaChatApi.deleteFile(fileId);
+            }
+        }
+
+        return media;
     }
 
     private ChatResponse buildChatResponseWithCustomMetadata(Prompt prompt, ChatResponse originalResponse) {
@@ -558,6 +574,7 @@ public class GigaChatModel implements ChatModel {
                     lastUserMessage.getMedia().stream().map(Media::getId).toList());
         }
 
+        // Если надо добавлять файлы созданные моделью отдельными метаданными, могу добавить здесь
         return chatResponseBuilder.build();
     }
 
