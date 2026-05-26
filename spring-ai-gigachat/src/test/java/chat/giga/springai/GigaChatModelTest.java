@@ -22,11 +22,15 @@ import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.param.FunctionCallParam;
 import chat.giga.springai.tool.GigaTools;
 import chat.giga.springai.tool.annotation.GigaTool;
-
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,8 +44,6 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
@@ -58,7 +60,6 @@ import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 public class GigaChatModelTest {
     @Mock
     private GigaChatApi gigaChatApi;
@@ -497,26 +498,24 @@ public class GigaChatModelTest {
     @ParameterizedTest
     @MethodSource("imageExtractionParameters")
     @DisplayName("Тест проверяет извлечение изображений из ChatResponse")
-    void testImageExtraction(String responseContent, Set<String> expectedMediaIds) {
+    void testImageExtraction(String responseContent, List<String> expectedMediaIds) {
         when(gigaChatApi.chatCompletionEntity(any(), any()))
                 .thenReturn(new ResponseEntity<>(this.response, HttpStatusCode.valueOf(200)));
-        when(gigaChatApi.downloadFile(any()))
-                .thenReturn(new byte[] { });
+        Mockito.lenient().when(gigaChatApi.downloadFile(any())).thenReturn(new byte[] {});
 
         when(this.response.getChoices())
                 .thenReturn(List.of(new CompletionResponse.Choice()
-                        .setMessage(new CompletionResponse.MessagesRes()
-                                .setContent(responseContent))));
+                        .setMessage(new CompletionResponse.MessagesRes().setContent(responseContent))));
 
-        Prompt prompt = new Prompt(List.of(
-                UserMessage.builder().text("Некий промт").build()));
+        Prompt prompt =
+                new Prompt(List.of(UserMessage.builder().text("Некий промт").build()));
         ChatResponse chatResponse = gigaChatModel.call(prompt);
         List<Media> media = chatResponse.getResult().getOutput().getMedia();
 
-        Set<String> actualMediaIds = Stream.ofNullable(media)
+        List<String> actualMediaIds = Stream.ofNullable(media)
                 .flatMap(Collection::stream)
                 .map(Media::getId)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toList());
 
         assertEquals(expectedMediaIds, actualMediaIds);
     }
@@ -525,15 +524,32 @@ public class GigaChatModelTest {
         return Stream.of(
                 Arguments.of(
                         "Привет <img src=\"c2cac967-e8d3-4851-a93c-649e086b1856\" fuse=\"true\"/> также приложил визуализацию текста «Привет».",
-                        Set.of("c2cac967-e8d3-4851-a93c-649e086b1856")
-                ),
-                Arguments.of("Привет <img src=\"e5f8ce06-9742-48b9-b7f4-85e92acea7aa\" fuse=\"true\"/> <img src=\"2011ccb8-b54d-4647-bd34-6b57d5df90cb\" fuse=\"true\"/> Тест",
-                        Set.of("e5f8ce06-9742-48b9-b7f4-85e92acea7aa", "2011ccb8-b54d-4647-bd34-6b57d5df90cb")
-                ),
+                        List.of("c2cac967-e8d3-4851-a93c-649e086b1856")),
                 Arguments.of(
-                        "Привет, это проверка без изображений",
-                        Set.of()
-                )
-        );
+                        "Привет <img src=\"e5f8ce06-9742-48b9-b7f4-85e92acea7aa\" fuse=\"true\"/> <img src=\"2011ccb8-b54d-4647-bd34-6b57d5df90cb\" fuse=\"true\"/> Тест",
+                        List.of("e5f8ce06-9742-48b9-b7f4-85e92acea7aa", "2011ccb8-b54d-4647-bd34-6b57d5df90cb")),
+                Arguments.of("Привет, это проверка без изображений", List.of()));
+    }
+
+    @Test
+    @DisplayName("Тест проверяет поведения GigaChatModel при падении gigaChatApi.downloadFile")
+    void testDownloadFileFailure() {
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(this.response, HttpStatusCode.valueOf(200)));
+        Mockito.lenient().when(gigaChatApi.downloadFile(any())).thenReturn(null);
+
+        when(this.response.getChoices())
+                .thenReturn(List.of(new CompletionResponse.Choice()
+                        .setMessage(new CompletionResponse.MessagesRes()
+                                .setContent(
+                                        "Привет <img src=\"e5f8ce06-9742-48b9-b7f4-85e92acea7aa\" fuse=\"true\"/>"))));
+
+        Prompt prompt =
+                new Prompt(List.of(UserMessage.builder().text("Некий промт").build()));
+
+        IllegalStateException illegalStateException =
+                assertThrows(IllegalStateException.class, () -> gigaChatModel.call(prompt));
+
+        Assertions.assertTrue(illegalStateException.getMessage().contains("Failed to download image for fileId"));
     }
 }

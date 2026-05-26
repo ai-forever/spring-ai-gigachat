@@ -4,8 +4,10 @@ import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import io.micrometer.observation.ObservationRegistry;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.image.Image;
 import org.springframework.ai.image.ImageGeneration;
@@ -146,7 +148,7 @@ public class GigaChatImageModel implements ImageModel {
 
     private String extractFileId(CompletionResponse response) {
         String content = response.getChoices().get(0).getMessage().getContent();
-        Set<String> fileIds = GigaChatImageExtractorUtil.extract(content);
+        List<String> fileIds = GigaChatImageExtractorUtil.extract(content);
         if (fileIds.isEmpty()) {
             log.warn("No <img src=\"...\"> tag found in GigaChat response: {}", content);
             return null;
