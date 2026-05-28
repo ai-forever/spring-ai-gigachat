@@ -1,6 +1,8 @@
 package chat.giga.springai.advisor;
 
 import chat.giga.springai.GigaChatOptions;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
@@ -9,6 +11,7 @@ import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 /**
@@ -49,7 +52,12 @@ public class GigaChatCachingAdvisor implements CallAdvisor, StreamAdvisor {
                 .ifPresent(it -> {
                     String sessionId = (String) chatClientRequest.context().get(X_SESSION_ID);
                     if (sessionId != null) {
-                        it.getHttpHeaders().put(X_SESSION_ID, sessionId);
+                        Map<String, String> httpHeaders = new HashMap<>();
+                        if (!CollectionUtils.isEmpty(it.getHttpHeaders())) {
+                            httpHeaders.putAll(it.getHttpHeaders());
+                        }
+                        httpHeaders.put(X_SESSION_ID, sessionId);
+                        it.setHttpHeaders(httpHeaders);
                     }
                 });
     }
