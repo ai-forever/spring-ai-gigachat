@@ -302,25 +302,25 @@ class GigaChatBearerTokenTest {
             assertTrue(isExpired, "Token should be expired after expiration time has passed");
         }
 
-        //        @Disabled
-        //        @Test
-        //        @Issue("56")
-        //        @Severity(SeverityLevel.NORMAL)
-        //        @DisplayName("Should need refresh before becoming expired")
-        //        @Description("Verify that token needs refresh before it actually expires (at 95% of lifetime)")
-        //        void shouldNeedRefreshBeforeExpiration() throws InterruptedException {
-        //            // Given
-        //            var lifetime = 500L;
-        //            var expiresAt = System.currentTimeMillis() + lifetime;
-        //            var token = new GigaChatBearerToken(VALID_TOKEN, expiresAt);
-        //
-        //            // When - wait for 96% of lifetime (past refresh time, before expiration)
-        //            Thread.sleep((long) (lifetime * 0.96));
-        //
-        //            // Then
-        //            assertTrue(token.needsRefresh(), "Token should need refresh at 96% of lifetime");
-        //            assertFalse(token.isExpired(), "Token should not be expired yet at 96% of lifetime");
-        //        }
+
+        @Test
+        @Issue("56")
+        @Severity(SeverityLevel.NORMAL)
+        @DisplayName("Should need refresh before becoming expired")
+        @Description("Verify that token needs refresh before it actually expires (at 95% of lifetime)")
+        void shouldNeedRefreshBeforeExpiration() throws InterruptedException {
+            // Given
+            var lifetime = 500L;
+            var expiresAt = System.currentTimeMillis() + lifetime;
+            var token = new GigaChatBearerToken(VALID_TOKEN, expiresAt);
+
+            // When - wait for 96% of lifetime (past refresh time, before expiration)
+            Thread.sleep((long) (lifetime * 0.96));
+
+            // Then
+            assertTrue(token.needsRefresh(), "Token should need refresh at 96% of lifetime");
+            assertFalse(token.isExpired(), "Token should not be expired yet at 96% of lifetime");
+        }
     }
 
     @Nested
