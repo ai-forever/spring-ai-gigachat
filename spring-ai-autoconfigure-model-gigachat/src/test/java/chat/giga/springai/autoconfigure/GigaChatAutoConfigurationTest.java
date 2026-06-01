@@ -60,11 +60,11 @@ public class GigaChatAutoConfigurationTest {
             assertThat(context).hasSingleBean(GigaChatImageProperties.class);
 
             GigaChatChatProperties chatProperties = context.getBean(GigaChatChatProperties.class);
-            assertThat(chatProperties.getOptions().getModel()).isEqualTo("GigaChat-2");
-            assertThat(chatProperties.getOptions().getTemperature()).isNull();
-            assertThat(chatProperties.getOptions().getTopP()).isNull();
-            assertThat(chatProperties.getOptions().getMaxTokens()).isNull();
-            assertThat(chatProperties.getOptions().getRepetitionPenalty()).isNull();
+            assertThat(chatProperties.getModel()).isEqualTo("GigaChat-2");
+            assertThat(chatProperties.getTemperature()).isNull();
+            assertThat(chatProperties.getTopP()).isNull();
+            assertThat(chatProperties.getMaxTokens()).isNull();
+            assertThat(chatProperties.getRepetitionPenalty()).isNull();
 
             GigaChatEmbeddingProperties embeddingProperties = context.getBean(GigaChatEmbeddingProperties.class);
             assertThat(embeddingProperties.isEnabled()).isTrue();
@@ -80,19 +80,18 @@ public class GigaChatAutoConfigurationTest {
     void customChatPropertiesAutoConfigurationTest() {
         contextRunner
                 .withPropertyValues(
-                        "spring.ai.gigachat.chat.options.model=GigaChat-2-Max",
-                        "spring.ai.gigachat.chat.options.temperature=0.7",
-                        "spring.ai.gigachat.chat.options.top-p=0.5",
-                        "spring.ai.gigachat.chat.options.max-tokens=200",
-                        "spring.ai.gigachat.chat.options.repetition-penalty=2.0")
+                        "spring.ai.gigachat.chat.model=GigaChat-2-Max",
+                        "spring.ai.gigachat.chat.temperature=0.7",
+                        "spring.ai.gigachat.chat.top-p=0.5",
+                        "spring.ai.gigachat.chat.max-tokens=200",
+                        "spring.ai.gigachat.chat.repetition-penalty=2.0")
                 .run(context -> {
                     GigaChatChatProperties chatProperties = context.getBean(GigaChatChatProperties.class);
-                    assertThat(chatProperties.getOptions().getModel()).isEqualTo("GigaChat-2-Max");
-                    assertThat(chatProperties.getOptions().getTemperature()).isEqualTo(0.7);
-                    assertThat(chatProperties.getOptions().getTopP()).isEqualTo(0.5);
-                    assertThat(chatProperties.getOptions().getMaxTokens()).isEqualTo(200);
-                    assertThat(chatProperties.getOptions().getRepetitionPenalty())
-                            .isEqualTo(2.0);
+                    assertThat(chatProperties.getModel()).isEqualTo("GigaChat-2-Max");
+                    assertThat(chatProperties.getTemperature()).isEqualTo(0.7);
+                    assertThat(chatProperties.getTopP()).isEqualTo(0.5);
+                    assertThat(chatProperties.getMaxTokens()).isEqualTo(200);
+                    assertThat(chatProperties.getRepetitionPenalty()).isEqualTo(2.0);
                 });
     }
 

@@ -1,24 +1,22 @@
 package chat.giga.springai.autoconfigure;
 
 import chat.giga.springai.GigaChatModel;
-import chat.giga.springai.GigaChatOptions;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 @ConfigurationProperties(GigaChatChatProperties.CONFIG_PREFIX)
+@Getter
+@Setter
 public class GigaChatChatProperties {
 
     public static final String CONFIG_PREFIX = "spring.ai.gigachat.chat";
 
-    @NestedConfigurationProperty
-    private GigaChatOptions options =
-            GigaChatOptions.builder().model(GigaChatModel.DEFAULT_MODEL_NAME).build();
-
-    public void setOptions(GigaChatOptions options) {
-        this.options = options;
-    }
-
-    public GigaChatOptions getOptions() {
-        return this.options;
-    }
+    private String model = GigaChatModel.DEFAULT_MODEL_NAME;
+    private Double temperature;
+    private Double topP;
+    private Integer maxTokens;
+    private Double repetitionPenalty;
+    private Double updateInterval;
+    private Boolean profanityCheck;
 }

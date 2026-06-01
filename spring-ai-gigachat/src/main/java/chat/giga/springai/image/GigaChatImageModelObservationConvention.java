@@ -10,7 +10,7 @@ import org.springframework.util.StringUtils;
 
 /**
  * GigaChat-specific convention for image model observations. Extends the Spring AI default
- * by adding the {@code gen_ai.response.model} low-cardinality tag — Spring AI 2.0.0-M4
+ * by adding the {@code gen_ai.response.model} low-cardinality tag — Spring AI 2.0.0-M7
  * omits it for image observations while emitting it for chat observations under the same
  * meter name {@code gen_ai.client.operation}, which causes Prometheus to reject the second
  * registration with a tag-keys-mismatch warning. Adding the tag (with {@code "none"} when

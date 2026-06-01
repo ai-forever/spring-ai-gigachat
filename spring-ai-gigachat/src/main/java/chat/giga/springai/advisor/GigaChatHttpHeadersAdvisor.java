@@ -3,7 +3,6 @@ package chat.giga.springai.advisor;
 import chat.giga.springai.GigaChatOptions;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Supplier;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
@@ -29,7 +28,7 @@ public class GigaChatHttpHeadersAdvisor implements CallAdvisor, StreamAdvisor {
 
     @Override
     public ChatClientResponse adviseCall(ChatClientRequest chatClientRequest, CallAdvisorChain callAdvisorChain) {
-        fillOptions(chatClientRequest);
+        chatClientRequest = fillOptions(chatClientRequest);
 
         return callAdvisorChain.nextCall(chatClientRequest);
     }
@@ -37,7 +36,7 @@ public class GigaChatHttpHeadersAdvisor implements CallAdvisor, StreamAdvisor {
     @Override
     public Flux<ChatClientResponse> adviseStream(
             ChatClientRequest chatClientRequest, StreamAdvisorChain streamAdvisorChain) {
-        fillOptions(chatClientRequest);
+        chatClientRequest = fillOptions(chatClientRequest);
 
         return streamAdvisorChain.nextStream(chatClientRequest);
     }
@@ -52,24 +51,33 @@ public class GigaChatHttpHeadersAdvisor implements CallAdvisor, StreamAdvisor {
         return -1;
     }
 
-    private void fillOptions(ChatClientRequest chatClientRequest) {
-        Optional.of(chatClientRequest.prompt())
-                .map(Prompt::getOptions)
-                .map(GigaChatOptions.class::cast)
-                .ifPresent(it -> {
-                    Map<String, String> httpHeaders = new HashMap<>();
-                    if (!CollectionUtils.isEmpty(it.getHttpHeaders())) {
-                        httpHeaders.putAll(it.getHttpHeaders());
-                    }
-                    chatClientRequest.context().keySet().stream()
-                            .filter(key -> key.startsWith(HTTP_HEADER_PREFIX))
-                            .forEach(key -> httpHeaders.put(
-                                    key.substring(HTTP_HEADER_PREFIX.length()),
-                                    getHeaderValue(chatClientRequest.context(), key)));
-                    if (!httpHeaders.isEmpty()) {
-                        it.setHttpHeaders(httpHeaders);
-                    }
-                });
+    private ChatClientRequest fillOptions(ChatClientRequest request) {
+
+        if (!(request.prompt().getOptions() instanceof GigaChatOptions chatOptions)) {
+            return request;
+        }
+
+        Map<String, String> httpHeaders = new HashMap<>();
+
+        if (!CollectionUtils.isEmpty(chatOptions.getHttpHeaders())) {
+            httpHeaders.putAll(chatOptions.getHttpHeaders());
+        }
+
+        request.context().keySet().stream()
+                .filter(key -> key.startsWith(HTTP_HEADER_PREFIX))
+                .forEach(key -> httpHeaders.put(
+                        key.substring(HTTP_HEADER_PREFIX.length()), getHeaderValue(request.context(), key)));
+
+        if (httpHeaders.isEmpty()) {
+            return request;
+        }
+
+        GigaChatOptions newOptions =
+                chatOptions.mutate().httpHeaders(httpHeaders).build();
+
+        Prompt newPrompt = request.prompt().mutate().chatOptions(newOptions).build();
+
+        return request.mutate().prompt(newPrompt).build();
     }
 
     private String getHeaderValue(Map<String, Object> context, String key) {

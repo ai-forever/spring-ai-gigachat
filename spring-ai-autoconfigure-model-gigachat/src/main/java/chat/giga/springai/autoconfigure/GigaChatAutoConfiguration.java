@@ -2,6 +2,7 @@ package chat.giga.springai.autoconfigure;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
 import chat.giga.springai.GigaChatModel;
+import chat.giga.springai.GigaChatOptions;
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.GigaChatInternalProperties;
 import chat.giga.springai.api.auth.GigaChatAuthProperties;
@@ -120,9 +121,19 @@ public class GigaChatAutoConfiguration {
             ObjectProvider<ChatModelObservationConvention> observationConvention,
             ObjectProvider<ToolExecutionEligibilityPredicate> toolExecutionEligibilityPredicate,
             GigaChatInternalProperties internalProperties) {
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model(chatProperties.getModel())
+                .temperature(chatProperties.getTemperature())
+                .topP(chatProperties.getTopP())
+                .maxTokens(chatProperties.getMaxTokens())
+                .repetitionPenalty(chatProperties.getRepetitionPenalty())
+                .updateInterval(chatProperties.getUpdateInterval())
+                .profanityCheck(chatProperties.getProfanityCheck())
+                .build();
+
         final GigaChatModel gigaChatModel = GigaChatModel.builder()
                 .gigaChatApi(gigaChatApi)
-                .defaultOptions(chatProperties.getOptions())
+                .defaultOptions(options)
                 .retryTemplate(retryTemplateProvider.getIfAvailable(() -> RetryUtils.DEFAULT_RETRY_TEMPLATE))
                 .toolCallingManager(
                         toolCallingManagerProvider.getIfAvailable(() -> GigaChatModel.DEFAULT_TOOL_CALLING_MANAGER))

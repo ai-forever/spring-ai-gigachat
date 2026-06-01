@@ -32,9 +32,7 @@ public class ChatController {
                         MessageChatMemoryAdvisor.builder(chatMemory).build(),
                         new GigaChatCachingAdvisor(),
                         new SimpleLoggerAdvisor())
-                .defaultOptions(GigaChatOptions.builder()
-                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
-                        .build())
+                .defaultOptions(GigaChatOptions.builder().model(GigaChatApi.ChatModel.GIGA_CHAT_2))
                 .build();
     }
 
