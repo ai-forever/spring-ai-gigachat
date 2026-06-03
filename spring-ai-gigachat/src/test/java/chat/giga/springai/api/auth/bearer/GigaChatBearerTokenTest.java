@@ -302,7 +302,6 @@ class GigaChatBearerTokenTest {
             assertTrue(isExpired, "Token should be expired after expiration time has passed");
         }
 
-
         @Test
         @Issue("56")
         @Severity(SeverityLevel.NORMAL)
