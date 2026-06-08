@@ -129,6 +129,9 @@ public class GigaChatAutoConfiguration {
                 .repetitionPenalty(chatProperties.getRepetitionPenalty())
                 .updateInterval(chatProperties.getUpdateInterval())
                 .profanityCheck(chatProperties.getProfanityCheck())
+                .functionCallMode(chatProperties.getFunctionCallMode())
+                .functionCallParam(chatProperties.getFunctionCallParam())
+                .httpHeaders(chatProperties.getHttpHeaders())
                 .build();
 
         final GigaChatModel gigaChatModel = GigaChatModel.builder()

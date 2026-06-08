@@ -1,6 +1,9 @@
 package chat.giga.springai.autoconfigure;
 
 import chat.giga.springai.GigaChatModel;
+import chat.giga.springai.GigaChatOptions;
+import chat.giga.springai.api.chat.param.FunctionCallParam;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -19,4 +22,7 @@ public class GigaChatChatProperties {
     private Double repetitionPenalty;
     private Double updateInterval;
     private Boolean profanityCheck;
+    private GigaChatOptions.FunctionCallMode functionCallMode;
+    private FunctionCallParam functionCallParam;
+    private Map<String, String> httpHeaders;
 }

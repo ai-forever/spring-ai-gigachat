@@ -198,7 +198,6 @@ public class GigaChatModel implements ChatModel {
         // Before moving any further, build the final request Prompt,
         // merging runtime and default options.
         Prompt requestPrompt = buildRequestPrompt(prompt);
-        // Prompt requestPromptOld = buildRequestPromptOld(prompt);
         Flux<ChatResponse> chatResponseFlux = this.internalStream(requestPrompt, null);
         if (log.isDebugEnabled()) {
             chatResponseFlux = chatResponseFlux.log();
@@ -269,52 +268,6 @@ public class GigaChatModel implements ChatModel {
     public List<ModelDescription> models() {
         return gigaChatApi.models().getBody().getData();
     }
-
-    //    @Deprecated
-    //    Prompt buildRequestPromptOld(Prompt prompt) {
-    //        // Process runtime options
-    //        GigaChatOptions runtimeOptions = null;
-    //        if (prompt.getOptions() != null) {
-    //            if (prompt.getOptions() instanceof ToolCallingChatOptions toolCallingChatOptions) {
-    //                runtimeOptions = v.copyToTarget(
-    //                        toolCallingChatOptions, ToolCallingChatOptions.class, GigaChatOptions.class);
-    //            } else {
-    //                runtimeOptions =
-    //                        ModelOptionsUtils.copyToTarget(prompt.getOptions(), ChatOptions.class,
-    // GigaChatOptions.class);
-    //            }
-    //        }
-    //
-    //        // Define request options by merging runtime options and default options
-    //        GigaChatOptions requestOptions =
-    //                ModelOptionsUtils.merge(runtimeOptions, this.defaultOptions, GigaChatOptions.class);
-    //
-    //        // Merge @JsonIgnore-annotated options explicitly since they are ignored by
-    //        // Jackson, used by ModelOptionsUtils.
-    //        if (runtimeOptions != null) {
-    //            requestOptions.setInternalToolExecutionEnabled(ModelOptionsUtils.mergeOption(
-    //                    runtimeOptions.getInternalToolExecutionEnabled(),
-    //                    this.defaultOptions.getInternalToolExecutionEnabled()));
-    //            requestOptions.setToolNames(ToolCallingChatOptions.mergeToolNames(
-    //                    runtimeOptions.getToolNames(), this.defaultOptions.getToolNames()));
-    //            requestOptions.setToolCallbacks(ToolCallingChatOptions.mergeToolCallbacks(
-    //                    runtimeOptions.getToolCallbacks(), this.defaultOptions.getToolCallbacks()));
-    //            requestOptions.setToolContext(ToolCallingChatOptions.mergeToolContext(
-    //                    runtimeOptions.getToolContext(), this.defaultOptions.getToolContext()));
-    //        } else {
-    //            requestOptions.setInternalToolExecutionEnabled(this.defaultOptions.getInternalToolExecutionEnabled());
-    //            requestOptions.setToolNames(this.defaultOptions.getToolNames());
-    //            requestOptions.setToolCallbacks(this.defaultOptions.getToolCallbacks());
-    //            requestOptions.setToolContext(this.defaultOptions.getToolContext());
-    //        }
-    //
-    //        ToolCallingChatOptions.validateToolCallbacks(requestOptions.getToolCallbacks());
-    //
-    //        // Uploads media and sets an id to media
-    //        List<Message> messagesWithUploadedMediaIds = uploadMedia(prompt.getInstructions());
-    //
-    //        return new Prompt(messagesWithUploadedMediaIds, requestOptions);
-    //    }
 
     private CompletionRequest createRequest(Prompt prompt, boolean stream) {
         List<CompletionRequest.Message> messages = prompt.getInstructions().stream()
