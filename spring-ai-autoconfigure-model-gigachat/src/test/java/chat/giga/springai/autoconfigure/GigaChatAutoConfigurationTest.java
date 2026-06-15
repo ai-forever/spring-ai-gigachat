@@ -96,6 +96,26 @@ public class GigaChatAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("Тест проверяет автоконфигурацию deprecated параметров через options")
+    void legacyChatPropertiesAutoConfigurationTest() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.ai.gigachat.chat.options.model=GigaChat-2-Legacy",
+                        "spring.ai.gigachat.chat.options.temperature=0.8",
+                        "spring.ai.gigachat.chat.options.top-p=0.6",
+                        "spring.ai.gigachat.chat.options.max-tokens=150",
+                        "spring.ai.gigachat.chat.options.repetition-penalty=1.5")
+                .run(context -> {
+                    GigaChatChatProperties chatProperties = context.getBean(GigaChatChatProperties.class);
+                    assertThat(chatProperties.getModel()).isEqualTo("GigaChat-2-Legacy");
+                    assertThat(chatProperties.getTemperature()).isEqualTo(0.8);
+                    assertThat(chatProperties.getTopP()).isEqualTo(0.6);
+                    assertThat(chatProperties.getMaxTokens()).isEqualTo(150);
+                    assertThat(chatProperties.getRepetitionPenalty()).isEqualTo(1.5);
+                });
+    }
+
+    @Test
     @DisplayName("Тест проверяет автоконфигурацию кастомных параметров Embedding модели")
     void customEmbeddingPropertiesAutoConfigurationTest() {
         contextRunner
