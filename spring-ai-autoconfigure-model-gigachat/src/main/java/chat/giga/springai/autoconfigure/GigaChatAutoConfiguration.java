@@ -129,6 +129,7 @@ public class GigaChatAutoConfiguration {
                 .repetitionPenalty(chatProperties.getRepetitionPenalty())
                 .updateInterval(chatProperties.getUpdateInterval())
                 .profanityCheck(chatProperties.getProfanityCheck())
+                .internalToolExecutionEnabled(chatProperties.getInternalToolExecutionEnabled())
                 .functionCallMode(chatProperties.getFunctionCallMode())
                 .functionCallParam(chatProperties.getFunctionCallParam())
                 .httpHeaders(chatProperties.getHttpHeaders())

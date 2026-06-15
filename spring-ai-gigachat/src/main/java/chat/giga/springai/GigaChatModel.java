@@ -330,7 +330,6 @@ public class GigaChatModel implements ChatModel {
                 CompletionRequest.builder().messages(messages).stream(stream).build();
 
         GigaChatOptions requestOptions = (GigaChatOptions) prompt.getOptions();
-        request = applyOptions(request, (GigaChatOptions) prompt.getOptions());
 
         // Add the tool definitions to the request's tools parameter.
         List<ToolDefinition> toolDefinitions = this.toolCallingManager.resolveToolDefinitions(requestOptions);
@@ -340,24 +339,6 @@ public class GigaChatModel implements ChatModel {
         if (!CollectionUtils.isEmpty(toolDefinitions)) {
             request.setFunctions(this.getFunctionDescriptions(toolDefinitions));
         }
-        return request;
-    }
-
-    private CompletionRequest applyOptions(
-            CompletionRequest request, @org.jspecify.annotations.Nullable GigaChatOptions options) {
-
-        if (options == null) {
-            return request;
-        }
-
-        request.setModel(options.getModel());
-        request.setTemperature(options.getTemperature());
-        request.setTopP(options.getTopP());
-        request.setMaxTokens(options.getMaxTokens());
-        request.setRepetitionPenalty(options.getRepetitionPenalty());
-        request.setUpdateInterval(options.getUpdateInterval());
-        request.setProfanityCheck(options.getProfanityCheck());
-
         return request;
     }
 
