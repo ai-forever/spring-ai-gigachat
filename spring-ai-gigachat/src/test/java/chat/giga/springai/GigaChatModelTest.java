@@ -491,4 +491,128 @@ public class GigaChatModelTest {
                             }
                         }));
     }
+
+    @Test
+    void testApplyOptions_direct_allOptionsApplied() {
+        CompletionRequest request = new CompletionRequest();
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model("test-model")
+                .temperature(0.7)
+                .topP(0.9)
+                .maxTokens(100)
+                .repetitionPenalty(1.2)
+                .updateInterval(2.0)
+                .profanityCheck(true)
+                .build();
+
+        CompletionRequest result = gigaChatModel.applyOptions(request, options);
+
+        assertEquals("test-model", result.getModel());
+        assertEquals(0.7, result.getTemperature());
+        assertEquals(0.9, result.getTopP());
+        assertEquals(100, result.getMaxTokens());
+        assertEquals(1.2, result.getRepetitionPenalty());
+        assertEquals(2.0, result.getUpdateInterval());
+        assertTrue(result.getProfanityCheck());
+    }
+
+    @Test
+    void testApplyOptions_direct_nullOptions() {
+        CompletionRequest request = new CompletionRequest();
+        CompletionRequest result = gigaChatModel.applyOptions(request, null);
+        assertEquals(request, result);
+    }
+
+    @Test
+    void testApplyOptions_direct_partialOptions() {
+        CompletionRequest request = new CompletionRequest();
+        request.setModel("original-model");
+        request.setTemperature(0.5);
+
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model("new-model")
+                .temperature(null)
+                .topP(0.8)
+                .build();
+
+        CompletionRequest result = gigaChatModel.applyOptions(request, options);
+
+        assertEquals("new-model", result.getModel());
+        assertNull(result.getTemperature());
+        assertEquals(0.8, result.getTopP());
+        assertNull(result.getMaxTokens());
+        assertNull(result.getRepetitionPenalty());
+        assertNull(result.getUpdateInterval());
+        assertNull(result.getProfanityCheck());
+    }
+
+    @Test
+    void testInternalCall_withCustomOptions() {
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model("custom-model")
+                .temperature(0.8)
+                .topP(0.95)
+                .maxTokens(150)
+                .repetitionPenalty(1.1)
+                .updateInterval(1.5)
+                .profanityCheck(false)
+                .build();
+        Prompt prompt = new Prompt(List.of(new UserMessage("Hello")), options);
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        gigaChatModel.internalCall(prompt, null);
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture(), any());
+
+        CompletionRequest capturedRequest = requestCaptor.getValue();
+        assertEquals("custom-model", capturedRequest.getModel());
+        assertEquals(0.8, capturedRequest.getTemperature());
+        assertEquals(0.95, capturedRequest.getTopP());
+        assertEquals(150, capturedRequest.getMaxTokens());
+        assertEquals(1.1, capturedRequest.getRepetitionPenalty());
+        assertEquals(1.5, capturedRequest.getUpdateInterval());
+        assertEquals(false, capturedRequest.getProfanityCheck());
+    }
+
+    @Test
+    void testStream_withCustomOptions() {
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model("custom-stream-model")
+                .temperature(0.9)
+                .topP(0.85)
+                .maxTokens(200)
+                .repetitionPenalty(1.3)
+                .updateInterval(2.5)
+                .profanityCheck(true)
+                .build();
+        Prompt prompt = new Prompt(List.of(new UserMessage("Hello")), options);
+
+        CompletionResponse completionResponse = new CompletionResponse()
+                .setId(UUID.randomUUID().toString())
+                .setModel("custom-stream-model")
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(1)
+                        .setDelta(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("Response"))));
+
+        when(gigaChatApi.chatCompletionStream(any(), any())).thenReturn(Flux.just(completionResponse));
+
+        gigaChatModel.stream(prompt).blockLast();
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionStream(requestCaptor.capture(), any());
+
+        CompletionRequest capturedRequest = requestCaptor.getValue();
+        assertEquals("custom-stream-model", capturedRequest.getModel());
+        assertEquals(0.9, capturedRequest.getTemperature());
+        assertEquals(0.85, capturedRequest.getTopP());
+        assertEquals(200, capturedRequest.getMaxTokens());
+        assertEquals(1.3, capturedRequest.getRepetitionPenalty());
+        assertEquals(2.5, capturedRequest.getUpdateInterval());
+        assertEquals(true, capturedRequest.getProfanityCheck());
+    }
 }

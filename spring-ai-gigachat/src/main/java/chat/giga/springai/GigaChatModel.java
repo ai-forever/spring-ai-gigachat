@@ -330,15 +330,35 @@ public class GigaChatModel implements ChatModel {
                 CompletionRequest.builder().messages(messages).stream(stream).build();
 
         GigaChatOptions requestOptions = (GigaChatOptions) prompt.getOptions();
+        request = applyOptions(request, (GigaChatOptions) prompt.getOptions());
 
         // Add the tool definitions to the request's tools parameter.
-        List<ToolDefinition> toolDefinitions = this.toolCallingManager.resolveToolDefinitions(requestOptions);
+        List<ToolDefinition> toolDefinitions =
+                requestOptions != null ? this.toolCallingManager.resolveToolDefinitions(requestOptions) : List.of();
 
         request.setFunctionCall(getFunctionCall(requestOptions, toolDefinitions));
         // Add the enabled functions definitions to the request's tools parameter.
         if (!CollectionUtils.isEmpty(toolDefinitions)) {
             request.setFunctions(this.getFunctionDescriptions(toolDefinitions));
         }
+        return request;
+    }
+
+    CompletionRequest applyOptions(
+            CompletionRequest request, @org.jspecify.annotations.Nullable GigaChatOptions options) {
+
+        if (options == null) {
+            return request;
+        }
+
+        request.setModel(options.getModel());
+        request.setTemperature(options.getTemperature());
+        request.setTopP(options.getTopP());
+        request.setMaxTokens(options.getMaxTokens());
+        request.setRepetitionPenalty(options.getRepetitionPenalty());
+        request.setUpdateInterval(options.getUpdateInterval());
+        request.setProfanityCheck(options.getProfanityCheck());
+
         return request;
     }
 
@@ -392,6 +412,9 @@ public class GigaChatModel implements ChatModel {
     }
 
     private Object getFunctionCall(GigaChatOptions requestOptions, List<ToolDefinition> toolDefinitions) {
+        if (requestOptions == null) {
+            return null;
+        }
         var callMode = requestOptions.getFunctionCallMode();
 
         if (callMode == GigaChatOptions.FunctionCallMode.CUSTOM_FUNCTION
