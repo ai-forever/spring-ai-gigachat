@@ -190,6 +190,9 @@ public class GigaChatApi {
                 .headers(applyHeaders(headers))
                 .body(Mono.just(chatRequest), CompletionRequest.class)
                 .exchangeToFlux(rs -> {
+                    if (rs.statusCode().isError()) {
+                        return rs.createException().flatMapMany(Flux::error);
+                    }
                     String id = rs.headers().asHttpHeaders().getFirst(X_REQUEST_ID);
                     return rs.bodyToFlux(String.class)
                             .takeUntil(SSE_DONE_PREDICATE)
