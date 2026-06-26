@@ -1,6 +1,7 @@
 package chat.giga.springai.api.auth.bearer;
 
 import static chat.giga.springai.api.chat.GigaChatApi.USER_AGENT_SPRING_AI_GIGACHAT;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToIgnoreCase;
 import static com.github.tomakehurst.wiremock.client.WireMock.exactly;
@@ -11,6 +12,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.auth.GigaChatApiScope;
@@ -132,6 +134,48 @@ public abstract class GigaChatBearerAuthApiTest {
         // Assert
         assertEquals("test-token", accessToken);
         verify(postRequestedFor(urlEqualTo("/api/v2/oauth")));
+    }
+
+    @Test
+    @DisplayName("Тест на ошибку при получении HTML-ответа вместо JSON (502 Bad Gateway)")
+    void testGetAccessToken_HtmlErrorResponse_throwsWithBody() {
+        // Arrange
+        String htmlBody = "<html><body><h1>502 Bad Gateway</h1></body></html>";
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(502)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_HTML_VALUE)
+                        .withBody(htmlBody)));
+
+        // Act & Assert
+        var ex = assertThrows(Exception.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains("non-JSON response"),
+                "Exception message should mention non-JSON response, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("502"),
+                "Exception message should contain status code, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("502 Bad Gateway"),
+                "Exception message should contain response body, but was: " + ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("JSON-ответ об ошибке (401) без access_token приводит к падению с null-токеном")
+    void testGetAccessToken_JsonErrorResponse_throwsWithNullToken() {
+        // Arrange
+        String jsonBody = "{\"code\":6,\"message\":\"credentials doesn't match db data\"}";
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(401)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(jsonBody)));
+
+        // Act & Assert — JSON has no access_token
+        var ex = assertThrows(IllegalArgumentException.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains("access token is null"),
+                "Exception message should mention access token is null, but was: " + ex.getMessage());
     }
 
     public static Stream<Arguments> invalidTokenProvider() {

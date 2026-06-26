@@ -50,6 +50,7 @@
   - [Получение всей переписки с GigaChat под капотом Spring AI](docs/response-metadata.md#получение-всей-переписки-с-gigachat-под-капотом-spring-ai)
   - [Получение идентификаторов загруженных файлов при использовании Multimodality](docs/response-metadata.md#получение-иденификаторов-загруженных-файлов-при-использовании-multimodality)
 - [GigaChat Аутентификация: Использование GigaAuthToken](docs/auth.md)
+- [Гайд по миграции на новую версию (breaking changes)](xdocs/migration-guide.md)
 - [Примеры](#примеры)
 
 ## Требования
@@ -77,7 +78,8 @@
 <dependency>
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-starter-model-gigachat</artifactId>
-    <version>1.1.2</version>
+    <version>1.1.4</version>
+    <!-- или 2.0.0-M4 - для работы с релизом Spring AI 2.0 -->
 </dependency>
 ```
 

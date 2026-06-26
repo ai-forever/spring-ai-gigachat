@@ -7,6 +7,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import chat.giga.springai.GigaChatOptions;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,15 +40,16 @@ class GigaChatCachingAdvisorTest {
     @Mock
     private StreamAdvisorChain streamChain;
 
-    @Mock
-    private SystemMessage mockMessage;
+    // Real instance is required: ChatClientRequest.mutate() deep-copies the prompt via
+    // Prompt.copy(), which calls copy() on each message. A Mockito mock would return null there.
+    private final SystemMessage systemMessage = new SystemMessage("test message");
 
     @Test
     @DisplayName("Вызов адвизора с X_SESSION_ID")
     void testAdviseCall_withContext() {
         ChatClientRequest request = ChatClientRequest.builder()
                 .prompt(Prompt.builder()
-                        .messages(mockMessage)
+                        .messages(systemMessage)
                         .chatOptions(GigaChatOptions.builder().build())
                         .build())
                 .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
@@ -62,11 +67,11 @@ class GigaChatCachingAdvisorTest {
     }
 
     @Test
-    @DisplayName("Вызов адвизора без X_SESSION_ID")
+    @DisplayName("Вызов адвизора 'call' без X_SESSION_ID")
     void testAdviseCall_withoutContext() {
         ChatClientRequest request = ChatClientRequest.builder()
                 .prompt(Prompt.builder()
-                        .messages(mockMessage)
+                        .messages(systemMessage)
                         .chatOptions(GigaChatOptions.builder().build())
                         .build())
                 .build();
@@ -81,10 +86,11 @@ class GigaChatCachingAdvisorTest {
     }
 
     @Test
+    @DisplayName("Вызов адвизора в стриме с контекстом")
     void testAdviseStream_withContext() {
         ChatClientRequest request = ChatClientRequest.builder()
                 .prompt(Prompt.builder()
-                        .messages(mockMessage)
+                        .messages(systemMessage)
                         .chatOptions(GigaChatOptions.builder().build())
                         .build())
                 .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
@@ -107,10 +113,11 @@ class GigaChatCachingAdvisorTest {
     }
 
     @Test
+    @DisplayName("Вызов адвизора в стриме без контекста")
     void testAdviseStream_withoutContext() {
         ChatClientRequest request = ChatClientRequest.builder()
                 .prompt(Prompt.builder()
-                        .messages(mockMessage)
+                        .messages(systemMessage)
                         .chatOptions(GigaChatOptions.builder().build())
                         .build())
                 .build();
@@ -127,6 +134,142 @@ class GigaChatCachingAdvisorTest {
 
         assertNull(requestCaptor.getValue().context().get(GigaChatCachingAdvisor.X_SESSION_ID));
         assertNull(getSessionId(requestCaptor.getValue().prompt().getOptions()));
+    }
+
+    @Test
+    @DisplayName(
+            "Вызов адвизора с X_SESSION_ID и immutable httpHeaders (Map.of) не падает и сохраняет прежние заголовки")
+    void testAdviseCall_withImmutableHttpHeaders() {
+        Map<String, String> immutableHeaders = Map.of("X-Custom", "custom-value");
+        ChatClientRequest request = ChatClientRequest.builder()
+                .prompt(Prompt.builder()
+                        .messages(systemMessage)
+                        .chatOptions(GigaChatOptions.builder()
+                                .httpHeaders(immutableHeaders)
+                                .build())
+                        .build())
+                .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
+                .build();
+
+        advisor.adviseCall(request, chain);
+
+        ArgumentCaptor<ChatClientRequest> requestCaptor = ArgumentCaptor.forClass(ChatClientRequest.class);
+        verify(chain).nextCall(requestCaptor.capture());
+
+        GigaChatOptions actualOptions =
+                (GigaChatOptions) requestCaptor.getValue().prompt().getOptions();
+        Assertions.assertNotNull(actualOptions);
+        assertEquals(X_SESSION_ID_VALUE, actualOptions.getHttpHeaders().get(GigaChatCachingAdvisor.X_SESSION_ID));
+        assertEquals("custom-value", actualOptions.getHttpHeaders().get("X-Custom"));
+        // исходная immutable map не была мутирована
+        assertEquals(1, immutableHeaders.size());
+        assertNull(immutableHeaders.get(GigaChatCachingAdvisor.X_SESSION_ID));
+    }
+
+    @Test
+    @DisplayName("Вызов адвизора с X_SESSION_ID и пустой immutable httpHeaders (Map.of()) не падает")
+    void testAdviseCall_withEmptyImmutableHttpHeaders() {
+        ChatClientRequest request = ChatClientRequest.builder()
+                .prompt(Prompt.builder()
+                        .messages(systemMessage)
+                        .chatOptions(
+                                GigaChatOptions.builder().httpHeaders(Map.of()).build())
+                        .build())
+                .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
+                .build();
+
+        advisor.adviseCall(request, chain);
+
+        ArgumentCaptor<ChatClientRequest> requestCaptor = ArgumentCaptor.forClass(ChatClientRequest.class);
+        verify(chain).nextCall(requestCaptor.capture());
+
+        assertEquals(
+                X_SESSION_ID_VALUE,
+                getSessionId(requestCaptor.getValue().prompt().getOptions()));
+    }
+
+    @Test
+    @DisplayName("Вызов адвизора с X_SESSION_ID и unmodifiableMap httpHeaders не падает")
+    void testAdviseCall_withUnmodifiableMapHttpHeaders() {
+        Map<String, String> source = new HashMap<>();
+        source.put("X-Custom", "custom-value");
+        Map<String, String> immutableHeaders = Collections.unmodifiableMap(source);
+        ChatClientRequest request = ChatClientRequest.builder()
+                .prompt(Prompt.builder()
+                        .messages(systemMessage)
+                        .chatOptions(GigaChatOptions.builder()
+                                .httpHeaders(immutableHeaders)
+                                .build())
+                        .build())
+                .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
+                .build();
+
+        advisor.adviseCall(request, chain);
+
+        ArgumentCaptor<ChatClientRequest> requestCaptor = ArgumentCaptor.forClass(ChatClientRequest.class);
+        verify(chain).nextCall(requestCaptor.capture());
+
+        GigaChatOptions actualOptions =
+                (GigaChatOptions) requestCaptor.getValue().prompt().getOptions();
+        Assertions.assertNotNull(actualOptions);
+        assertEquals(X_SESSION_ID_VALUE, actualOptions.getHttpHeaders().get(GigaChatCachingAdvisor.X_SESSION_ID));
+        assertEquals("custom-value", actualOptions.getHttpHeaders().get("X-Custom"));
+        // исходная map-обёртка не была мутирована
+        assertEquals(1, source.size());
+    }
+
+    @Test
+    @DisplayName("Вызов адвизора с X_SESSION_ID и httpHeaders=null не падает")
+    void testAdviseCall_withNullHttpHeaders() {
+        var options = GigaChatOptions.builder();
+        options.httpHeaders(null);
+        ChatClientRequest request = ChatClientRequest.builder()
+                .prompt(Prompt.builder()
+                        .messages(systemMessage)
+                        .chatOptions(options.build())
+                        .build())
+                .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
+                .build();
+
+        advisor.adviseCall(request, chain);
+
+        ArgumentCaptor<ChatClientRequest> requestCaptor = ArgumentCaptor.forClass(ChatClientRequest.class);
+        verify(chain).nextCall(requestCaptor.capture());
+
+        assertEquals(
+                X_SESSION_ID_VALUE,
+                getSessionId(requestCaptor.getValue().prompt().getOptions()));
+    }
+
+    @Test
+    @DisplayName("Стрим: immutable httpHeaders с X_SESSION_ID не падает и сохраняет прежние заголовки")
+    void testAdviseStream_withImmutableHttpHeaders() {
+        Map<String, String> immutableHeaders = Map.of("X-Custom", "custom-value");
+        ChatClientRequest request = ChatClientRequest.builder()
+                .prompt(Prompt.builder()
+                        .messages(systemMessage)
+                        .chatOptions(GigaChatOptions.builder()
+                                .httpHeaders(immutableHeaders)
+                                .build())
+                        .build())
+                .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
+                .build();
+
+        ChatClientResponse response = ChatClientResponse.builder().build();
+        when(streamChain.nextStream(any())).thenReturn(Flux.just(response));
+
+        StepVerifier.create(advisor.adviseStream(request, streamChain))
+                .expectNext(response)
+                .verifyComplete();
+
+        ArgumentCaptor<ChatClientRequest> requestCaptor = ArgumentCaptor.forClass(ChatClientRequest.class);
+        verify(streamChain).nextStream(requestCaptor.capture());
+
+        GigaChatOptions actualOptions =
+                (GigaChatOptions) requestCaptor.getValue().prompt().getOptions();
+        Assertions.assertNotNull(actualOptions);
+        assertEquals(X_SESSION_ID_VALUE, actualOptions.getHttpHeaders().get(GigaChatCachingAdvisor.X_SESSION_ID));
+        assertEquals("custom-value", actualOptions.getHttpHeaders().get("X-Custom"));
     }
 
     private String getSessionId(ChatOptions options) {

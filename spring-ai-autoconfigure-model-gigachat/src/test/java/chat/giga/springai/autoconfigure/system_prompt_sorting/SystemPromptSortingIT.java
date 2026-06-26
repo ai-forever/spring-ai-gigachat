@@ -8,8 +8,9 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import chat.giga.springai.GigaChatModel;
+import chat.giga.springai.autoconfigure.GigaChatApiAutoConfiguration;
 import chat.giga.springai.autoconfigure.GigaChatAuthTestProperties;
-import chat.giga.springai.autoconfigure.GigaChatAutoConfiguration;
+import chat.giga.springai.autoconfigure.GigaChatChatModelAutoConfiguration;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 public class SystemPromptSortingIT {
 
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+            .withConfiguration(
+                    AutoConfigurations.of(GigaChatApiAutoConfiguration.class, GigaChatChatModelAutoConfiguration.class))
             .withPropertyValues(GigaChatAuthTestProperties.fromEnv())
             .withPropertyValues(
                     "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat");

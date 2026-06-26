@@ -1,14 +1,19 @@
 package chat.giga.springai.advisor;
 
 import chat.giga.springai.GigaChatOptions;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
+import org.jspecify.annotations.NonNull;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
+import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.util.Assert;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 /**
@@ -19,17 +24,19 @@ public class GigaChatCachingAdvisor implements CallAdvisor, StreamAdvisor {
 
     @Override
     public ChatClientResponse adviseCall(ChatClientRequest chatClientRequest, CallAdvisorChain callAdvisorChain) {
-        fillOptions(chatClientRequest);
+        Assert.notNull(chatClientRequest, "the chatClientRequest cannot be null");
+        var updatedChatClientRequest = fillOptions(chatClientRequest);
 
-        return callAdvisorChain.nextCall(chatClientRequest);
+        return callAdvisorChain.nextCall(updatedChatClientRequest);
     }
 
     @Override
     public Flux<ChatClientResponse> adviseStream(
             ChatClientRequest chatClientRequest, StreamAdvisorChain streamAdvisorChain) {
-        fillOptions(chatClientRequest);
+        Assert.notNull(chatClientRequest, "the chatClientRequest cannot be null");
+        var updatedChatClientRequest = fillOptions(chatClientRequest);
 
-        return streamAdvisorChain.nextStream(chatClientRequest);
+        return streamAdvisorChain.nextStream(updatedChatClientRequest);
     }
 
     @Override
@@ -42,15 +49,29 @@ public class GigaChatCachingAdvisor implements CallAdvisor, StreamAdvisor {
         return 0;
     }
 
-    private void fillOptions(ChatClientRequest chatClientRequest) {
-        Optional.of(chatClientRequest.prompt())
-                .map(Prompt::getOptions)
-                .map(GigaChatOptions.class::cast)
-                .ifPresent(it -> {
-                    String sessionId = (String) chatClientRequest.context().get(X_SESSION_ID);
-                    if (sessionId != null) {
-                        it.getHttpHeaders().put(X_SESSION_ID, sessionId);
-                    }
-                });
+    private ChatClientRequest fillOptions(@NonNull ChatClientRequest chatClientRequest) {
+        Prompt prompt = chatClientRequest.prompt();
+        ChatOptions chatOptions = prompt.getOptions();
+        if (chatOptions instanceof GigaChatOptions gigaChatOptions) {
+            String sessionId = (String) chatClientRequest.context().get(X_SESSION_ID);
+            if (sessionId != null) {
+                Map<String, String> httpHeaders = new HashMap<>();
+                if (!CollectionUtils.isEmpty(gigaChatOptions.getHttpHeaders())) {
+                    httpHeaders.putAll(gigaChatOptions.getHttpHeaders());
+                }
+                httpHeaders.put(X_SESSION_ID, sessionId);
+
+                return chatClientRequest
+                        .mutate()
+                        .prompt(prompt.mutate()
+                                .chatOptions(gigaChatOptions
+                                        .mutate()
+                                        .httpHeaders(httpHeaders)
+                                        .build())
+                                .build())
+                        .build();
+            }
+        }
+        return chatClientRequest;
     }
 }
