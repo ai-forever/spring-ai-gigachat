@@ -45,6 +45,8 @@ public class GigaChatCachingAdvisor implements CallAdvisor, StreamAdvisor {
     private void fillOptions(ChatClientRequest chatClientRequest) {
         Optional.of(chatClientRequest.prompt())
                 .map(Prompt::getOptions)
+                // защитный instanceof вместо жёсткого cast: если опции не GigaChatOptions, просто пропускаем
+                .filter(GigaChatOptions.class::isInstance)
                 .map(GigaChatOptions.class::cast)
                 .ifPresent(it -> {
                     String sessionId = (String) chatClientRequest.context().get(X_SESSION_ID);

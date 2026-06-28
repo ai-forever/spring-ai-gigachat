@@ -7,10 +7,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -51,19 +49,6 @@ public class GigaChatOptions implements ToolCallingChatOptions {
      */
     @JsonIgnore
     private List<ToolCallback> toolCallbacks = new ArrayList<>();
-
-    /**
-     * Collection of tool names to be resolved at runtime and used for tool calling in the
-     * chat completion requests.
-     */
-    @JsonIgnore
-    private Set<String> toolNames = new HashSet<>();
-
-    /**
-     * Whether to enable the tool execution lifecycle internally in ChatModel.
-     */
-    @JsonIgnore
-    private @Nullable Boolean internalToolExecutionEnabled;
 
     @JsonIgnore
     private Map<String, Object> toolContext = new HashMap<>();
@@ -107,7 +92,8 @@ public class GigaChatOptions implements ToolCallingChatOptions {
         return null;
     }
 
-    @Override
+    // ChatOptions#copy() удалён из интерфейса в Spring AI 2.0 GA, поэтому без @Override.
+    // Метод сохранён: используется в fromOptions(...) и как удобный публичный API.
     public GigaChatOptions copy() {
         return mutate().build();
     }
@@ -128,21 +114,8 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
     @Override
     @JsonIgnore
-    public Set<String> getToolNames() {
-        return this.toolNames;
-    }
-
-    @Override
-    @JsonIgnore
     public Map<String, Object> getToolContext() {
         return this.toolContext;
-    }
-
-    @Override
-    @Nullable
-    @JsonIgnore
-    public Boolean getInternalToolExecutionEnabled() {
-        return internalToolExecutionEnabled;
     }
 
     @Getter
@@ -168,8 +141,6 @@ public class GigaChatOptions implements ToolCallingChatOptions {
                 .repetitionPenalty(this.getRepetitionPenalty())
                 .updateInterval(this.getUpdateInterval())
                 .toolCallbacks(this.getToolCallbacks())
-                .toolNames(this.getToolNames())
-                .internalToolExecutionEnabled(this.getInternalToolExecutionEnabled())
                 .toolContext(this.getToolContext())
                 .functionCallMode(this.getFunctionCallMode())
                 .functionCallParam(this.getFunctionCallParam())
@@ -189,7 +160,8 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
     protected abstract static class AbstractBuilder<B extends AbstractBuilder<B>>
             extends DefaultToolCallingChatOptions.Builder<B>
-    // todo: implements StructuredOutputChatOptions.Builder<B>
+    // Реализация StructuredOutputChatOptions.Builder<B> вынесена в отдельную задачу
+    // (native structured output, см. ветку feature/native-structured-output).
     {
 
         @Override
@@ -198,7 +170,6 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
             copy.repetitionPenalty = this.repetitionPenalty;
             copy.updateInterval = this.updateInterval;
-            copy.toolContext = this.toolContext == null ? null : new HashMap<>(this.toolContext);
             copy.functionCallMode = this.functionCallMode;
             copy.functionCallParam = this.functionCallParam;
             copy.profanityCheck = this.profanityCheck;
@@ -210,8 +181,6 @@ public class GigaChatOptions implements ToolCallingChatOptions {
         private @Nullable Double repetitionPenalty;
 
         private @Nullable Double updateInterval;
-
-        private @Nullable Map<String, Object> toolContext = new HashMap<>();
 
         private @Nullable FunctionCallMode functionCallMode;
 
@@ -255,11 +224,6 @@ public class GigaChatOptions implements ToolCallingChatOptions {
             return self();
         }
 
-        public B internalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
-            this.internalToolExecutionEnabled = internalToolExecutionEnabled;
-            return self();
-        }
-
         public B functionCallMode(@Nullable FunctionCallMode functionCallMode) {
             this.functionCallMode = functionCallMode;
             return self();
@@ -293,13 +257,12 @@ public class GigaChatOptions implements ToolCallingChatOptions {
             options.repetitionPenalty = this.repetitionPenalty;
             options.updateInterval = this.updateInterval;
 
-            // ChatOptions fields
+            // ChatOptions fields: stopSequences/frequencyPenalty/presencePenalty/topK
+            // не поддерживаются GigaChat API и намеренно не заполняются (см. геттеры выше).
 
-            // ToolCallingChatOptions fields
+            // ToolCallingChatOptions fields (в Spring AI 2.0 GA остались только toolCallbacks + toolContext)
             options.toolCallbacks =
                     this.toolCallbacks == null ? new ArrayList<>() : new ArrayList<>(this.toolCallbacks);
-            options.toolNames = this.toolNames == null ? new HashSet<>() : new HashSet<>(this.toolNames);
-            options.internalToolExecutionEnabled = this.internalToolExecutionEnabled;
             options.toolContext = this.toolContext == null ? new HashMap<>() : new HashMap<>(this.toolContext);
 
             // GigaChat-specific fields
@@ -313,7 +276,11 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
         @Override
         public B combineWith(ChatOptions.Builder<?> other) {
+            // Базовые поля (model/temperature/topP/maxTokens) + toolCallbacks/toolContext сливает
+            // родительский combineWith. Здесь докидываем только GigaChat-специфичные поля, у которых
+            // нет родительской обработки.
             super.combineWith(other);
+
             if (other instanceof AbstractBuilder<?> that) {
                 if (that.repetitionPenalty != null) {
                     this.repetitionPenalty = that.repetitionPenalty;

@@ -10,8 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Важно помечать @JsonProperty каждое поле.
- * На это завязана логика метода {@link org.springframework.ai.model.ModelOptionsUtils#merge}
+ * Важно помечать @JsonProperty каждое поле — на этом завязана корректная (де)сериализация запроса.
  */
 @Data
 @Builder
