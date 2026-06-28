@@ -29,25 +29,26 @@ public class MultimodalityIT {
                     "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat");
 
     @Test
-    @org.junit.jupiter.api.Disabled("Требует GigaChat-2-Max с vision, может быть недоступен на бесплатном тарифе")
     @DisplayName("Тест проверяет, что доступна мультимодальность модели для вызова на примере vision")
     void givenPromptWithImage_whenCallChatModel_thenVisionCallIsSuccess() {
-        contextRunner.run(context -> {
-            GigaChatModel gigaChatModel = context.getBean(GigaChatModel.class);
+        contextRunner
+                .withPropertyValues("spring.ai.gigachat.chat.options.model=GigaChat-2-Max")
+                .run(context -> {
+                    GigaChatModel gigaChatModel = context.getBean(GigaChatModel.class);
 
-            var imageResource = new ClassPathResource("/multimodality/cat.png");
+                    var imageResource = new ClassPathResource("/multimodality/cat.png");
 
-            var userMessage = UserMessage.builder()
-                    .text(
-                            "Что ты видишь на картинке? Опиши словом состоящим из 3 букв. Пиши все буквы строчные, не используй заглавные")
-                    .media(new Media(MimeTypeUtils.IMAGE_PNG, imageResource))
-                    .build();
+                    var userMessage = UserMessage.builder()
+                            .text(
+                                    "Что ты видишь на картинке? Опиши словом состоящим из 3 букв. Пиши все буквы строчные, не используй заглавные")
+                            .media(new Media(MimeTypeUtils.IMAGE_PNG, imageResource))
+                            .build();
 
-            ChatResponse response = gigaChatModel.call(new Prompt(userMessage));
-            String assistantMessage = response.getResult().getOutput().getText();
-            assertThat(assistantMessage, is(not(emptyOrNullString())));
-            assertThat(assistantMessage, containsString("кот"));
-        });
+                    ChatResponse response = gigaChatModel.call(new Prompt(userMessage));
+                    String assistantMessage = response.getResult().getOutput().getText();
+                    assertThat(assistantMessage, is(not(emptyOrNullString())));
+                    assertThat(assistantMessage, containsString("кот"));
+                });
     }
 
     @Test

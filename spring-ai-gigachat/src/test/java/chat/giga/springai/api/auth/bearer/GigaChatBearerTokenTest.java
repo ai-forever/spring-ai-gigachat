@@ -621,11 +621,11 @@ class GigaChatBearerTokenTest {
             var expiresAt = System.currentTimeMillis() + ONE_HOUR_MS;
 
             // When
-            // var token = new GigaChatBearerToken(specialToken, expiresAt);
+            var token = new GigaChatBearerToken(specialToken, expiresAt);
 
             // Then
-            // assertNotNull(token, "Token should be created with special characters");
-            // assertEquals(specialToken, token.accessToken(), "Special characters in token should be preserved");
+            assertNotNull(token, "Token should be created with special characters");
+            assertEquals(specialToken, token.accessToken(), "Special characters in token should be preserved");
         }
     }
 }

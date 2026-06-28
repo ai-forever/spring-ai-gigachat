@@ -129,6 +129,26 @@ class GigaChatCachingAdvisorTest {
         assertNull(getSessionId(requestCaptor.getValue().prompt().getOptions()));
     }
 
+    @Test
+    @DisplayName("#16/#17: опции НЕ GigaChatOptions не вызывают ClassCastException — адвизор пропускает запрос")
+    void testAdviseCall_withNonGigaChatOptions_doesNotThrow() {
+        ChatClientRequest request = ChatClientRequest.builder()
+                .prompt(Prompt.builder()
+                        .messages(mockMessage)
+                        // обычные ChatOptions (DefaultChatOptions), не GigaChatOptions
+                        .chatOptions(ChatOptions.builder().build())
+                        .build())
+                .context(GigaChatCachingAdvisor.X_SESSION_ID, X_SESSION_ID_VALUE)
+                .build();
+
+        when(chain.nextCall(any())).thenReturn(ChatClientResponse.builder().build());
+
+        // не должно бросать ClassCastException
+        advisor.adviseCall(request, chain);
+
+        verify(chain).nextCall(any());
+    }
+
     private String getSessionId(ChatOptions options) {
         if (options == null) {
             return null;

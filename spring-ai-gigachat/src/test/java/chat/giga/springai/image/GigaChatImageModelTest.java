@@ -258,6 +258,41 @@ class GigaChatImageModelTest {
         assertEquals(actualModel, ((GigaChatImageResponseMetadata) response.getMetadata()).getModel());
     }
 
+    @Test
+    @DisplayName("#09: null content в ответе не вызывает NPE — возвращается пустой результат")
+    void nullContent_returnsEmptyResponse_noNpe() {
+        CompletionResponse.MessagesRes message = new CompletionResponse.MessagesRes();
+        message.setRole(CompletionResponse.Role.assistant);
+        message.setContent(null);
+
+        CompletionResponse.Choice choice = new CompletionResponse.Choice();
+        choice.setMessage(message);
+        choice.setIndex(0);
+
+        CompletionResponse completion = new CompletionResponse();
+        completion.setChoices(List.of(choice));
+        completion.setModel(GIGA_CHAT_2_MAX);
+
+        Mockito.when(gigaChatApi.chatCompletionEntity(any())).thenReturn(ResponseEntity.ok(completion));
+
+        ImageResponse response = imageModel.call(new ImagePrompt(
+                List.of(new ImageMessage("Draw a cat", 1.0f)),
+                ImageOptionsBuilder.builder().build()));
+
+        assertNotNull(response);
+        assertEquals(0, response.getResults().size(), "при null content результат пустой, без NPE");
+    }
+
+    @Test
+    @DisplayName("#23: пустой ImagePrompt бросает понятное исключение, а не IndexOutOfBounds")
+    void emptyInstructions_throwsIllegalArgument() {
+        ImagePrompt emptyPrompt =
+                new ImagePrompt(List.of(), ImageOptionsBuilder.builder().build());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> imageModel.call(emptyPrompt));
+    }
+
     private CompletionResponse createCompletionResponse() {
         CompletionResponse.MessagesRes message = new CompletionResponse.MessagesRes();
         message.setRole(CompletionResponse.Role.assistant);
