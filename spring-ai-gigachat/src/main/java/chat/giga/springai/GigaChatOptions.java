@@ -51,6 +51,14 @@ public class GigaChatOptions implements ToolCallingChatOptions {
      */
     private @Nullable Boolean profanityCheck;
 
+    /**
+     * GigaChat-специфичные HTTP-заголовки запроса. В отличие от tool* полей — НЕ {@code @Nullable}:
+     * под {@code @NullMarked} пакета поле без {@code @Nullable} уже non-null по контракту (явный
+     * {@code @NonNull} избыточен и не используется в проекте). Инвариант load-bearing: потребители
+     * {@link chat.giga.springai.advisor.GigaChatCachingAdvisor} ({@code getHttpHeaders().put(...)}) и
+     * {@code GigaChatModel.buildHeaders()} ({@code getHttpHeaders().forEach(...)}) читают его без
+     * null-check и требуют мутабельный map, поэтому build()/сеттер всегда коерсят null -&gt; new HashMap.
+     */
     private Map<String, String> httpHeaders = new HashMap<>();
 
     @Nullable
