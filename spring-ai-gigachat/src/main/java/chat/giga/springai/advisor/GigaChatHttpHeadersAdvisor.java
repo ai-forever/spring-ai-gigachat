@@ -65,8 +65,14 @@ public class GigaChatHttpHeadersAdvisor implements CallAdvisor, StreamAdvisor {
 
         request.context().keySet().stream()
                 .filter(key -> key.startsWith(HTTP_HEADER_PREFIX))
-                .forEach(key -> httpHeaders.put(
-                        key.substring(HTTP_HEADER_PREFIX.length()), getHeaderValue(request.context(), key)));
+                .forEach(key -> {
+                    String value = getHeaderValue(request.context(), key);
+                    // value может быть null (Supplier ещё не готов / в context положили null): immutable
+                    // build() (Map.copyOf) такой заголовок не примет и упал бы NPE — молча пропускаем.
+                    if (value != null) {
+                        httpHeaders.put(key.substring(HTTP_HEADER_PREFIX.length()), value);
+                    }
+                });
 
         if (httpHeaders.isEmpty()) {
             return request;

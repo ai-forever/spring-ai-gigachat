@@ -609,9 +609,11 @@ public class GigaChatModel implements ChatModel {
                 .map(GigaChatOptions.class::cast)
                 .map(it -> {
                     HttpHeaders httpHeaders = new HttpHeaders();
-                    // getHttpHeaders() теперь @Nullable (по умолчанию null, а не пустая мапа)
+                    // getHttpHeaders() теперь @Nullable (по умолчанию null, а не пустая мапа).
+                    // set, а не add: источник — Map<String,String> (один ключ = одно значение), а HttpHeaders
+                    // регистронезависим; set даёт last-wins при коллизии регистра вместо склейки "a,b".
                     if (it.getHttpHeaders() != null) {
-                        it.getHttpHeaders().forEach(httpHeaders::add);
+                        it.getHttpHeaders().forEach(httpHeaders::set);
                     }
                     return httpHeaders;
                 })

@@ -245,6 +245,34 @@ public class GigaChatModelTest {
     }
 
     @Test
+    @DisplayName("buildHeaders: коллизия регистра ключей -> одно значение (set/last-wins), а не склейка add")
+    void testGigaChatOptions_httpHeadersCaseCollision_lastWins() {
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
+                        .httpHeaders("X-Coll", "a")
+                        .httpHeaders("x-coll", "b") // тот же заголовок в другом регистре
+                        .build());
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        gigaChatModel.internalCall(prompt, null);
+
+        ArgumentCaptor<HttpHeaders> headers = ArgumentCaptor.forClass(HttpHeaders.class);
+        verify(gigaChatApi).chatCompletionEntity(any(), headers.capture());
+
+        // HttpHeaders регистронезависим: оба ключа схлопываются в один. set -> ровно одно значение
+        // (add дал бы два: "a","b"). Порядок итерации HashMap недетерминирован, поэтому проверяем
+        // размер, а конкретный победитель — любой из двух.
+        List<String> values = headers.getValue().get("X-Coll");
+        assertNotNull(values);
+        assertEquals(1, values.size());
+        assertTrue(List.of("a", "b").contains(values.get(0)));
+    }
+
+    @Test
     @DisplayName("PATH A: stream() возвращает запрос на вызов инструмента без in-model исполнения "
             + "(исполнение — ответственность ChatClient/ToolCallingAdvisor)")
     void testStream_returnsToolCallWithoutInModelExecution() {

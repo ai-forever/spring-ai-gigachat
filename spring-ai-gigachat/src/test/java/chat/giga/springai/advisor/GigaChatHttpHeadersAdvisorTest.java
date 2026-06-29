@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import chat.giga.springai.GigaChatOptions;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -89,6 +90,37 @@ class GigaChatHttpHeadersAdvisorTest {
 
         // новый контракт: при unset httpHeaders == null (а не пустая мапа); advisor вернул запрос без изменений
         assertThat(options.getHttpHeaders(), Matchers.nullValue());
+    }
+
+    @Test
+    @DisplayName("Supplier вернул null -> заголовок пропускается, запрос не падает (Map.copyOf в build())")
+    void testAdviseCall_nullSupplierValue_skippedNoCrash() {
+        ChatClientRequest request = ChatClientRequest.builder()
+                .prompt(Prompt.builder()
+                        .messages(UserMessage.builder().text("test").build())
+                        .chatOptions(GigaChatOptions.builder()
+                                .httpHeaders(Map.of("key1", "value1"))
+                                .build())
+                        .build())
+                .context(GigaChatHttpHeadersAdvisor.httpHeader("X-Null"), (Supplier<String>) () -> null)
+                .context(GigaChatHttpHeadersAdvisor.httpHeader("X-Real"), "rv")
+                .build();
+
+        // не должно бросать NPE из Map.copyOf на null-значении (регресс immutable-миграции)
+        advisor.adviseCall(request, chain);
+
+        ArgumentCaptor<ChatClientRequest> requestCaptor = ArgumentCaptor.forClass(ChatClientRequest.class);
+        verify(chain).nextCall(requestCaptor.capture());
+
+        GigaChatOptions options =
+                (GigaChatOptions) requestCaptor.getValue().prompt().getOptions();
+        assertThat(
+                options.getHttpHeaders(),
+                Matchers.allOf(
+                        Matchers.aMapWithSize(2),
+                        Matchers.hasEntry("key1", "value1"),
+                        Matchers.hasEntry("X-Real", "rv"),
+                        Matchers.not(Matchers.hasKey("X-Null"))));
     }
 
     @Test
