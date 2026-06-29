@@ -16,7 +16,9 @@ import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 /**
- * Advisor, который перекладывает sessionId из контекста в запрос.
+ * Advisor, который перекладывает HTTP-заголовки из контекста запроса в {@link GigaChatOptions#getHttpHeaders()}.
+ * Берёт записи контекста с префиксом {@code http_header_} (см. {@link #httpHeader(String)}), снимает префикс и
+ * добавляет их к httpHeaders опций. Значение может быть {@link java.util.function.Supplier} (ленивое вычисление).
  */
 public class GigaChatHttpHeadersAdvisor implements CallAdvisor, StreamAdvisor {
     private static final String HTTP_HEADER_PREFIX = "http_header_";
@@ -65,8 +67,14 @@ public class GigaChatHttpHeadersAdvisor implements CallAdvisor, StreamAdvisor {
 
         request.context().keySet().stream()
                 .filter(key -> key.startsWith(HTTP_HEADER_PREFIX))
-                .forEach(key -> httpHeaders.put(
-                        key.substring(HTTP_HEADER_PREFIX.length()), getHeaderValue(request.context(), key)));
+                .forEach(key -> {
+                    String value = getHeaderValue(request.context(), key);
+                    // value может быть null (Supplier ещё не готов / в context положили null): immutable
+                    // build() (Map.copyOf) такой заголовок не примет и упал бы NPE — молча пропускаем.
+                    if (value != null) {
+                        httpHeaders.put(key.substring(HTTP_HEADER_PREFIX.length()), value);
+                    }
+                });
 
         if (httpHeaders.isEmpty()) {
             return request;

@@ -29,16 +29,7 @@ public class GigaChatEmbeddingProperties {
 
     public static final String DEFAULT_EMBEDDING_MODEL = EmbeddingsModel.EMBEDDINGS.getName();
 
-    public static final String DEFAULT_EMBEDDINGS_PATH = "/v1/embeddings";
-
-    /**
-     * Enable GigaChat embedding model.
-     */
-    private boolean enabled = true;
-
     private MetadataMode metadataMode = MetadataMode.EMBED;
-
-    private String embeddingsPath = DEFAULT_EMBEDDINGS_PATH;
 
     @NestedConfigurationProperty
     private GigaChatEmbeddingOptions options = GigaChatEmbeddingOptions.builder()
@@ -59,21 +50,5 @@ public class GigaChatEmbeddingProperties {
 
     public void setMetadataMode(MetadataMode metadataMode) {
         this.metadataMode = metadataMode;
-    }
-
-    public boolean isEnabled() {
-        return this.enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    public String getEmbeddingsPath() {
-        return this.embeddingsPath;
-    }
-
-    public void setEmbeddingsPath(String embeddingsPath) {
-        this.embeddingsPath = embeddingsPath;
     }
 }

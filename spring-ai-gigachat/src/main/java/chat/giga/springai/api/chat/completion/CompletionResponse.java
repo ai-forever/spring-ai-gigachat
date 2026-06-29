@@ -111,6 +111,13 @@ public class CompletionResponse {
 
         @JsonProperty("function_call")
         private FunctionCall functionCall;
+
+        /**
+         * Рассуждения модели (chain-of-thought) у reasoning-моделей GigaChat.
+         * Приходит и в обычных сообщениях, и в стрим-дельтах.
+         */
+        @JsonProperty("reasoning_content")
+        private String reasoningContent;
     }
 
     /**

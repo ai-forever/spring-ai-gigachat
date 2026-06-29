@@ -25,9 +25,7 @@ import org.springframework.ai.image.ImageModel;
 import org.springframework.ai.image.observation.ImageModelObservationConvention;
 import org.springframework.ai.model.SpringAIModelProperties;
 import org.springframework.ai.model.chat.observation.autoconfigure.ChatObservationAutoConfiguration;
-import org.springframework.ai.model.tool.DefaultToolExecutionEligibilityPredicate;
 import org.springframework.ai.model.tool.ToolCallingManager;
-import org.springframework.ai.model.tool.ToolExecutionEligibilityPredicate;
 import org.springframework.ai.model.tool.autoconfigure.ToolCallingAutoConfiguration;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.retry.autoconfigure.SpringAiRetryAutoConfiguration;
@@ -62,7 +60,6 @@ import org.springframework.web.reactive.function.client.WebClient;
     GigaChatImageProperties.class
 })
 @ConditionalOnClass(GigaChatApi.class)
-@ConditionalOnProperty(name = SpringAIModelProperties.CHAT_MODEL, havingValue = "gigachat", matchIfMissing = true)
 @Slf4j
 public class GigaChatAutoConfiguration {
 
@@ -112,6 +109,7 @@ public class GigaChatAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(name = SpringAIModelProperties.CHAT_MODEL, havingValue = "gigachat", matchIfMissing = true)
     public GigaChatModel gigaChatChatModel(
             GigaChatApi gigaChatApi,
             GigaChatChatProperties chatProperties,
@@ -119,7 +117,6 @@ public class GigaChatAutoConfiguration {
             ObjectProvider<ToolCallingManager> toolCallingManagerProvider,
             ObjectProvider<ObservationRegistry> observationRegistry,
             ObjectProvider<ChatModelObservationConvention> observationConvention,
-            ObjectProvider<ToolExecutionEligibilityPredicate> toolExecutionEligibilityPredicate,
             GigaChatInternalProperties internalProperties) {
         GigaChatOptions options = GigaChatOptions.builder()
                 .model(chatProperties.getModel())
@@ -129,7 +126,6 @@ public class GigaChatAutoConfiguration {
                 .repetitionPenalty(chatProperties.getRepetitionPenalty())
                 .updateInterval(chatProperties.getUpdateInterval())
                 .profanityCheck(chatProperties.getProfanityCheck())
-                .internalToolExecutionEnabled(chatProperties.getInternalToolExecutionEnabled())
                 .functionCallMode(chatProperties.getFunctionCallMode())
                 .functionCallParam(chatProperties.getFunctionCallParam())
                 .httpHeaders(chatProperties.getHttpHeaders())
@@ -142,8 +138,6 @@ public class GigaChatAutoConfiguration {
                 .toolCallingManager(
                         toolCallingManagerProvider.getIfAvailable(() -> GigaChatModel.DEFAULT_TOOL_CALLING_MANAGER))
                 .observationRegistry(observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP))
-                .toolExecutionEligibilityPredicate(
-                        toolExecutionEligibilityPredicate.getIfUnique(DefaultToolExecutionEligibilityPredicate::new))
                 .internalProperties(internalProperties)
                 .build();
 
@@ -153,6 +147,12 @@ public class GigaChatAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    // Конвенция Spring AI 2.0 (как у Mistral): выбор провайдера эмбеддингов через
+    // spring.ai.model.embedding=gigachat — единообразно с chat/image выше.
+    @ConditionalOnProperty(
+            name = SpringAIModelProperties.EMBEDDING_MODEL,
+            havingValue = "gigachat",
+            matchIfMissing = true)
     public GigaChatEmbeddingModel gigaChatEmbeddingModel(
             GigaChatApi gigaChatApi,
             GigaChatEmbeddingProperties gigaChatEmbeddingProperties,
@@ -163,7 +163,8 @@ public class GigaChatAutoConfiguration {
                 gigaChatApi,
                 gigaChatEmbeddingProperties.getOptions(),
                 retryTemplateProvider.getIfAvailable(() -> RetryUtils.DEFAULT_RETRY_TEMPLATE),
-                observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP));
+                observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP),
+                gigaChatEmbeddingProperties.getMetadataMode());
 
         observationConvention.ifAvailable(gigaChatEmbeddingModel::setObservationConvention);
 

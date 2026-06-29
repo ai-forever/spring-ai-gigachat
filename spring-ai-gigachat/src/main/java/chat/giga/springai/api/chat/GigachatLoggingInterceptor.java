@@ -79,12 +79,28 @@ public class GigachatLoggingInterceptor implements ClientHttpRequestInterceptor 
      */
     private String formatHeaders(HttpHeaders headers) {
         final StringBuilder stringBuilder = new StringBuilder();
-        headers.forEach((k, v) -> stringBuilder.append(k).append(": ").append(v).append("\n"));
+        headers.forEach((k, v) -> stringBuilder
+                .append(k)
+                .append(": ")
+                .append(isSensitiveHeader(k) ? "***REDACTED***" : v)
+                .append("\n"));
         String string = stringBuilder.toString();
         if (string.endsWith("\n")) {
             string = string.substring(0, string.length() - 1);
         }
         return string;
+    }
+
+    /**
+     * Заголовки с секретами не должны попадать в DEBUG-лог в открытом виде (CWE-532). В цепочке
+     * интерсепторов BearerTokenInterceptor проставляет Authorization: Bearer &lt;token&gt; ДО этого
+     * логгера, плюс вызывающий может прислать собственные auth-заголовки — их маскируем.
+     */
+    private static boolean isSensitiveHeader(String name) {
+        return HttpHeaders.AUTHORIZATION.equalsIgnoreCase(name)
+                || HttpHeaders.PROXY_AUTHORIZATION.equalsIgnoreCase(name)
+                || HttpHeaders.COOKIE.equalsIgnoreCase(name)
+                || HttpHeaders.SET_COOKIE.equalsIgnoreCase(name);
     }
 
     /**

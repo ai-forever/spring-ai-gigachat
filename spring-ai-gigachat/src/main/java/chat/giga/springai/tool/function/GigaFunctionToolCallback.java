@@ -150,7 +150,7 @@ public class GigaFunctionToolCallback<I, O> {
         }
 
         public Builder<I, O> outputType(ParameterizedTypeReference<?> outputType) {
-            Assert.notNull(outputType, "inputType cannot be null");
+            Assert.notNull(outputType, "outputType cannot be null");
             this.outputType = outputType.getType();
             return this;
         }

@@ -11,12 +11,13 @@ import org.springframework.util.StringUtils;
 /**
  * GigaChat-specific convention for image model observations. Extends the Spring AI default
  * by adding the {@code gen_ai.response.model} low-cardinality tag.
- * Omits it for image observations while emitting it for chat observations under the same
- * meter name {@code gen_ai.client.operation}, which causes Prometheus to reject the second
- * registration with a tag-keys-mismatch warning. Adding the tag (with {@code "none"} when
- * the response is unavailable, e.g. on the start side of the long-task timer) restores
- * tag-set symmetry between the two AI operation types and silences the warning reported
- * in issue GH-111.
+ *
+ * <p>By default the image convention does not emit this tag, while the chat convention does —
+ * under the same meter name {@code gen_ai.client.operation}. The mismatching tag-key sets cause
+ * Prometheus to reject the second registration with a tag-keys-mismatch warning. Adding the tag
+ * here (with {@code "none"} when the response is unavailable, e.g. on the start side of the
+ * long-task timer) restores tag-set symmetry between the two AI operation types and silences the
+ * warning reported in issue GH-111.
  */
 public class GigaChatImageModelObservationConvention extends DefaultImageModelObservationConvention {
 

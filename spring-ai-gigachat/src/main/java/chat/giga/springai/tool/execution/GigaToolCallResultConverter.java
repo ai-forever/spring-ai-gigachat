@@ -19,8 +19,8 @@ package chat.giga.springai.tool.execution;
 import chat.giga.springai.tool.support.GigaToolUtils;
 import java.lang.reflect.Type;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.ai.tool.execution.ToolCallResultConverter;
-import org.springframework.lang.Nullable;
 
 /**
  * An implementation of {@link ToolCallResultConverter} for GigaChat LLM.

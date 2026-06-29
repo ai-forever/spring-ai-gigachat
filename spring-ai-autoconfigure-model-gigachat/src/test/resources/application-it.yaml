@@ -1,6 +1,8 @@
 spring:
   ai:
     gigachat:
+      chat:
+        model: GigaChat-2-Max
       auth:
         bearer:
           client-id: ${GIGACHAT_API_CLIENT_ID}

@@ -14,11 +14,12 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.lang.Nullable;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -123,6 +124,9 @@ public class GigaChatOAuthClient {
      * @throws org.springframework.web.client.RestClientException if HTTP request fails without valid response body
      */
     GigaChatAccessTokenResponse requestToken() {
+        // Без проверки null превращался бы в строку "scope=null" в теле запроса и приводил бы к
+        // невнятной ошибке авторизации от API вместо понятного сообщения о незаданном scope.
+        Assert.notNull(this.scope, "GigaChat OAuth scope must not be null (spring.ai.gigachat.auth.scope)");
         return this.restClient
                 .post()
                 .headers(headers -> buildAuthHeaders(headers, this.authToken))

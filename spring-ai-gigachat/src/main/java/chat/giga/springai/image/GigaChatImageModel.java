@@ -274,6 +274,10 @@ public class GigaChatImageModel implements ImageModel {
      */
     private String extractFileId(CompletionResponse response) {
         String content = response.getChoices().get(0).getMessage().getContent();
+        if (content == null) {
+            log.warn("GigaChat image response has no content");
+            return null;
+        }
         Matcher matcher = IMG_ID_PATTERN.matcher(content);
         if (!matcher.find()) {
             log.warn("No <img src=\"...\"> tag found in GigaChat response: {}", content);
@@ -311,6 +315,7 @@ public class GigaChatImageModel implements ImageModel {
             messages.add(sys);
         }
 
+        Assert.notEmpty(prompt.getInstructions(), "ImagePrompt must contain at least one instruction");
         if (prompt.getInstructions().size() > 1) {
             log.warn("GigaChat only supports one instruction, using the first one");
         }

@@ -3,6 +3,7 @@ package chat.giga.springai.autoconfigure;
 import chat.giga.springai.GigaChatModel;
 import chat.giga.springai.GigaChatOptions;
 import chat.giga.springai.api.chat.param.FunctionCallParam;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
@@ -38,15 +39,12 @@ public class GigaChatChatProperties {
     @Nullable
     private Boolean profanityCheck;
 
-    @Nullable
-    private Boolean internalToolExecutionEnabled;
-
-    private GigaChatOptions.FunctionCallMode functionCallMode;
+    private GigaChatOptions.@Nullable FunctionCallMode functionCallMode;
 
     @Nullable
     private FunctionCallParam functionCallParam;
 
-    private Map<String, String> httpHeaders;
+    private Map<String, String> httpHeaders = new HashMap<>();
 
     @Getter(lombok.AccessLevel.NONE)
     @Setter(lombok.AccessLevel.NONE)
@@ -58,7 +56,6 @@ public class GigaChatChatProperties {
         return this.options;
     }
 
-    @DeprecatedConfigurationProperty(replacement = "spring.ai.gigachat.chat")
     @Deprecated(since = "2.0.0", forRemoval = true)
     public void setOptions(Options options) {
         this.options = options;
@@ -136,23 +133,13 @@ public class GigaChatChatProperties {
             GigaChatChatProperties.this.setProfanityCheck(profanityCheck);
         }
 
-        @DeprecatedConfigurationProperty(replacement = "spring.ai.gigachat.chat.internal-tool-execution-enabled")
-        @Deprecated(since = "2.0.0", forRemoval = true)
-        public @Nullable Boolean getInternalToolExecutionEnabled() {
-            return GigaChatChatProperties.this.getInternalToolExecutionEnabled();
-        }
-
-        public void setInternalToolExecutionEnabled(@Nullable Boolean internalToolExecutionEnabled) {
-            GigaChatChatProperties.this.setInternalToolExecutionEnabled(internalToolExecutionEnabled);
-        }
-
         @DeprecatedConfigurationProperty(replacement = "spring.ai.gigachat.chat.function-call-mode")
         @Deprecated(since = "2.0.0", forRemoval = true)
-        public GigaChatOptions.FunctionCallMode getFunctionCallMode() {
+        public GigaChatOptions.@Nullable FunctionCallMode getFunctionCallMode() {
             return GigaChatChatProperties.this.getFunctionCallMode();
         }
 
-        public void setFunctionCallMode(GigaChatOptions.FunctionCallMode functionCallMode) {
+        public void setFunctionCallMode(GigaChatOptions.@Nullable FunctionCallMode functionCallMode) {
             GigaChatChatProperties.this.setFunctionCallMode(functionCallMode);
         }
 

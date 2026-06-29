@@ -1,6 +1,5 @@
 package chat.giga.springai.autoconfigure;
 
-import static chat.giga.springai.autoconfigure.GigaChatEmbeddingProperties.DEFAULT_EMBEDDINGS_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
@@ -67,12 +66,44 @@ public class GigaChatAutoConfigurationTest {
             assertThat(chatProperties.getRepetitionPenalty()).isNull();
 
             GigaChatEmbeddingProperties embeddingProperties = context.getBean(GigaChatEmbeddingProperties.class);
-            assertThat(embeddingProperties.isEnabled()).isTrue();
-            assertThat(embeddingProperties.getEmbeddingsPath()).isEqualTo(DEFAULT_EMBEDDINGS_PATH);
             assertThat(embeddingProperties.getMetadataMode()).isEqualTo(MetadataMode.EMBED);
             assertThat(embeddingProperties.getOptions().getModel()).isEqualTo("Embeddings");
             assertThat(embeddingProperties.getOptions().getDimensions()).isNull();
         });
+    }
+
+    @Test
+    @DisplayName("Конвенция: spring.ai.model.embedding=none отключает только эмбеддинг-бин (chat остаётся)")
+    void embeddingDeselected_noEmbeddingModelBean() {
+        contextRunner.withPropertyValues("spring.ai.model.embedding=none").run(context -> {
+            assertThat(context).doesNotHaveBean(GigaChatEmbeddingModel.class);
+            // chat и остальные бины при этом продолжают создаваться (развязаны по провайдеру)
+            assertThat(context).hasSingleBean(GigaChatModel.class);
+            assertThat(context).hasSingleBean(GigaChatEmbeddingProperties.class);
+        });
+    }
+
+    @Test
+    @DisplayName("Развязка: spring.ai.model.chat=none НЕ отключает embedding/image (раньше класс-гейт глушил всё)")
+    void chatDeselected_keepsEmbeddingAndImage() {
+        contextRunner.withPropertyValues("spring.ai.model.chat=none").run(context -> {
+            assertThat(context).doesNotHaveBean(GigaChatModel.class);
+            assertThat(context).hasSingleBean(GigaChatEmbeddingModel.class);
+            assertThat(context).hasSingleBean(GigaChatImageModel.class);
+        });
+    }
+
+    @Test
+    @DisplayName("#14: spring.ai.gigachat.embedding.metadata-mode связывается из конфигурации")
+    void embeddingMetadataMode_isBound() {
+        contextRunner
+                .withPropertyValues("spring.ai.gigachat.embedding.metadata-mode=NONE")
+                .run(context -> {
+                    GigaChatEmbeddingProperties embeddingProperties =
+                            context.getBean(GigaChatEmbeddingProperties.class);
+                    assertThat(embeddingProperties.getMetadataMode()).isEqualTo(MetadataMode.NONE);
+                    assertThat(context).hasSingleBean(GigaChatEmbeddingModel.class);
+                });
     }
 
     @Test
@@ -125,7 +156,6 @@ public class GigaChatAutoConfigurationTest {
                 .run(context -> {
                     GigaChatEmbeddingProperties embeddingProperties =
                             context.getBean(GigaChatEmbeddingProperties.class);
-                    assertThat(embeddingProperties.isEnabled()).isTrue();
                     assertThat(embeddingProperties.getOptions().getModel()).isEqualTo("Embeddings-2");
                     assertThat(embeddingProperties.getOptions().getDimensions()).isEqualTo(1024);
                 });
