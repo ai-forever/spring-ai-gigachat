@@ -15,6 +15,7 @@ import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.model.tool.DefaultToolCallingChatOptions;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.util.Assert;
 
 @Getter
 @ToString
@@ -52,14 +53,14 @@ public class GigaChatOptions implements ToolCallingChatOptions {
     private @Nullable Boolean profanityCheck;
 
     /**
-     * GigaChat-специфичные HTTP-заголовки запроса. В отличие от tool* полей — НЕ {@code @Nullable}:
-     * под {@code @NullMarked} пакета поле без {@code @Nullable} уже non-null по контракту (явный
-     * {@code @NonNull} избыточен и не используется в проекте). Инвариант load-bearing: потребители
-     * {@link chat.giga.springai.advisor.GigaChatCachingAdvisor} ({@code getHttpHeaders().put(...)}) и
-     * {@code GigaChatModel.buildHeaders()} ({@code getHttpHeaders().forEach(...)}) читают его без
-     * null-check и требуют мутабельный map, поэтому build()/сеттер всегда коерсят null -&gt; new HashMap.
+     * GigaChat-специфичные HTTP-заголовки запроса. Контракт как у родительского {@code toolContext}:
+     * {@code @Nullable} (по умолчанию {@code null}, а не пустая мапа) и immutable — build() кладёт
+     * {@link Map#copyOf}. Потребители обязаны читать null-safe ({@code GigaChatModel.buildHeaders()},
+     * {@link chat.giga.springai.advisor.GigaChatHttpHeadersAdvisor}) и НЕ мутировать результат геттера:
+     * чтобы добавить заголовок, строят новые опции через {@code mutate().httpHeaders(...).build()}
+     * (так делает и {@link chat.giga.springai.advisor.GigaChatCachingAdvisor}).
      */
-    private Map<String, String> httpHeaders = new HashMap<>();
+    private @Nullable Map<String, String> httpHeaders;
 
     @Nullable
     @Override
@@ -103,6 +104,12 @@ public class GigaChatOptions implements ToolCallingChatOptions {
     @Override
     public @Nullable Map<String, Object> getToolContext() {
         return this.toolContext;
+    }
+
+    // Явный геттер: класс-уровневый Lombok @Getter не переносит @Nullable на возвращаемый тип под
+    // @NullMarked. build() кладёт сюда immutable Map.copyOf — мутировать результат нельзя (см. javadoc поля).
+    public @Nullable Map<String, String> getHttpHeaders() {
+        return this.httpHeaders;
     }
 
     @Getter
@@ -175,7 +182,7 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
         private @Nullable Boolean profanityCheck;
 
-        private @Nullable Map<String, String> httpHeaders = new HashMap<>();
+        private @Nullable Map<String, String> httpHeaders;
 
         public B model(GigaChatApi.ChatModel model) {
             if (model != null) {
@@ -227,7 +234,25 @@ public class GigaChatOptions implements ToolCallingChatOptions {
         }
 
         public B httpHeaders(@Nullable Map<String, String> httpHeaders) {
-            this.httpHeaders = httpHeaders == null ? new HashMap<>() : new HashMap<>(httpHeaders);
+            // merge-семантика как у родительского toolContext(Map): putAll, а не replace; null сбрасывает.
+            if (httpHeaders != null) {
+                if (this.httpHeaders == null) {
+                    this.httpHeaders = new HashMap<>();
+                }
+                this.httpHeaders.putAll(httpHeaders);
+            } else {
+                this.httpHeaders = null;
+            }
+            return self();
+        }
+
+        public B httpHeaders(String key, String value) {
+            Assert.hasText(key, "key cannot be null or empty");
+            Assert.notNull(value, "value cannot be null");
+            if (this.httpHeaders == null) {
+                this.httpHeaders = new HashMap<>();
+            }
+            this.httpHeaders.put(key, value);
             return self();
         }
 
@@ -257,7 +282,7 @@ public class GigaChatOptions implements ToolCallingChatOptions {
             options.functionCallMode = this.functionCallMode;
             options.functionCallParam = this.functionCallParam;
             options.profanityCheck = this.profanityCheck;
-            options.httpHeaders = this.httpHeaders == null ? new HashMap<>() : new HashMap<>(this.httpHeaders);
+            options.httpHeaders = this.httpHeaders == null ? null : Map.copyOf(this.httpHeaders);
 
             return options;
         }

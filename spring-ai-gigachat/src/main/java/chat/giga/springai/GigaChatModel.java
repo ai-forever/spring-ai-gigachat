@@ -609,7 +609,10 @@ public class GigaChatModel implements ChatModel {
                 .map(GigaChatOptions.class::cast)
                 .map(it -> {
                     HttpHeaders httpHeaders = new HttpHeaders();
-                    it.getHttpHeaders().forEach(httpHeaders::add);
+                    // getHttpHeaders() теперь @Nullable (по умолчанию null, а не пустая мапа)
+                    if (it.getHttpHeaders() != null) {
+                        it.getHttpHeaders().forEach(httpHeaders::add);
+                    }
                     return httpHeaders;
                 })
                 .orElseGet(HttpHeaders::new);

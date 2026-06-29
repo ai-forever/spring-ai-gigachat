@@ -87,7 +87,8 @@ class GigaChatHttpHeadersAdvisorTest {
 
         assertThat(context, Matchers.aMapWithSize(0));
 
-        assertThat(options.getHttpHeaders(), Matchers.allOf(Matchers.notNullValue(), Matchers.aMapWithSize(0)));
+        // новый контракт: при unset httpHeaders == null (а не пустая мапа); advisor вернул запрос без изменений
+        assertThat(options.getHttpHeaders(), Matchers.nullValue());
     }
 
     @Test
@@ -154,6 +155,7 @@ class GigaChatHttpHeadersAdvisorTest {
 
         assertThat(context, Matchers.aMapWithSize(0));
 
-        assertThat(options.getHttpHeaders(), Matchers.allOf(Matchers.notNullValue(), Matchers.aMapWithSize(0)));
+        // новый контракт: при unset httpHeaders == null (а не пустая мапа); advisor вернул запрос без изменений
+        assertThat(options.getHttpHeaders(), Matchers.nullValue());
     }
 }

@@ -1,6 +1,7 @@
 package chat.giga.springai;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import chat.giga.springai.api.chat.param.FunctionCallParam;
 import chat.giga.springai.tool.function.GigaFunctionToolCallback;
@@ -68,6 +69,28 @@ class GigaChatOptionsMergeTest {
 
         // httpHeaders сливаются (merge), а не затираются
         assertThat(merged.getHttpHeaders()).containsEntry("X-Default", "d").containsEntry("X-Runtime", "r");
+    }
+
+    @Test
+    @DisplayName("httpHeaders: контракт ревью — @Nullable по умолчанию, merge-сеттер, overload, immutable результат")
+    void httpHeaders_nullableImmutableMergeContract() {
+        // (1) по умолчанию null, а не пустая мапа (контракт как у toolContext)
+        assertThat(GigaChatOptions.builder().build().getHttpHeaders()).isNull();
+
+        // (2) сеттер мержит, а не заменяет; (3) overload httpHeaders(key,value) докидывает
+        GigaChatOptions options = GigaChatOptions.builder()
+                .httpHeaders(Map.of("a", "1"))
+                .httpHeaders(Map.of("b", "2"))
+                .httpHeaders("c", "3")
+                .build();
+        assertThat(options.getHttpHeaders())
+                .containsEntry("a", "1")
+                .containsEntry("b", "2")
+                .containsEntry("c", "3");
+
+        // (4) ядро замечания #3: результат геттера immutable — .put() обязан падать
+        assertThatThrownBy(() -> options.getHttpHeaders().put("x", "y"))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     private static ToolCallback toolCallback(String name) {
