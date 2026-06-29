@@ -2,9 +2,6 @@ package chat.giga.springai;
 
 import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.param.FunctionCallParam;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,55 +19,41 @@ import org.springframework.ai.tool.ToolCallback;
 @Getter
 @ToString
 @EqualsAndHashCode
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class GigaChatOptions implements ToolCallingChatOptions {
 
-    @JsonProperty("model")
     private @Nullable String model;
 
-    @JsonProperty("temperature")
     private @Nullable Double temperature;
 
-    @JsonProperty("top_p")
     private @Nullable Double topP;
 
-    @JsonProperty("max_tokens")
     private @Nullable Integer maxTokens;
 
-    @JsonProperty("repetition_penalty")
     private @Nullable Double repetitionPenalty;
 
-    @JsonProperty("update_interval")
     private @Nullable Double updateInterval;
 
     /**
      * Collection of {@link ToolCallback}s to be used for tool calling in the chat
      * completion requests.
      */
-    @JsonIgnore
     private List<ToolCallback> toolCallbacks = new ArrayList<>();
 
-    @JsonIgnore
     private Map<String, Object> toolContext = new HashMap<>();
 
-    @JsonProperty("function_call_mode")
     private @Nullable FunctionCallMode functionCallMode;
 
-    @JsonProperty("function_call_param")
     private @Nullable FunctionCallParam functionCallParam;
 
     /**
      * Флаг для включения/отключения цензуры
      */
-    @JsonProperty("profanity_check")
     private @Nullable Boolean profanityCheck;
 
-    @JsonProperty("http_headers")
     private Map<String, String> httpHeaders = new HashMap<>();
 
     @Nullable
     @Override
-    @JsonIgnore
     public Double getFrequencyPenalty() {
         // Гигачат не поддерживает данный параметр
         return null;
@@ -78,7 +61,6 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
     @Nullable
     @Override
-    @JsonIgnore
     public Double getPresencePenalty() {
         // Гигачат не поддерживает данный параметр
         return null;
@@ -86,7 +68,6 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
     @Nullable
     @Override
-    @JsonIgnore
     public List<String> getStopSequences() {
         // Гигачат не поддерживает данный параметр
         return null;
@@ -100,20 +81,17 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
     @Nullable
     @Override
-    @JsonIgnore
     public Integer getTopK() {
         // Гигачат не поддерживает данный параметр
         return null;
     }
 
     @Override
-    @JsonIgnore
     public List<ToolCallback> getToolCallbacks() {
         return this.toolCallbacks;
     }
 
     @Override
-    @JsonIgnore
     public Map<String, Object> getToolContext() {
         return this.toolContext;
     }
