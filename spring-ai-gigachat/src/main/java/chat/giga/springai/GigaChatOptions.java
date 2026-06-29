@@ -59,7 +59,11 @@ public class GigaChatOptions implements ToolCallingChatOptions {
      * {@link chat.giga.springai.advisor.GigaChatHttpHeadersAdvisor}) и НЕ мутировать результат геттера:
      * чтобы добавить заголовок, строят новые опции через {@code mutate().httpHeaders(...).build()}
      * (так делает и {@link chat.giga.springai.advisor.GigaChatCachingAdvisor}).
+     *
+     * <p>{@code @ToString.Exclude}: значения заголовков могут содержать секреты (proxy-auth, session,
+     * tracing), а {@code GigaChatModel} логирует весь Prompt на пустом ответе — не светим их в логах.
      */
+    @ToString.Exclude
     private @Nullable Map<String, String> httpHeaders;
 
     @Nullable

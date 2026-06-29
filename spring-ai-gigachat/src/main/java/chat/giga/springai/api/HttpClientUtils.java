@@ -7,7 +7,7 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import nl.altindag.ssl.SSLFactory;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.util.Assert;
 
 @UtilityClass

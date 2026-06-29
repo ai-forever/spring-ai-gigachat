@@ -393,7 +393,8 @@ public class GigaChatModel implements ChatModel {
                 .build();
     }
 
-    private Object getFunctionCall(GigaChatOptions requestOptions, List<ToolDefinition> toolDefinitions) {
+    private @Nullable Object getFunctionCall(
+            @Nullable GigaChatOptions requestOptions, List<ToolDefinition> toolDefinitions) {
         if (requestOptions == null) {
             return null;
         }
@@ -541,7 +542,7 @@ public class GigaChatModel implements ChatModel {
     }
 
     // Возвращает последнее пользовательское сообщение, или null, если их нет
-    private UserMessage getLastUserMessage(List<Message> messages) {
+    private @Nullable UserMessage getLastUserMessage(List<Message> messages) {
         for (int i = messages.size() - 1; i >= 0; i--) {
             if (messages.get(i) instanceof UserMessage msg) {
                 return msg;

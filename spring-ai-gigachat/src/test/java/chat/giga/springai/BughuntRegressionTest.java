@@ -5,14 +5,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.auth.GigaChatAuthProperties;
 import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.api.chat.GigachatLoggingInterceptor;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.embedding.EmbeddingsModel;
 import chat.giga.springai.api.chat.embedding.EmbeddingsRequest;
 import chat.giga.springai.api.chat.embedding.EmbeddingsResponse;
+import chat.giga.springai.tool.definition.GigaToolDefinition;
 import io.micrometer.observation.ObservationRegistry;
+import java.io.ByteArrayInputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import nl.altindag.ssl.SSLFactory;
@@ -21,10 +30,15 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.retry.RetryUtils;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.ClientHttpRequestExecution;
+import org.springframework.http.client.ClientHttpResponse;
 
 /**
  * Регресс-тесты bughunt: подтверждённые баги, найденные при аудите подсистем
@@ -158,6 +172,90 @@ class BughuntRegressionTest {
             assertThatThrownBy(() -> noopApi().chatCompletionStream(req))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("stream");
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // security — GigachatLoggingInterceptor НЕ должен светить секреты в DEBUG-логе (CWE-532).
+    // BearerTokenInterceptor проставляет Authorization до логгера; маскируем чувствительные заголовки.
+    // ----------------------------------------------------------------------------------------
+    @Nested
+    class LoggingHeaderRedaction {
+
+        @Test
+        @DisplayName("security: Authorization и Set-Cookie маскируются, секрет в лог не утекает")
+        void sensitiveHeaders_redacted() throws Exception {
+            Logger logger = (Logger) LoggerFactory.getLogger(GigachatLoggingInterceptor.class);
+            ListAppender<ILoggingEvent> appender = new ListAppender<>();
+            appender.start();
+            Level prev = logger.getLevel();
+            logger.setLevel(Level.DEBUG);
+            logger.addAppender(appender);
+            try {
+                HttpHeaders reqHeaders = new HttpHeaders();
+                reqHeaders.setBearerAuth("super-secret-token");
+                HttpRequest request = Mockito.mock(HttpRequest.class);
+                when(request.getURI()).thenReturn(URI.create("https://example/api"));
+                when(request.getHeaders()).thenReturn(reqHeaders);
+
+                HttpHeaders respHeaders = new HttpHeaders();
+                respHeaders.add(HttpHeaders.SET_COOKIE, "session=secret-cookie");
+                ClientHttpResponse response = Mockito.mock(ClientHttpResponse.class);
+                when(response.getHeaders()).thenReturn(respHeaders);
+                when(response.getBody()).thenReturn(new ByteArrayInputStream("{}".getBytes(StandardCharsets.UTF_8)));
+
+                ClientHttpRequestExecution execution = Mockito.mock(ClientHttpRequestExecution.class);
+                byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
+                when(execution.execute(request, body)).thenReturn(response);
+
+                new GigachatLoggingInterceptor().intercept(request, body, execution);
+
+                String log = appender.list.stream()
+                        .map(ILoggingEvent::getFormattedMessage)
+                        .reduce("", String::concat);
+                assertThat(log).contains("***REDACTED***");
+                assertThat(log).doesNotContain("super-secret-token");
+                assertThat(log).doesNotContain("secret-cookie");
+            } finally {
+                logger.detachAppender(appender);
+                logger.setLevel(prev);
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // security — httpHeaders (могут нести секреты) исключены из GigaChatOptions.toString(),
+    // т.к. GigaChatModel логирует весь Prompt на пустом ответе.
+    // ----------------------------------------------------------------------------------------
+    @Nested
+    class OptionsToStringRedaction {
+
+        @Test
+        @DisplayName("security: GigaChatOptions.toString() не содержит значений httpHeaders")
+        void httpHeaders_excludedFromToString() {
+            GigaChatOptions options = GigaChatOptions.builder()
+                    .httpHeaders("Authorization", "Bearer super-secret")
+                    .build();
+            assertThat(options.toString()).doesNotContain("super-secret");
+        }
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // api-contract — GigaToolDefinition должен быть иммутабельным: аксессор fewShotExamples()
+    // не должен отдавать живой ArrayList билдера (defensive copy через List.copyOf).
+    // ----------------------------------------------------------------------------------------
+    @Nested
+    class ToolDefinitionImmutability {
+
+        @Test
+        @DisplayName("api-contract: fewShotExamples() возвращает иммутабельный список")
+        void fewShotExamples_isImmutable() {
+            GigaToolDefinition def = GigaToolDefinition.builder()
+                    .name("tool")
+                    .description("desc")
+                    .inputSchema("{}")
+                    .build();
+            assertThatThrownBy(() -> def.fewShotExamples().add(null)).isInstanceOf(UnsupportedOperationException.class);
         }
     }
 }

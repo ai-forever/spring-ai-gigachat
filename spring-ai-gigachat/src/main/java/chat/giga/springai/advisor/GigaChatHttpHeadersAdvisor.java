@@ -16,7 +16,9 @@ import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 /**
- * Advisor, который перекладывает sessionId из контекста в запрос.
+ * Advisor, который перекладывает HTTP-заголовки из контекста запроса в {@link GigaChatOptions#getHttpHeaders()}.
+ * Берёт записи контекста с префиксом {@code http_header_} (см. {@link #httpHeader(String)}), снимает префикс и
+ * добавляет их к httpHeaders опций. Значение может быть {@link java.util.function.Supplier} (ленивое вычисление).
  */
 public class GigaChatHttpHeadersAdvisor implements CallAdvisor, StreamAdvisor {
     private static final String HTTP_HEADER_PREFIX = "http_header_";
