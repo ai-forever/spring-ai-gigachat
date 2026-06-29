@@ -35,11 +35,12 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
     /**
      * Collection of {@link ToolCallback}s to be used for tool calling in the chat
-     * completion requests.
+     * completion requests. По умолчанию {@code null} — как в {@code @Nullable}-контракте
+     * {@link ToolCallingChatOptions#getToolCallbacks()} и эталонном DefaultToolCallingChatOptions.
      */
-    private List<ToolCallback> toolCallbacks = new ArrayList<>();
+    private @Nullable List<ToolCallback> toolCallbacks;
 
-    private Map<String, Object> toolContext = new HashMap<>();
+    private @Nullable Map<String, Object> toolContext;
 
     private @Nullable FunctionCallMode functionCallMode;
 
@@ -87,12 +88,12 @@ public class GigaChatOptions implements ToolCallingChatOptions {
     }
 
     @Override
-    public List<ToolCallback> getToolCallbacks() {
+    public @Nullable List<ToolCallback> getToolCallbacks() {
         return this.toolCallbacks;
     }
 
     @Override
-    public Map<String, Object> getToolContext() {
+    public @Nullable Map<String, Object> getToolContext() {
         return this.toolContext;
     }
 
@@ -238,10 +239,11 @@ public class GigaChatOptions implements ToolCallingChatOptions {
             // ChatOptions fields: stopSequences/frequencyPenalty/presencePenalty/topK
             // не поддерживаются GigaChat API и намеренно не заполняются (см. геттеры выше).
 
-            // ToolCallingChatOptions fields (в Spring AI 2.0 GA остались только toolCallbacks + toolContext)
-            options.toolCallbacks =
-                    this.toolCallbacks == null ? new ArrayList<>() : new ArrayList<>(this.toolCallbacks);
-            options.toolContext = this.toolContext == null ? new HashMap<>() : new HashMap<>(this.toolContext);
+            // ToolCallingChatOptions fields (в Spring AI 2.0 GA остались только toolCallbacks + toolContext).
+            // Геттеры @Nullable по контракту интерфейса — сохраняем null, не коерсим в пустую коллекцию
+            // (фреймворк null-safe: DefaultToolCallingManager везде через CollectionUtils.isEmpty()).
+            options.toolCallbacks = this.toolCallbacks == null ? null : new ArrayList<>(this.toolCallbacks);
+            options.toolContext = this.toolContext == null ? null : new HashMap<>(this.toolContext);
 
             // GigaChat-specific fields
             options.functionCallMode = this.functionCallMode;
