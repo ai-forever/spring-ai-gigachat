@@ -7,6 +7,7 @@ import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.models.ModelDescription;
+import chat.giga.springai.image.GigaChatImageExtractorUtil;
 import chat.giga.springai.support.GigaRetryTemplate;
 import chat.giga.springai.tool.definition.GigaToolDefinition;
 import io.micrometer.observation.Observation;
@@ -49,11 +50,14 @@ import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.support.UsageCalculator;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.MimeType;
+import org.springframework.util.MimeTypeUtils;
 import reactor.core.publisher.Flux;
 
 @Slf4j
@@ -63,8 +67,11 @@ public class GigaChatModel implements ChatModel {
             new DefaultChatModelObservationConvention();
     public static final String INTERNAL_CONVERSATION_HISTORY = "GigaChatInternalConversationHistory";
     public static final String UPLOADED_MEDIA_IDS = "GigaChatUploadedMediaIds";
+    public static final String ASSISTANT_MEDIA_IDS = "GigaChatAssistantMediaIds";
     public static final ToolCallingManager DEFAULT_TOOL_CALLING_MANAGER =
             ToolCallingManager.builder().build();
+    // GigaChat всегда возвращает изображения только в формате JPEG
+    public static final MimeType GIGA_CHAT_IMAGE_MIME_TYPE = MimeTypeUtils.IMAGE_JPEG;
 
     /**
      * The lower-level API for the GigaChat service.
@@ -489,15 +496,45 @@ public class GigaChatModel implements ChatModel {
         } else {
             toolCalls = List.of();
         }
+        List<Media> medias = streaming ? List.of() : extractImageMediaFromTextContent(message.getContent());
+
         var assistantMessage = AssistantMessage.builder()
                 .content(message.getContent())
                 .toolCalls(toolCalls)
                 .properties(Collections.unmodifiableMap(metadata))
+                .media(medias)
                 .build();
-        var generationMetadata = ChatGenerationMetadata.builder()
-                .finishReason(choice.getFinishReason())
-                .build();
-        return new Generation(assistantMessage, generationMetadata);
+
+        var generationMetadataBuilder = ChatGenerationMetadata.builder().finishReason(choice.getFinishReason());
+
+        if (!medias.isEmpty()) {
+            generationMetadataBuilder.metadata(
+                    ASSISTANT_MEDIA_IDS, medias.stream().map(Media::getId).toList());
+        }
+
+        return new Generation(assistantMessage, generationMetadataBuilder.build());
+    }
+
+    private List<Media> extractImageMediaFromTextContent(@Nullable String content) {
+        List<Media> media = new ArrayList<>();
+
+        if (content != null) {
+            for (String fileId : GigaChatImageExtractorUtil.extract(content)) {
+                byte[] imageBytes = gigaChatApi.downloadFile(fileId);
+
+                if (imageBytes == null) {
+                    throw new IllegalStateException("Failed to download image for fileId: " + fileId);
+                }
+
+                media.add(Media.builder()
+                        .id(fileId)
+                        .mimeType(GIGA_CHAT_IMAGE_MIME_TYPE)
+                        .data(new ByteArrayResource(imageBytes))
+                        .build());
+            }
+        }
+
+        return media;
     }
 
     private ChatResponse buildChatResponseWithCustomMetadata(Prompt prompt, ChatResponse originalResponse) {
