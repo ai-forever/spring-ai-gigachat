@@ -30,6 +30,7 @@
 ## Содержание
 
 - [Требования](#требования)
+- [Совместимость версий и ветки](#совместимость-версий-и-ветки)
 - [Быстрый старт](#быстрый-старт)
 - [Конфигурация](#конфигурация)
 - [Способы авторизации](#способы-авторизации)
@@ -58,6 +59,21 @@
 - Spring Boot 4.0+
 - Spring AI 2.0
 
+## Совместимость версий и ветки
+
+| Версия библиотеки | Java | Spring Boot | Spring AI |                                        Ветка                                         |
+|-------------------|------|-------------|-----------|--------------------------------------------------------------------------------------|
+| 2.x               | 21+  | 4.x         | 2.x       | [release/2.x.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/2.x.x) |
+| 1.1.x             | 17+  | 3.4/3.5     | 1.x       | [release/1.1.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/1.1.x) |
+
+Правила ведения веток:
+
+- **`main`** — ветка разработки (develop): последние кумулятивные изменения, которые войдут в самый свежий релиз (сейчас — `release/2.x.x`). Pull request'ы по умолчанию адресуйте в `main`.
+- **`release/2.x.x`** — релизная ветка под Spring Boot 4 и Spring AI 2.x.
+- **`release/1.1.x`** — релизная ветка под Spring Boot 3 и Spring AI 1.x.
+  Доработки принимаются до **30 июня 2026** ([окончание поддержки Spring Framework 6 и Spring Boot 3](https://endoflife.date/spring-framework)),
+  после этой даты — только исправления критичных CVE и критичных дефектов.
+
 ## Быстрый старт
 
 Для работы с библиотекой вам понадобится ключ авторизации API.
@@ -77,7 +93,7 @@
 <dependency>
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-starter-model-gigachat</artifactId>
-    <version>1.1.2</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 
