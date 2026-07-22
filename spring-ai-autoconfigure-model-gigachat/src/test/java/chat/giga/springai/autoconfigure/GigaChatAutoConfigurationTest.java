@@ -1,6 +1,5 @@
 package chat.giga.springai.autoconfigure;
 
-import static chat.giga.springai.autoconfigure.GigaChatEmbeddingProperties.DEFAULT_EMBEDDINGS_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
@@ -18,19 +17,19 @@ import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.model.tool.autoconfigure.ToolCallingAutoConfiguration;
 import org.springframework.ai.retry.autoconfigure.SpringAiRetryAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.autoconfigure.http.client.reactive.ClientHttpConnectorAutoConfiguration;
 import org.springframework.boot.autoconfigure.ssl.SslAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
-import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientAutoConfiguration;
+import org.springframework.boot.http.client.autoconfigure.reactive.ReactiveHttpClientAutoConfiguration;
+import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.webclient.autoconfigure.WebClientAutoConfiguration;
 
 public class GigaChatAutoConfigurationTest {
 
     AutoConfigurations gigaChatOnlyAutoConfigurations = AutoConfigurations.of(GigaChatAutoConfiguration.class);
     AutoConfigurations sslBundlesAutoConfigurations = AutoConfigurations.of(
-            GigaChatAutoConfiguration.class, SslAutoConfiguration.class, ClientHttpConnectorAutoConfiguration.class);
+            GigaChatAutoConfiguration.class, SslAutoConfiguration.class, ReactiveHttpClientAutoConfiguration.class);
     AutoConfigurations gigaChatFullAutoConfigurations = AutoConfigurations.of(
             GigaChatAutoConfiguration.class,
             SpringAiRetryAutoConfiguration.class,
@@ -38,7 +37,7 @@ public class GigaChatAutoConfigurationTest {
             WebClientAutoConfiguration.class,
             ToolCallingAutoConfiguration.class,
             SslAutoConfiguration.class,
-            ClientHttpConnectorAutoConfiguration.class);
+            ReactiveHttpClientAutoConfiguration.class);
 
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
@@ -60,15 +59,13 @@ public class GigaChatAutoConfigurationTest {
             assertThat(context).hasSingleBean(GigaChatImageProperties.class);
 
             GigaChatChatProperties chatProperties = context.getBean(GigaChatChatProperties.class);
-            assertThat(chatProperties.getOptions().getModel()).isEqualTo("GigaChat-2");
-            assertThat(chatProperties.getOptions().getTemperature()).isNull();
-            assertThat(chatProperties.getOptions().getTopP()).isNull();
-            assertThat(chatProperties.getOptions().getMaxTokens()).isNull();
-            assertThat(chatProperties.getOptions().getRepetitionPenalty()).isNull();
+            assertThat(chatProperties.getModel()).isEqualTo("GigaChat-2");
+            assertThat(chatProperties.getTemperature()).isNull();
+            assertThat(chatProperties.getTopP()).isNull();
+            assertThat(chatProperties.getMaxTokens()).isNull();
+            assertThat(chatProperties.getRepetitionPenalty()).isNull();
 
             GigaChatEmbeddingProperties embeddingProperties = context.getBean(GigaChatEmbeddingProperties.class);
-            assertThat(embeddingProperties.isEnabled()).isTrue();
-            assertThat(embeddingProperties.getEmbeddingsPath()).isEqualTo(DEFAULT_EMBEDDINGS_PATH);
             assertThat(embeddingProperties.getMetadataMode()).isEqualTo(MetadataMode.EMBED);
             assertThat(embeddingProperties.getOptions().getModel()).isEqualTo("Embeddings");
             assertThat(embeddingProperties.getOptions().getDimensions()).isNull();
@@ -76,23 +73,76 @@ public class GigaChatAutoConfigurationTest {
     }
 
     @Test
+    @DisplayName("Конвенция: spring.ai.model.embedding=none отключает только эмбеддинг-бин (chat остаётся)")
+    void embeddingDeselected_noEmbeddingModelBean() {
+        contextRunner.withPropertyValues("spring.ai.model.embedding=none").run(context -> {
+            assertThat(context).doesNotHaveBean(GigaChatEmbeddingModel.class);
+            // chat и остальные бины при этом продолжают создаваться (развязаны по провайдеру)
+            assertThat(context).hasSingleBean(GigaChatModel.class);
+            assertThat(context).hasSingleBean(GigaChatEmbeddingProperties.class);
+        });
+    }
+
+    @Test
+    @DisplayName("Развязка: spring.ai.model.chat=none НЕ отключает embedding/image (раньше класс-гейт глушил всё)")
+    void chatDeselected_keepsEmbeddingAndImage() {
+        contextRunner.withPropertyValues("spring.ai.model.chat=none").run(context -> {
+            assertThat(context).doesNotHaveBean(GigaChatModel.class);
+            assertThat(context).hasSingleBean(GigaChatEmbeddingModel.class);
+            assertThat(context).hasSingleBean(GigaChatImageModel.class);
+        });
+    }
+
+    @Test
+    @DisplayName("#14: spring.ai.gigachat.embedding.metadata-mode связывается из конфигурации")
+    void embeddingMetadataMode_isBound() {
+        contextRunner
+                .withPropertyValues("spring.ai.gigachat.embedding.metadata-mode=NONE")
+                .run(context -> {
+                    GigaChatEmbeddingProperties embeddingProperties =
+                            context.getBean(GigaChatEmbeddingProperties.class);
+                    assertThat(embeddingProperties.getMetadataMode()).isEqualTo(MetadataMode.NONE);
+                    assertThat(context).hasSingleBean(GigaChatEmbeddingModel.class);
+                });
+    }
+
+    @Test
     @DisplayName("Тест проверяет автоконфигурацию кастомных параметров Chat модели")
     void customChatPropertiesAutoConfigurationTest() {
         contextRunner
                 .withPropertyValues(
-                        "spring.ai.gigachat.chat.options.model=GigaChat-2-Max",
-                        "spring.ai.gigachat.chat.options.temperature=0.7",
-                        "spring.ai.gigachat.chat.options.top-p=0.5",
-                        "spring.ai.gigachat.chat.options.max-tokens=200",
-                        "spring.ai.gigachat.chat.options.repetition-penalty=2.0")
+                        "spring.ai.gigachat.chat.model=GigaChat-2-Max",
+                        "spring.ai.gigachat.chat.temperature=0.7",
+                        "spring.ai.gigachat.chat.top-p=0.5",
+                        "spring.ai.gigachat.chat.max-tokens=200",
+                        "spring.ai.gigachat.chat.repetition-penalty=2.0")
                 .run(context -> {
                     GigaChatChatProperties chatProperties = context.getBean(GigaChatChatProperties.class);
-                    assertThat(chatProperties.getOptions().getModel()).isEqualTo("GigaChat-2-Max");
-                    assertThat(chatProperties.getOptions().getTemperature()).isEqualTo(0.7);
-                    assertThat(chatProperties.getOptions().getTopP()).isEqualTo(0.5);
-                    assertThat(chatProperties.getOptions().getMaxTokens()).isEqualTo(200);
-                    assertThat(chatProperties.getOptions().getRepetitionPenalty())
-                            .isEqualTo(2.0);
+                    assertThat(chatProperties.getModel()).isEqualTo("GigaChat-2-Max");
+                    assertThat(chatProperties.getTemperature()).isEqualTo(0.7);
+                    assertThat(chatProperties.getTopP()).isEqualTo(0.5);
+                    assertThat(chatProperties.getMaxTokens()).isEqualTo(200);
+                    assertThat(chatProperties.getRepetitionPenalty()).isEqualTo(2.0);
+                });
+    }
+
+    @Test
+    @DisplayName("Тест проверяет автоконфигурацию deprecated параметров через options")
+    void legacyChatPropertiesAutoConfigurationTest() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.ai.gigachat.chat.options.model=GigaChat-2-Legacy",
+                        "spring.ai.gigachat.chat.options.temperature=0.8",
+                        "spring.ai.gigachat.chat.options.top-p=0.6",
+                        "spring.ai.gigachat.chat.options.max-tokens=150",
+                        "spring.ai.gigachat.chat.options.repetition-penalty=1.5")
+                .run(context -> {
+                    GigaChatChatProperties chatProperties = context.getBean(GigaChatChatProperties.class);
+                    assertThat(chatProperties.getModel()).isEqualTo("GigaChat-2-Legacy");
+                    assertThat(chatProperties.getTemperature()).isEqualTo(0.8);
+                    assertThat(chatProperties.getTopP()).isEqualTo(0.6);
+                    assertThat(chatProperties.getMaxTokens()).isEqualTo(150);
+                    assertThat(chatProperties.getRepetitionPenalty()).isEqualTo(1.5);
                 });
     }
 
@@ -106,7 +156,6 @@ public class GigaChatAutoConfigurationTest {
                 .run(context -> {
                     GigaChatEmbeddingProperties embeddingProperties =
                             context.getBean(GigaChatEmbeddingProperties.class);
-                    assertThat(embeddingProperties.isEnabled()).isTrue();
                     assertThat(embeddingProperties.getOptions().getModel()).isEqualTo("Embeddings-2");
                     assertThat(embeddingProperties.getOptions().getDimensions()).isEqualTo(1024);
                 });

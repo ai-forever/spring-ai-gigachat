@@ -41,6 +41,8 @@ public record GigaToolDefinition(
         Assert.hasText(description, "description cannot be null or empty");
         Assert.hasText(inputSchema, "inputSchema cannot be null or empty");
         Assert.noNullElements(fewShotExamples, "fewShotExamples cannot contain null elements");
+        // Record должен быть иммутабельным: без копии аксессор отдаёт живой ArrayList из Builder.
+        fewShotExamples = List.copyOf(fewShotExamples);
         if (!StringUtils.hasText(outputSchema)) {
             outputSchema = null;
         }

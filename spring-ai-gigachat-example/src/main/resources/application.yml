@@ -19,10 +19,9 @@ spring:
         scope: ${GIGACHAT_API_SCOPE}
         unsafe-ssl: true
       chat:
-        options:
-          model: GigaChat-2
-          http-headers:
-            x-client-id: ${spring.application.name}
+        model: GigaChat-2
+        http-headers:
+          x-client-id: ${spring.application.name}
 
 logging:
   level:

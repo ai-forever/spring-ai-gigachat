@@ -1,5 +1,6 @@
 package chat.giga.springai.autoconfigure;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
@@ -12,15 +13,18 @@ import chat.giga.springai.GigaChatModel;
 import chat.giga.springai.image.GigaChatImageModel;
 import chat.giga.springai.image.GigaChatImageOptions;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.image.ImageMessage;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.image.ImageResponse;
+import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -68,6 +72,45 @@ public class GigaChatAutoConfigurationIT {
                 new EmbeddingRequest(List.of("Привет, как дела?"), gigaChatEmbeddingProperties.getOptions());
         final EmbeddingResponse embeddingResponse = gigaChatEmbeddingModel.call(embeddingRequest);
         assertThat("Запрос в embeddingModel", embeddingResponse, is(not(nullValue())));
+    }
+
+    /**
+     * Ключевая проверка миграции PATH A: в Spring AI 2.0 GA исполнение инструментов выполняет
+     * ChatClient (ToolCallingAdvisor), а не in-model цикл (он удалён). Тест подтверждает на реальном
+     * API, что полный round-trip с вызовом инструмента работает через ChatClient: инструмент реально
+     * вызывается, а его результат попадает в финальный ответ.
+     */
+    @Test
+    @DisplayName("PATH A: полный tool-calling round-trip через ChatClient на реальном API")
+    void toolCallingThroughChatClientTest() {
+        WeatherTools weatherTools = new WeatherTools();
+        ChatClient chatClient = ChatClient.create(gigaChatModel);
+
+        String answer = chatClient
+                .prompt()
+                .user("Какая сейчас погода в городе Сочи? Обязательно используй доступный инструмент.")
+                .tools(weatherTools)
+                .call()
+                .content();
+
+        log.info("Ответ модели с инструментом: {}", answer);
+        assertThat(weatherTools.calls.get())
+                .as("инструмент должен быть исполнен ChatClient'ом (PATH A: in-model цикл удалён)")
+                .isPositive();
+        assertThat(answer).isNotBlank();
+        // результат инструмента (магическое значение) должен отразиться в финальном ответе модели
+        assertThat(answer).containsIgnoringCase("42");
+    }
+
+    public static class WeatherTools {
+        private final AtomicInteger calls = new AtomicInteger();
+
+        @Tool(description = "Возвращает текущую температуру в указанном городе в градусах Цельсия")
+        public String currentTemperature(String city) {
+            calls.incrementAndGet();
+            log.info("Инструмент currentTemperature вызван для города: {}", city);
+            return "В городе " + city + " сейчас ровно 42 градуса Цельсия";
+        }
     }
 
     @Test

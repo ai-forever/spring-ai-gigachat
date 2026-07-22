@@ -43,7 +43,9 @@ public class EmbeddingsResponse {
 
         @Override
         public Integer getCompletionTokens() {
-            return promptTokens;
+            // У эмбеддингов нет генерации, completion-токенов не бывает.
+            // Возврат promptTokens приводил к удвоению totalTokens (см. Usage#getTotalTokens).
+            return 0;
         }
 
         @Override

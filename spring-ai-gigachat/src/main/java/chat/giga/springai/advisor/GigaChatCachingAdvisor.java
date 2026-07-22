@@ -1,9 +1,7 @@
 package chat.giga.springai.advisor;
 
 import chat.giga.springai.GigaChatOptions;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.ai.chat.client.ChatClientRequest;
 import org.springframework.ai.chat.client.ChatClientResponse;
 import org.springframework.ai.chat.client.advisor.api.CallAdvisor;
@@ -11,7 +9,6 @@ import org.springframework.ai.chat.client.advisor.api.CallAdvisorChain;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
 import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 
 /**
@@ -22,7 +19,7 @@ public class GigaChatCachingAdvisor implements CallAdvisor, StreamAdvisor {
 
     @Override
     public ChatClientResponse adviseCall(ChatClientRequest chatClientRequest, CallAdvisorChain callAdvisorChain) {
-        fillOptions(chatClientRequest);
+        chatClientRequest = fillOptions(chatClientRequest);
 
         return callAdvisorChain.nextCall(chatClientRequest);
     }
@@ -30,7 +27,7 @@ public class GigaChatCachingAdvisor implements CallAdvisor, StreamAdvisor {
     @Override
     public Flux<ChatClientResponse> adviseStream(
             ChatClientRequest chatClientRequest, StreamAdvisorChain streamAdvisorChain) {
-        fillOptions(chatClientRequest);
+        chatClientRequest = fillOptions(chatClientRequest);
 
         return streamAdvisorChain.nextStream(chatClientRequest);
     }
@@ -45,20 +42,25 @@ public class GigaChatCachingAdvisor implements CallAdvisor, StreamAdvisor {
         return 0;
     }
 
-    private void fillOptions(ChatClientRequest chatClientRequest) {
-        Optional.of(chatClientRequest.prompt())
-                .map(Prompt::getOptions)
-                .map(GigaChatOptions.class::cast)
-                .ifPresent(it -> {
-                    String sessionId = (String) chatClientRequest.context().get(X_SESSION_ID);
-                    if (sessionId != null) {
-                        Map<String, String> httpHeaders = new HashMap<>();
-                        if (!CollectionUtils.isEmpty(it.getHttpHeaders())) {
-                            httpHeaders.putAll(it.getHttpHeaders());
-                        }
-                        httpHeaders.put(X_SESSION_ID, sessionId);
-                        it.setHttpHeaders(httpHeaders);
-                    }
-                });
+    private ChatClientRequest fillOptions(ChatClientRequest request) {
+        // защитный instanceof вместо жёсткого cast: если опции не GigaChatOptions, просто пропускаем
+        if (!(request.prompt().getOptions() instanceof GigaChatOptions chatOptions)) {
+            return request;
+        }
+
+        String sessionId = (String) request.context().get(X_SESSION_ID);
+        if (sessionId == null) {
+            return request;
+        }
+
+        // httpHeaders теперь immutable (Map.copyOf в build()) — не мутируем живую мапу, а строим новые
+        // опции через mutate()/build() (как GigaChatHttpHeadersAdvisor). Сеттер мержит заголовок поверх.
+        GigaChatOptions newOptions = chatOptions
+                .mutate()
+                .httpHeaders(Map.of(X_SESSION_ID, sessionId))
+                .build();
+        Prompt newPrompt = request.prompt().mutate().chatOptions(newOptions).build();
+
+        return request.mutate().prompt(newPrompt).build();
     }
 }

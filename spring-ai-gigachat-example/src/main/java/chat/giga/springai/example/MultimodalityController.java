@@ -29,8 +29,7 @@ public class MultimodalityController {
         this.gigaChatApi = gigaChatApi;
         this.chatClient = chatClientBuilder
                 .defaultAdvisors(new SimpleLoggerAdvisor())
-                .defaultOptions(
-                        GigaChatOptions.builder().model("GigaChat-2-Max").build())
+                .defaultOptions(GigaChatOptions.builder().model("GigaChat-2-Max"))
                 .build();
     }
 

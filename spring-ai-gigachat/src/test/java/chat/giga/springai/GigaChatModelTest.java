@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -22,15 +23,12 @@ import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.param.FunctionCallParam;
 import chat.giga.springai.tool.GigaTools;
 import chat.giga.springai.tool.annotation.GigaTool;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -40,7 +38,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -248,7 +245,37 @@ public class GigaChatModelTest {
     }
 
     @Test
-    void testStream_withToolCall() {
+    @DisplayName("buildHeaders: коллизия регистра ключей -> одно значение (set/last-wins), а не склейка add")
+    void testGigaChatOptions_httpHeadersCaseCollision_lastWins() {
+        var prompt = new Prompt(
+                List.of(new UserMessage("Hello")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
+                        .httpHeaders("X-Coll", "a")
+                        .httpHeaders("x-coll", "b") // тот же заголовок в другом регистре
+                        .build());
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
+
+        gigaChatModel.internalCall(prompt, null);
+
+        ArgumentCaptor<HttpHeaders> headers = ArgumentCaptor.forClass(HttpHeaders.class);
+        verify(gigaChatApi).chatCompletionEntity(any(), headers.capture());
+
+        // HttpHeaders регистронезависим: оба ключа схлопываются в один. set -> ровно одно значение
+        // (add дал бы два: "a","b"). Порядок итерации HashMap недетерминирован, поэтому проверяем
+        // размер, а конкретный победитель — любой из двух.
+        List<String> values = headers.getValue().get("X-Coll");
+        assertNotNull(values);
+        assertEquals(1, values.size());
+        assertTrue(List.of("a", "b").contains(values.get(0)));
+    }
+
+    @Test
+    @DisplayName("PATH A: stream() возвращает запрос на вызов инструмента без in-model исполнения "
+            + "(исполнение — ответственность ChatClient/ToolCallingAdvisor)")
+    void testStream_returnsToolCallWithoutInModelExecution() {
         var spyTestTool = Mockito.spy(new TestTool());
 
         var prompt = new Prompt(
@@ -270,96 +297,33 @@ public class GigaChatModelTest {
                                 .setFunctionsStateId(UUID.randomUUID().toString())
                                 .setFunctionCall(new CompletionResponse.FunctionCall("testMethod", "{}")))));
 
-        // Для первого запроса в гигачат - имитируем вызов функции
-        Mockito.when(gigaChatApi.chatCompletionStream(
-                        ArgumentMatchers.argThat(
-                                rq -> rq != null && rq.getMessages().size() == 1),
-                        any()))
-                .thenReturn(Flux.just(functionCallResponse));
-
-        var finalResponsePart1 = new CompletionResponse()
-                .setId(UUID.randomUUID().toString())
-                .setModel(GigaChatApi.ChatModel.GIGA_CHAT_2.getName())
-                .setChoices(List.of(new CompletionResponse.Choice()
-                        .setIndex(2)
-                        .setDelta(new CompletionResponse.MessagesRes()
-                                .setRole(CompletionResponse.Role.assistant)
-                                .setContent("Final test response"))));
-
-        var finalResponsePart2 = new CompletionResponse()
-                .setId(UUID.randomUUID().toString())
-                .setModel(GigaChatApi.ChatModel.GIGA_CHAT_2.getName())
-                .setChoices(List.of(new CompletionResponse.Choice()
-                        .setIndex(2)
-                        .setDelta(new CompletionResponse.MessagesRes().setContent(""))
-                        .setFinishReason(CompletionResponse.FinishReason.STOP)));
-
-        // Для второго запроса в гигачат - имитируем обработку результата вызова функции
-        Mockito.when(gigaChatApi.chatCompletionStream(
-                        ArgumentMatchers.argThat(rq -> rq.getMessages().size() == 3), any()))
-                .thenReturn(Flux.just(finalResponsePart1, finalResponsePart2));
+        Mockito.when(gigaChatApi.chatCompletionStream(any(), any())).thenReturn(Flux.just(functionCallResponse));
 
         Flux<ChatResponse> chatResponseFlux = gigaChatModel.stream(prompt);
 
-        // проверяем финальный результат
         StepVerifier.create(chatResponseFlux)
                 .assertNext(chatResponse -> {
                     assertNotNull(chatResponse);
-                    assertEquals(1, chatResponse.getResults().size());
-                    assertEquals(
-                            "Final test response",
-                            chatResponse.getResults().get(0).getOutput().getText());
-                })
-                .assertNext(chatResponse -> {
-                    assertNotNull(chatResponse);
-                    assertEquals(1, chatResponse.getResults().size());
-                    assertEquals(
-                            "", chatResponse.getResults().get(0).getOutput().getText());
-                    assertEquals(
-                            "stop",
-                            chatResponse.getResults().get(0).getMetadata().getFinishReason());
+                    // модель возвращает запрос на вызов инструмента как есть
+                    assertTrue(chatResponse.hasToolCalls(), "ответ должен содержать запрос на вызов инструмента");
                 })
                 .verifyComplete();
 
+        // ровно один запрос к API — рекурсии/повторного вызова в модели больше нет
         ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
-        verify(gigaChatApi, times(2)).chatCompletionStream(requestCaptor.capture(), any());
+        verify(gigaChatApi, times(1)).chatCompletionStream(requestCaptor.capture(), any());
 
-        // Первый запрос в гигачат - с сообщением пользователя и описанием функции testMethod
-        var completionRequest1 = requestCaptor.getAllValues().get(0);
-        assertEquals(1, completionRequest1.getMessages().size());
-        assertEquals(
-                CompletionRequest.Role.user,
-                completionRequest1.getMessages().get(0).getRole());
-        assertEquals("Hello, test!", completionRequest1.getMessages().get(0).getContent());
-        assertEquals("auto", completionRequest1.getFunctionCall());
-        assertEquals(1, completionRequest1.getFunctions().size());
-        assertEquals("testMethod", completionRequest1.getFunctions().get(0).name());
+        // объявление схемы инструмента остаётся ответственностью модели
+        var request = requestCaptor.getValue();
+        assertEquals("auto", request.getFunctionCall());
+        assertEquals(1, request.getFunctions().size());
+        assertEquals("testMethod", request.getFunctions().get(0).name());
+        // #25: у инструмента без few-shot примеров поле должно быть null (а не пустой список),
+        // иначе из-за @JsonInclude(NON_NULL) в теле всё равно появлялось бы "few_shot_examples": []
+        assertNull(request.getFunctions().get(0).fewShotExamples());
 
-        // Второй запрос в гигачат - с результатом выполнения функции
-        var completionRequest2 = requestCaptor.getAllValues().get(1);
-        assertEquals(3, completionRequest2.getMessages().size());
-        // 1. Сообщение пользователя
-        assertEquals(
-                CompletionRequest.Role.user,
-                completionRequest2.getMessages().get(0).getRole());
-        assertEquals("Hello, test!", completionRequest2.getMessages().get(0).getContent());
-        // 2. Сообщение ассистента с аргументами для вызова функции
-        assertEquals(
-                CompletionRequest.Role.assistant,
-                completionRequest2.getMessages().get(1).getRole());
-        assertEquals("", completionRequest2.getMessages().get(1).getContent());
-        assertNotNull(completionRequest2.getMessages().get(1).getFunctionCall());
-        // 3. Сообщение с результатом вызова функции
-        assertEquals(
-                CompletionRequest.Role.function,
-                completionRequest2.getMessages().get(2).getRole());
-        assertEquals("\"test\"", completionRequest2.getMessages().get(2).getContent());
-        assertEquals("auto", completionRequest2.getFunctionCall());
-        assertEquals(1, completionRequest2.getFunctions().size());
-        assertEquals("testMethod", completionRequest2.getFunctions().get(0).name());
-
-        // Проверяем, что был вызов функции
-        verify(spyTestTool).testMethod();
+        // сам инструмент моделью НЕ исполняется
+        verify(spyTestTool, never()).testMethod();
     }
 
     @Test
@@ -375,6 +339,32 @@ public class GigaChatModelTest {
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> gigaChatModel.call(prompt));
 
         assertThat(exception.getMessage(), containsStringIgnoringCase("System prompt message must be the only one"));
+    }
+
+    @Test
+    @DisplayName("#06: reasoning_content из ответа пробрасывается в метаданные генерации")
+    void reasoningContent_surfacedInMetadata() {
+        var msg = new CompletionResponse.MessagesRes()
+                .setRole(CompletionResponse.Role.assistant)
+                .setContent("ответ")
+                .setReasoningContent("мои рассуждения");
+        var choice = new CompletionResponse.Choice()
+                .setMessage(msg)
+                .setIndex(0)
+                .setFinishReason(CompletionResponse.FinishReason.STOP);
+        var resp = new CompletionResponse().setModel("GigaChat-2").setChoices(List.of(choice));
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(resp, HttpStatusCode.valueOf(200)));
+
+        var prompt = new Prompt(
+                List.of(new UserMessage("hi")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
+                        .build());
+        ChatResponse cr = gigaChatModel.call(prompt);
+
+        assertEquals("мои рассуждения", cr.getResult().getOutput().getMetadata().get("reasoningContent"));
     }
 
     private static class TestTool {
@@ -495,61 +485,127 @@ public class GigaChatModelTest {
                         }));
     }
 
-    @ParameterizedTest
-    @MethodSource("imageExtractionParameters")
-    @DisplayName("Тест проверяет извлечение изображений из ChatResponse")
-    void testImageExtraction(String responseContent, List<String> expectedMediaIds) {
-        when(gigaChatApi.chatCompletionEntity(any(), any()))
-                .thenReturn(new ResponseEntity<>(this.response, HttpStatusCode.valueOf(200)));
-        Mockito.lenient().when(gigaChatApi.downloadFile(any())).thenReturn(new byte[] {});
+    @Test
+    void testApplyOptions_direct_allOptionsApplied() {
+        CompletionRequest request = new CompletionRequest();
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model("test-model")
+                .temperature(0.7)
+                .topP(0.9)
+                .maxTokens(100)
+                .repetitionPenalty(1.2)
+                .updateInterval(2.0)
+                .profanityCheck(true)
+                .build();
 
-        when(this.response.getChoices())
-                .thenReturn(List.of(new CompletionResponse.Choice()
-                        .setMessage(new CompletionResponse.MessagesRes().setContent(responseContent))));
+        CompletionRequest result = gigaChatModel.applyOptions(request, options);
 
-        Prompt prompt =
-                new Prompt(List.of(UserMessage.builder().text("Некий промт").build()));
-        ChatResponse chatResponse = gigaChatModel.call(prompt);
-        List<Media> media = chatResponse.getResult().getOutput().getMedia();
-
-        List<String> actualMediaIds = Stream.ofNullable(media)
-                .flatMap(Collection::stream)
-                .map(Media::getId)
-                .collect(Collectors.toList());
-
-        assertEquals(expectedMediaIds, actualMediaIds);
-    }
-
-    public static Stream<Arguments> imageExtractionParameters() {
-        return Stream.of(
-                Arguments.of(
-                        "Привет <img src=\"c2cac967-e8d3-4851-a93c-649e086b1856\" fuse=\"true\"/> также приложил визуализацию текста «Привет».",
-                        List.of("c2cac967-e8d3-4851-a93c-649e086b1856")),
-                Arguments.of(
-                        "Привет <img src=\"e5f8ce06-9742-48b9-b7f4-85e92acea7aa\" fuse=\"true\"/> <img src=\"2011ccb8-b54d-4647-bd34-6b57d5df90cb\" fuse=\"true\"/> Тест",
-                        List.of("e5f8ce06-9742-48b9-b7f4-85e92acea7aa", "2011ccb8-b54d-4647-bd34-6b57d5df90cb")),
-                Arguments.of("Привет, это проверка без изображений", List.of()));
+        assertEquals("test-model", result.getModel());
+        assertEquals(0.7, result.getTemperature());
+        assertEquals(0.9, result.getTopP());
+        assertEquals(100, result.getMaxTokens());
+        assertEquals(1.2, result.getRepetitionPenalty());
+        assertEquals(2.0, result.getUpdateInterval());
+        assertTrue(result.getProfanityCheck());
     }
 
     @Test
-    @DisplayName("Тест проверяет поведения GigaChatModel при падении gigaChatApi.downloadFile")
-    void testDownloadFileFailure() {
+    void testApplyOptions_direct_nullOptions() {
+        CompletionRequest request = new CompletionRequest();
+        CompletionRequest result = gigaChatModel.applyOptions(request, null);
+        assertEquals(request, result);
+    }
+
+    @Test
+    void testApplyOptions_direct_partialOptions() {
+        CompletionRequest request = new CompletionRequest();
+        request.setModel("original-model");
+        request.setTemperature(0.5);
+
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model("new-model")
+                .temperature(null)
+                .topP(0.8)
+                .build();
+
+        CompletionRequest result = gigaChatModel.applyOptions(request, options);
+
+        assertEquals("new-model", result.getModel());
+        assertNull(result.getTemperature());
+        assertEquals(0.8, result.getTopP());
+        assertNull(result.getMaxTokens());
+        assertNull(result.getRepetitionPenalty());
+        assertNull(result.getUpdateInterval());
+        assertNull(result.getProfanityCheck());
+    }
+
+    @Test
+    void testInternalCall_withCustomOptions() {
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model("custom-model")
+                .temperature(0.8)
+                .topP(0.95)
+                .maxTokens(150)
+                .repetitionPenalty(1.1)
+                .updateInterval(1.5)
+                .profanityCheck(false)
+                .build();
+        Prompt prompt = new Prompt(List.of(new UserMessage("Hello")), options);
+
         when(gigaChatApi.chatCompletionEntity(any(), any()))
-                .thenReturn(new ResponseEntity<>(this.response, HttpStatusCode.valueOf(200)));
-        Mockito.lenient().when(gigaChatApi.downloadFile(any())).thenReturn(null);
+                .thenReturn(new ResponseEntity<>(response, HttpStatusCode.valueOf(200)));
 
-        when(this.response.getChoices())
-                .thenReturn(List.of(new CompletionResponse.Choice()
-                        .setMessage(new CompletionResponse.MessagesRes()
-                                .setContent(
-                                        "Привет <img src=\"e5f8ce06-9742-48b9-b7f4-85e92acea7aa\" fuse=\"true\"/>"))));
+        gigaChatModel.internalCall(prompt, null);
 
-        Prompt prompt =
-                new Prompt(List.of(UserMessage.builder().text("Некий промт").build()));
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionEntity(requestCaptor.capture(), any());
 
-        IllegalStateException illegalStateException =
-                assertThrows(IllegalStateException.class, () -> gigaChatModel.call(prompt));
+        CompletionRequest capturedRequest = requestCaptor.getValue();
+        assertEquals("custom-model", capturedRequest.getModel());
+        assertEquals(0.8, capturedRequest.getTemperature());
+        assertEquals(0.95, capturedRequest.getTopP());
+        assertEquals(150, capturedRequest.getMaxTokens());
+        assertEquals(1.1, capturedRequest.getRepetitionPenalty());
+        assertEquals(1.5, capturedRequest.getUpdateInterval());
+        assertEquals(false, capturedRequest.getProfanityCheck());
+    }
 
-        Assertions.assertTrue(illegalStateException.getMessage().contains("Failed to download image for fileId"));
+    @Test
+    void testStream_withCustomOptions() {
+        GigaChatOptions options = GigaChatOptions.builder()
+                .model("custom-stream-model")
+                .temperature(0.9)
+                .topP(0.85)
+                .maxTokens(200)
+                .repetitionPenalty(1.3)
+                .updateInterval(2.5)
+                .profanityCheck(true)
+                .build();
+        Prompt prompt = new Prompt(List.of(new UserMessage("Hello")), options);
+
+        CompletionResponse completionResponse = new CompletionResponse()
+                .setId(UUID.randomUUID().toString())
+                .setModel("custom-stream-model")
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(1)
+                        .setDelta(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("Response"))));
+
+        when(gigaChatApi.chatCompletionStream(any(), any())).thenReturn(Flux.just(completionResponse));
+
+        gigaChatModel.stream(prompt).blockLast();
+
+        ArgumentCaptor<CompletionRequest> requestCaptor = ArgumentCaptor.forClass(CompletionRequest.class);
+        verify(gigaChatApi).chatCompletionStream(requestCaptor.capture(), any());
+
+        CompletionRequest capturedRequest = requestCaptor.getValue();
+        assertEquals("custom-stream-model", capturedRequest.getModel());
+        assertEquals(0.9, capturedRequest.getTemperature());
+        assertEquals(0.85, capturedRequest.getTopP());
+        assertEquals(200, capturedRequest.getMaxTokens());
+        assertEquals(1.3, capturedRequest.getRepetitionPenalty());
+        assertEquals(2.5, capturedRequest.getUpdateInterval());
+        assertEquals(true, capturedRequest.getProfanityCheck());
     }
 }

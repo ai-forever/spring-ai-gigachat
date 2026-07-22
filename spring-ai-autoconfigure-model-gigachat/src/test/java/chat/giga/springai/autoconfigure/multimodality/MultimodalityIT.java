@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
 import chat.giga.springai.GigaChatModel;
+import chat.giga.springai.autoconfigure.GigaChatAuthTestProperties;
 import chat.giga.springai.autoconfigure.GigaChatAutoConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,32 +24,31 @@ public class MultimodalityIT {
 
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+            .withPropertyValues(GigaChatAuthTestProperties.fromEnv())
             .withPropertyValues(
-                    "spring.ai.gigachat.auth.scope=" + System.getenv("GIGACHAT_API_SCOPE"),
-                    "spring.ai.gigachat.auth.bearer.client-id=" + System.getenv("GIGACHAT_API_CLIENT_ID"),
-                    "spring.ai.gigachat.auth.bearer.client-secret=" + System.getenv("GIGACHAT_API_CLIENT_SECRET"),
-                    "spring.ai.gigachat.auth.unsafe-ssl=true",
-                    "spring.ai.gigachat.chat.options.model=GigaChat-2-Max");
+                    "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat");
 
     @Test
     @DisplayName("Тест проверяет, что доступна мультимодальность модели для вызова на примере vision")
     void givenPromptWithImage_whenCallChatModel_thenVisionCallIsSuccess() {
-        contextRunner.run(context -> {
-            GigaChatModel gigaChatModel = context.getBean(GigaChatModel.class);
+        contextRunner
+                .withPropertyValues("spring.ai.gigachat.chat.options.model=GigaChat-2-Max")
+                .run(context -> {
+                    GigaChatModel gigaChatModel = context.getBean(GigaChatModel.class);
 
-            var imageResource = new ClassPathResource("/multimodality/cat.png");
+                    var imageResource = new ClassPathResource("/multimodality/cat.png");
 
-            var userMessage = UserMessage.builder()
-                    .text(
-                            "Что ты видишь на картинке? Опиши словом состоящим из 3 букв. Пиши все буквы строчные, не используй заглавные")
-                    .media(new Media(MimeTypeUtils.IMAGE_PNG, imageResource))
-                    .build();
+                    var userMessage = UserMessage.builder()
+                            .text(
+                                    "Что ты видишь на картинке? Опиши словом состоящим из 3 букв. Пиши все буквы строчные, не используй заглавные")
+                            .media(new Media(MimeTypeUtils.IMAGE_PNG, imageResource))
+                            .build();
 
-            ChatResponse response = gigaChatModel.call(new Prompt(userMessage));
-            String assistantMessage = response.getResult().getOutput().getText();
-            assertThat(assistantMessage, is(not(emptyOrNullString())));
-            assertThat(assistantMessage, containsString("кот"));
-        });
+                    ChatResponse response = gigaChatModel.call(new Prompt(userMessage));
+                    String assistantMessage = response.getResult().getOutput().getText();
+                    assertThat(assistantMessage, is(not(emptyOrNullString())));
+                    assertThat(assistantMessage, containsString("кот"));
+                });
     }
 
     @Test

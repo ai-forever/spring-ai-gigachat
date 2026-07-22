@@ -29,8 +29,7 @@ public class CustomHttpHeadersController {
                 .defaultOptions(GigaChatOptions.builder()
                         .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
                         // можно задать статические заголовки через Options
-                        .httpHeaders(Map.of("options-header", "options-value"))
-                        .build())
+                        .httpHeaders(Map.of("options-header", "options-value")))
                 .build();
     }
 

@@ -17,6 +17,7 @@ import chat.giga.springai.api.chat.embedding.EmbeddingsRequest;
 import chat.giga.springai.api.chat.embedding.EmbeddingsResponse;
 import chat.giga.springai.api.chat.file.DeleteFileResponse;
 import chat.giga.springai.api.chat.file.UploadFileResponse;
+import chat.giga.springai.api.chat.file.UploadedFilesResponse;
 import chat.giga.springai.api.chat.models.ModelsResponse;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.function.Consumer;
@@ -25,19 +26,18 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.model.ChatModelDescription;
-import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.retry.RetryUtils;
+import org.springframework.ai.util.json.JsonParser;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.http.client.reactive.JdkClientHttpConnector;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -166,7 +166,7 @@ public class GigaChatApi {
     public ResponseEntity<CompletionResponse> chatCompletionEntity(
             final CompletionRequest chatRequest, @Nullable final HttpHeaders headers) {
         Assert.notNull(chatRequest, "The request body can not be null.");
-        Assert.isTrue(!chatRequest.getStream(), "Request must set the stream property to false.");
+        Assert.isTrue(!Boolean.TRUE.equals(chatRequest.getStream()), "Request must set the stream property to false.");
         return this.restClient
                 .post()
                 .uri(DEFAULT_COMPLETIONS_PATH)
@@ -183,20 +183,25 @@ public class GigaChatApi {
     public Flux<CompletionResponse> chatCompletionStream(
             final CompletionRequest chatRequest, @Nullable final HttpHeaders headers) {
         Assert.notNull(chatRequest, "The request body can not be null.");
-        Assert.isTrue(chatRequest.getStream(), "Request must set the steam property to true.");
+        Assert.isTrue(Boolean.TRUE.equals(chatRequest.getStream()), "Request must set the stream property to true.");
         return this.webClient
                 .post()
                 .uri(DEFAULT_COMPLETIONS_PATH)
                 .headers(applyHeaders(headers))
                 .body(Mono.just(chatRequest), CompletionRequest.class)
                 .exchangeToFlux(rs -> {
+                    // 4xx/5xx в стриме нельзя глотать: пробрасываем как WebClientResponseException,
+                    // иначе подписчик молча получал бы пустой поток (как у DeepSeek/Mistral через .retrieve()).
+                    if (rs.statusCode().isError()) {
+                        return rs.createException().flatMapMany(Flux::error);
+                    }
                     String id = rs.headers().asHttpHeaders().getFirst(X_REQUEST_ID);
                     return rs.bodyToFlux(String.class)
                             .takeUntil(SSE_DONE_PREDICATE)
                             .filter(SSE_DONE_PREDICATE.negate())
                             .map(content -> {
                                 CompletionResponse completionResponse =
-                                        ModelOptionsUtils.jsonToObject(content, CompletionResponse.class);
+                                        JsonParser.fromJson(content, CompletionResponse.class);
                                 completionResponse.setId(id);
                                 return completionResponse;
                             });
@@ -239,6 +244,32 @@ public class GigaChatApi {
                 .toEntity(UploadFileResponse.class);
     }
 
+    /**
+     * GET /files — список метаданных загруженных файлов
+     * (<a href="https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/get-files">docs</a>).
+     */
+    public ResponseEntity<UploadedFilesResponse> getFiles() {
+        return this.restClient
+                .get()
+                .uri("/files")
+                .header(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT)
+                .retrieve()
+                .toEntity(UploadedFilesResponse.class);
+    }
+
+    /**
+     * GET /files/{fileId} — метаданные одного файла
+     * (<a href="https://developers.sber.ru/docs/ru/gigachat/api/reference/rest/get-file">docs</a>).
+     */
+    public ResponseEntity<UploadFileResponse> getFile(String fileId) {
+        return this.restClient
+                .get()
+                .uri("/files/{fileId}", fileId)
+                .header(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT)
+                .retrieve()
+                .toEntity(UploadFileResponse.class);
+    }
+
     public ResponseEntity<DeleteFileResponse> deleteFile(String fileId) {
         return this.restClient
                 .post()
@@ -267,12 +298,17 @@ public class GigaChatApi {
     }
 
     public ResponseEntity<ModelsResponse> models() {
-        return this.restClient.get().uri("/models").retrieve().toEntity(ModelsResponse.class);
+        return this.restClient
+                .get()
+                .uri("/models")
+                .header(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT)
+                .retrieve()
+                .toEntity(ModelsResponse.class);
     }
 
     private Consumer<HttpHeaders> applyHeaders(@Nullable HttpHeaders headers) {
         return httpHeaders -> {
-            if (!CollectionUtils.isEmpty(headers)) {
+            if (headers != null && !headers.isEmpty()) {
                 httpHeaders.addAll(headers);
             }
             httpHeaders.set(HttpHeaders.USER_AGENT, USER_AGENT_SPRING_AI_GIGACHAT);
