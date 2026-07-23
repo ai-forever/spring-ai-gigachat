@@ -227,6 +227,47 @@ public abstract class GigaChatBearerAuthApiTest {
                 "Exception message must not contain the full untruncated 501-char body, but was: " + ex.getMessage());
     }
 
+    @Test
+    @DisplayName("Тест-документация: FAIL_ON_UNKNOWN_PROPERTIES действует и на успешный 200 с лишним полем")
+    void testGetAccessToken_SuccessWithUnknownField_throwsUnparseableJson() {
+        // Arrange — валидный токен, но с неизвестным полем: осознанный trade-off включённого
+        // FAIL_ON_UNKNOWN_PROPERTIES (ради детекта error-тел) — новое поле в успешном ответе API сломает парсинг
+        String jsonBody = "{\"access_token\":\"test-token\",\"expires_at\":" + (System.currentTimeMillis() + 3600_000)
+                + ",\"scope\":\"GIGACHAT_API_CORP\"}";
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(jsonBody)));
+
+        // Act & Assert
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains("unparseable JSON"),
+                "Exception message should mention unparseable JSON, but was: " + ex.getMessage());
+    }
+
+    @Test
+    @DisplayName(
+            "Тест-документация: ответ ошибки без заголовка Content-Type трактуется как non-JSON (contentType=unknown)")
+    void testGetAccessToken_ErrorWithoutContentType_throwsNonJsonWithUnknownContentType() {
+        // Arrange — сервер/прокси не прислал Content-Type вообще
+        mockServer.stubFor(
+                post("/api/v2/oauth").willReturn(aResponse().withStatus(400).withBody("Bad Request")));
+
+        // Act & Assert
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains("non-JSON response"),
+                "Exception message should mention non-JSON response, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("contentType=unknown"),
+                "Exception message should contain contentType=unknown, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("Bad Request"),
+                "Exception message should contain response body, but was: " + ex.getMessage());
+    }
+
     /**
      * Builds a JSON error body like {@code {"code":6,"message":"AAAA...A"}} padded with
      * filler characters so the resulting string has exactly {@code totalLength} characters.
