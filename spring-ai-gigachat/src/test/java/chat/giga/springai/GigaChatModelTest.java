@@ -367,6 +367,70 @@ public class GigaChatModelTest {
         assertEquals("мои рассуждения", cr.getResult().getOutput().getMetadata().get("reasoningContent"));
     }
 
+    @Test
+    @DisplayName("GH-120: precached_prompt_tokens -> usage.cacheReadInputTokens, cacheWrite == null")
+    void precachedPromptTokens_mappedToCacheRead() {
+        var usage = new CompletionResponse.Usage()
+                .setPromptTokens(10)
+                .setCompletionTokens(5)
+                .setTotalTokens(15);
+        usage.setPrecachedPromptTokens(7);
+        var choice = new CompletionResponse.Choice()
+                .setMessage(new CompletionResponse.MessagesRes()
+                        .setRole(CompletionResponse.Role.assistant)
+                        .setContent("ответ"))
+                .setIndex(0)
+                .setFinishReason(CompletionResponse.FinishReason.STOP);
+        var resp = new CompletionResponse()
+                .setModel("GigaChat-2")
+                .setChoices(List.of(choice))
+                .setUsage(usage);
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(resp, HttpStatusCode.valueOf(200)));
+
+        var prompt = new Prompt(
+                List.of(new UserMessage("hi")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
+                        .build());
+        ChatResponse cr = gigaChatModel.call(prompt);
+
+        assertEquals(7L, cr.getMetadata().getUsage().getCacheReadInputTokens());
+        assertNull(cr.getMetadata().getUsage().getCacheWriteInputTokens());
+    }
+
+    @Test
+    @DisplayName("GH-120: без precached_prompt_tokens -> cacheReadInputTokens == null")
+    void noPrecachedPromptTokens_cacheReadNull() {
+        var usage = new CompletionResponse.Usage()
+                .setPromptTokens(10)
+                .setCompletionTokens(5)
+                .setTotalTokens(15);
+        var choice = new CompletionResponse.Choice()
+                .setMessage(new CompletionResponse.MessagesRes()
+                        .setRole(CompletionResponse.Role.assistant)
+                        .setContent("ответ"))
+                .setIndex(0)
+                .setFinishReason(CompletionResponse.FinishReason.STOP);
+        var resp = new CompletionResponse()
+                .setModel("GigaChat-2")
+                .setChoices(List.of(choice))
+                .setUsage(usage);
+
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(resp, HttpStatusCode.valueOf(200)));
+
+        var prompt = new Prompt(
+                List.of(new UserMessage("hi")),
+                GigaChatOptions.builder()
+                        .model(GigaChatApi.ChatModel.GIGA_CHAT_2)
+                        .build());
+        ChatResponse cr = gigaChatModel.call(prompt);
+
+        assertNull(cr.getMetadata().getUsage().getCacheReadInputTokens());
+    }
+
     private static class TestTool {
         @GigaTool
         public String testMethod() {
