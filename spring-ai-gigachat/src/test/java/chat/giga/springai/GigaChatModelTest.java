@@ -668,4 +668,58 @@ public class GigaChatModelTest {
 
         assertTrue(illegalStateException.getMessage().contains("Failed to download image for fileId"));
     }
+
+    @Test
+    @DisplayName("Тест проверяет, что buildGeneration кладёт id скачанных media в метаданные "
+            + "под ключом ASSISTANT_MEDIA_IDS, совпадающий с media.getId()")
+    void testImageExtraction_setsAssistantMediaIdsMetadata() {
+        String mediaId = "e5f8ce06-9742-48b9-b7f4-85e92acea7aa";
+        when(gigaChatApi.chatCompletionEntity(any(), any()))
+                .thenReturn(new ResponseEntity<>(this.response, HttpStatusCode.valueOf(200)));
+        when(gigaChatApi.downloadFile(mediaId)).thenReturn(new byte[] {});
+
+        when(this.response.getChoices())
+                .thenReturn(List.of(new CompletionResponse.Choice()
+                        .setMessage(new CompletionResponse.MessagesRes()
+                                .setContent("Привет <img src=\"" + mediaId + "\" fuse=\"true\"/>"))));
+
+        Prompt prompt = new Prompt(
+                List.of(UserMessage.builder().text("Нарисуй что-нибудь").build()));
+        ChatResponse chatResponse = gigaChatModel.call(prompt);
+
+        List<Media> media = chatResponse.getResult().getOutput().getMedia();
+        assertEquals(1, media.size());
+        assertEquals(mediaId, media.get(0).getId());
+
+        List<String> assistantMediaIds = chatResponse.getResult().getMetadata().get(GigaChatModel.ASSISTANT_MEDIA_IDS);
+        assertEquals(List.of(mediaId), assistantMediaIds);
+        assertEquals(media.get(0).getId(), assistantMediaIds.get(0));
+    }
+
+    @Test
+    @DisplayName("Тест проверяет, что при стриминге media НЕ извлекается и downloadFile НЕ вызывается, "
+            + "даже если агрегированный текст содержит валидный <img src=\"UUID\"/>")
+    void testStream_doesNotExtractMediaOrDownloadFile() {
+        String mediaId = "e5f8ce06-9742-48b9-b7f4-85e92acea7aa";
+        Prompt prompt = new Prompt(List.of(new UserMessage("Нарисуй что-нибудь")));
+
+        var completionResponse = new CompletionResponse()
+                .setId(UUID.randomUUID().toString())
+                .setChoices(List.of(new CompletionResponse.Choice()
+                        .setIndex(0)
+                        .setDelta(new CompletionResponse.MessagesRes()
+                                .setRole(CompletionResponse.Role.assistant)
+                                .setContent("Привет <img src=\"" + mediaId + "\" fuse=\"true\"/>"))));
+
+        Mockito.when(gigaChatApi.chatCompletionStream(any(), any())).thenReturn(Flux.just(completionResponse));
+
+        List<ChatResponse> chatResponses =
+                gigaChatModel.stream(prompt).collectList().block();
+
+        assertNotNull(chatResponses);
+        assertTrue(chatResponses.stream().allMatch(cr -> cr.getResults().stream()
+                .allMatch(g -> g.getOutput().getMedia().isEmpty())));
+
+        verify(gigaChatApi, never()).downloadFile(any());
+    }
 }

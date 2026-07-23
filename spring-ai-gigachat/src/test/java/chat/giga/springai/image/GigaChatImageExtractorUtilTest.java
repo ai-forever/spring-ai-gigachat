@@ -25,6 +25,12 @@ public class GigaChatImageExtractorUtilTest {
                 Arguments.of(
                         "Привет <img src=\"e5f8ce06-9742-48b9-b7f4-85e92acea7aa\" fuse=\"true\"/> <img src=\"2011ccb8-b54d-4647-bd34-6b57d5df90cb\" fuse=\"true\"/> Тест",
                         List.of("e5f8ce06-9742-48b9-b7f4-85e92acea7aa", "2011ccb8-b54d-4647-bd34-6b57d5df90cb")),
-                Arguments.of("Привет, это проверка без изображений", List.of()));
+                Arguments.of("Привет, это проверка без изображений", List.of()),
+                // реальное наблюдение (pr:136): модель эхом вернула плейсхолдер FILE_ID из system-промпта,
+                // не являющийся UUID — строгий regex не должен его матчить, чтобы не пытаться скачать
+                // несуществующий файл 'FILE_ID'
+                Arguments.of(
+                        "Привет <img src=\"c2cac967-e8d3-4851-a93c-649e086b1856\" fuse=\"true\"/> <img src=\"FILE_ID\"/>",
+                        List.of("c2cac967-e8d3-4851-a93c-649e086b1856")));
     }
 }
