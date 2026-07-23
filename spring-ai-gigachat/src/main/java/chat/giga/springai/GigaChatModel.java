@@ -185,6 +185,8 @@ public class GigaChatModel implements ChatModel {
             ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                     .prompt(prompt)
                     .provider(GigaChatApi.PROVIDER_NAME)
+                    // ядро эмитит gen_ai.request.stream только при streaming=true — паритет с AnthropicChatModel
+                    .streaming(true)
                     .build();
 
             Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION
