@@ -1,6 +1,7 @@
 package chat.giga.springai.api.auth.bearer;
 
 import static chat.giga.springai.api.chat.GigaChatApi.USER_AGENT_SPRING_AI_GIGACHAT;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalToIgnoreCase;
 import static com.github.tomakehurst.wiremock.client.WireMock.exactly;
@@ -11,6 +12,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.auth.GigaChatApiScope;
@@ -38,6 +40,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.wiremock.spring.ConfigureWireMock;
 import org.wiremock.spring.EnableWireMock;
 import org.wiremock.spring.InjectWireMock;
@@ -132,6 +135,148 @@ public abstract class GigaChatBearerAuthApiTest {
         // Assert
         assertEquals("test-token", accessToken);
         verify(postRequestedFor(urlEqualTo("/api/v2/oauth")));
+    }
+
+    @Test
+    @DisplayName("Тест на ошибку при получении HTML-ответа вместо JSON (502 Bad Gateway)")
+    void testGetAccessToken_HtmlErrorResponse_throwsWithBody() {
+        // Arrange
+        String htmlBody = "<html><body><h1>502 Bad Gateway</h1></body></html>";
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(502)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.TEXT_HTML_VALUE)
+                        .withBody(htmlBody)));
+
+        // Act & Assert
+        var ex = assertThrows(Exception.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains("non-JSON response"),
+                "Exception message should mention non-JSON response, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("502"),
+                "Exception message should contain status code, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("502 Bad Gateway"),
+                "Exception message should contain response body, but was: " + ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Тест на ошибку при получении JSON-ответа с невалидными credentials (401)")
+    void testGetAccessToken_JsonErrorResponse_throwsWithNullToken() {
+        // Arrange
+        String jsonBody = "{\"code\":6,\"message\":\"credentials doesn't match db data\"}";
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(401)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(jsonBody)));
+
+        // Act & Assert — JSON has no access_token, should throw RestClientException
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains("unparseable JSON"),
+                "Exception message should mention unparseable JSON, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("credentials doesn't match db data"),
+                "Exception message should contain response body, but was: " + ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Тест на тело ошибки ровно MAX_LOGGED_BODY_LENGTH (500 символов) — без усечения")
+    void testGetAccessToken_JsonErrorResponse_ExactlyMaxLength_NotTruncated() {
+        // Arrange
+        String jsonBody = jsonErrorBodyOfLength(500);
+        assertEquals(500, jsonBody.length());
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(401)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(jsonBody)));
+
+        // Act & Assert — тело ровно на границе капа, должно попасть в сообщение целиком, без "..."
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains(jsonBody),
+                "Exception message should contain the full 500-char body untruncated, but was: " + ex.getMessage());
+        assertTrue(
+                !ex.getMessage().contains("..."),
+                "Exception message must not be truncated at exactly the cap, but was: " + ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Тест на тело ошибки длиннее MAX_LOGGED_BODY_LENGTH (501 символ) — усечение до 500 + '...'")
+    void testGetAccessToken_JsonErrorResponse_ExceedsMaxLength_Truncated() {
+        // Arrange
+        String jsonBody = jsonErrorBodyOfLength(501);
+        assertEquals(501, jsonBody.length());
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(401)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(jsonBody)));
+
+        // Act & Assert — тело на 1 символ длиннее капа, должно быть усечено ровно до 500 символов + "..."
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        String expectedTruncated = jsonBody.substring(0, 500) + "...";
+        assertTrue(
+                ex.getMessage().contains(expectedTruncated),
+                "Exception message should contain exactly the first 500 chars + '...', but was: " + ex.getMessage());
+        assertTrue(
+                !ex.getMessage().contains(jsonBody),
+                "Exception message must not contain the full untruncated 501-char body, but was: " + ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Тест-документация: FAIL_ON_UNKNOWN_PROPERTIES действует и на успешный 200 с лишним полем")
+    void testGetAccessToken_SuccessWithUnknownField_throwsUnparseableJson() {
+        // Arrange — валидный токен, но с неизвестным полем: осознанный trade-off включённого
+        // FAIL_ON_UNKNOWN_PROPERTIES (ради детекта error-тел) — новое поле в успешном ответе API сломает парсинг
+        String jsonBody = "{\"access_token\":\"test-token\",\"expires_at\":" + (System.currentTimeMillis() + 3600_000)
+                + ",\"scope\":\"GIGACHAT_API_CORP\"}";
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(jsonBody)));
+
+        // Act & Assert
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains("unparseable JSON"),
+                "Exception message should mention unparseable JSON, but was: " + ex.getMessage());
+    }
+
+    @Test
+    @DisplayName(
+            "Тест-документация: ответ ошибки без заголовка Content-Type трактуется как non-JSON (contentType=unknown)")
+    void testGetAccessToken_ErrorWithoutContentType_throwsNonJsonWithUnknownContentType() {
+        // Arrange — сервер/прокси не прислал Content-Type вообще
+        mockServer.stubFor(
+                post("/api/v2/oauth").willReturn(aResponse().withStatus(400).withBody("Bad Request")));
+
+        // Act & Assert
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains("non-JSON response"),
+                "Exception message should mention non-JSON response, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("contentType=unknown"),
+                "Exception message should contain contentType=unknown, but was: " + ex.getMessage());
+        assertTrue(
+                ex.getMessage().contains("Bad Request"),
+                "Exception message should contain response body, but was: " + ex.getMessage());
+    }
+
+    /**
+     * Builds a JSON error body like {@code {"code":6,"message":"AAAA...A"}} padded with
+     * filler characters so the resulting string has exactly {@code totalLength} characters.
+     */
+    private static String jsonErrorBodyOfLength(int totalLength) {
+        String prefix = "{\"code\":6,\"message\":\"";
+        String suffix = "\"}";
+        int fillLength = totalLength - prefix.length() - suffix.length();
+        return prefix + "A".repeat(fillLength) + suffix;
     }
 
     public static Stream<Arguments> invalidTokenProvider() {
