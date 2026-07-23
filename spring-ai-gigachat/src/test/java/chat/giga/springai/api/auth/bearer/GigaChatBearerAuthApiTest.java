@@ -182,6 +182,62 @@ public abstract class GigaChatBearerAuthApiTest {
                 "Exception message should contain response body, but was: " + ex.getMessage());
     }
 
+    @Test
+    @DisplayName("Тест на тело ошибки ровно MAX_LOGGED_BODY_LENGTH (500 символов) — без усечения")
+    void testGetAccessToken_JsonErrorResponse_ExactlyMaxLength_NotTruncated() {
+        // Arrange
+        String jsonBody = jsonErrorBodyOfLength(500);
+        assertEquals(500, jsonBody.length());
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(401)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(jsonBody)));
+
+        // Act & Assert — тело ровно на границе капа, должно попасть в сообщение целиком, без "..."
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        assertTrue(
+                ex.getMessage().contains(jsonBody),
+                "Exception message should contain the full 500-char body untruncated, but was: " + ex.getMessage());
+        assertTrue(
+                !ex.getMessage().contains("..."),
+                "Exception message must not be truncated at exactly the cap, but was: " + ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Тест на тело ошибки длиннее MAX_LOGGED_BODY_LENGTH (501 символ) — усечение до 500 + '...'")
+    void testGetAccessToken_JsonErrorResponse_ExceedsMaxLength_Truncated() {
+        // Arrange
+        String jsonBody = jsonErrorBodyOfLength(501);
+        assertEquals(501, jsonBody.length());
+        mockServer.stubFor(post("/api/v2/oauth")
+                .willReturn(aResponse()
+                        .withStatus(401)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody(jsonBody)));
+
+        // Act & Assert — тело на 1 символ длиннее капа, должно быть усечено ровно до 500 символов + "..."
+        var ex = assertThrows(RestClientException.class, () -> authApi.getValue());
+        String expectedTruncated = jsonBody.substring(0, 500) + "...";
+        assertTrue(
+                ex.getMessage().contains(expectedTruncated),
+                "Exception message should contain exactly the first 500 chars + '...', but was: " + ex.getMessage());
+        assertTrue(
+                !ex.getMessage().contains(jsonBody),
+                "Exception message must not contain the full untruncated 501-char body, but was: " + ex.getMessage());
+    }
+
+    /**
+     * Builds a JSON error body like {@code {"code":6,"message":"AAAA...A"}} padded with
+     * filler characters so the resulting string has exactly {@code totalLength} characters.
+     */
+    private static String jsonErrorBodyOfLength(int totalLength) {
+        String prefix = "{\"code\":6,\"message\":\"";
+        String suffix = "\"}";
+        int fillLength = totalLength - prefix.length() - suffix.length();
+        return prefix + "A".repeat(fillLength) + suffix;
+    }
+
     public static Stream<Arguments> invalidTokenProvider() {
         return Stream.of(
                 Arguments.of(new GigaChatOAuthClient.GigaChatAccessTokenResponse(null, System.currentTimeMillis())),
