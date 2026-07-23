@@ -185,6 +185,8 @@ public class GigaChatModel implements ChatModel {
             ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                     .prompt(prompt)
                     .provider(GigaChatApi.PROVIDER_NAME)
+                    // ядро эмитит gen_ai.request.stream только при streaming=true — паритет с AnthropicChatModel
+                    .streaming(true)
                     .build();
 
             Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION
@@ -578,7 +580,12 @@ public class GigaChatModel implements ChatModel {
     }
 
     private DefaultUsage getDefaultUsage(CompletionResponse.Usage usage) {
-        return new DefaultUsage(usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens(), usage);
+        // precached_prompt_tokens -> cacheReadInputTokens; cacheWrite = null, т.к. GigaChat
+        // не отдаёт счётчик записи в кэш
+        Integer precached = usage.getPrecachedPromptTokens();
+        Long cacheRead = precached != null ? precached.longValue() : null;
+        return new DefaultUsage(
+                usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens(), usage, cacheRead, null);
     }
 
     // Ставит сообщение с системным промптом на первое место в списке сообщений (Из-за требований GigaChat API)
