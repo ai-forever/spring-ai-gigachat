@@ -46,7 +46,7 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 public class GigaChatApi {
-    public static final String DEFAULT_BASE_URL = "https://gigachat.devices.sberbank.ru/api/v1/";
+    public static final String DEFAULT_BASE_URL = "https://api.giga.chat/v1/";
     public static final String DEFAULT_COMPLETIONS_PATH = "/chat/completions";
     public static final String USER_AGENT_SPRING_AI_GIGACHAT = "Spring-AI-GigaChat";
     public static final String PROVIDER_NAME = "gigachat";
