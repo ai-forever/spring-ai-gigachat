@@ -26,7 +26,7 @@ public class MultimodalityIT {
             .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
             .withPropertyValues(GigaChatAuthTestProperties.fromEnv())
             .withPropertyValues(
-                    "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat");
+                    "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat-2");
 
     @Test
     @DisplayName("Тест проверяет, что доступна мультимодальность модели для вызова на примере vision")
