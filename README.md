@@ -55,7 +55,7 @@
 
 ## Требования
 
-- Java 21+
+- Java 17+
 - Spring Boot 4.0+
 - Spring AI 2.0
 
@@ -63,7 +63,8 @@
 
 | Версия библиотеки | Java | Spring Boot | Spring AI |                                        Ветка                                         |
 |-------------------|------|-------------|-----------|--------------------------------------------------------------------------------------|
-| 2.x               | 21+  | 4.x         | 2.x       | [release/2.x.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/2.x.x) |
+| 2.0.1+            | 17+  | 4.x         | 2.x       | [release/2.x.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/2.x.x) |
+| 2.0.0             | 21+  | 4.x         | 2.x       | [release/2.x.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/2.x.x) |
 | 1.1.x             | 17+  | 3.4/3.5     | 1.x       | [release/1.1.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/1.1.x) |
 
 Правила ведения веток:
