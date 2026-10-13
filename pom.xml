@@ -54,8 +54,8 @@
     </developers>
 
     <properties>
-        <java.version>21</java.version>
-        <maven.compiler.release>21</maven.compiler.release>
+        <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.32.0</allure-bom.version>
         <aspectj.version>1.9.25.1</aspectj.version>
