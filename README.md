@@ -56,15 +56,15 @@
 ## Требования
 
 - Java 17+
-- Spring Boot 4.0+
-- Spring AI 2.0
+- Spring Boot 4.1+
+- Spring AI 2.0.1
 
 ## Совместимость версий и ветки
 
 | Версия библиотеки | Java | Spring Boot | Spring AI |                                        Ветка                                         |
 |-------------------|------|-------------|-----------|--------------------------------------------------------------------------------------|
-| 2.0.1+            | 17+  | 4.x         | 2.x       | [release/2.x.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/2.x.x) |
-| 2.0.0             | 21+  | 4.x         | 2.x       | [release/2.x.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/2.x.x) |
+| 2.0.1+            | 17+  | 4.1         | 2.0.1     | [release/2.x.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/2.x.x) |
+| 2.0.0             | 21+  | 4.0         | 2.0.0     | [release/2.x.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/2.x.x) |
 | 1.1.x             | 17+  | 3.4/3.5     | 1.x       | [release/1.1.x](https://github.com/ai-forever/spring-ai-gigachat/tree/release/1.1.x) |
 
 Правила ведения веток:
@@ -94,7 +94,7 @@
 <dependency>
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-starter-model-gigachat</artifactId>
-    <version>2.0.0</version>
+    <version>2.0.1</version>
 </dependency>
 ```
 

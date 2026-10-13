@@ -13,7 +13,7 @@
 
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-parent</artifactId>
-    <version>2.0.0</version>
+    <version>${revision}</version>
     <packaging>pom</packaging>
 
     <name>Spring AI model - GigaChat - Parent</name>
@@ -64,16 +64,16 @@
         <java.version>17</java.version>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <allure-bom.version>2.32.0</allure-bom.version>
+        <allure-bom.version>2.35.5</allure-bom.version>
         <aspectj.version>1.9.25.1</aspectj.version>
-        <spring-boot.version>4.0.6</spring-boot.version>
-        <spring-ai.version>2.0.0</spring-ai.version>
-        <ayza.version>10.0.3</ayza.version>
-        <lombok.version>1.18.42</lombok.version>
-        <wiremock-spring-boot.version>4.2.1</wiremock-spring-boot.version>
-        <commons-lang3.version>3.20.0</commons-lang3.version>
-
-        <maven.deploy.plugin.version>3.1.4</maven.deploy.plugin.version>
+        <spring-boot.version>4.1.1</spring-boot.version>
+        <spring-ai.version>2.0.1</spring-ai.version>
+        <ayza.version>10.1.0</ayza.version>
+        <lombok.version>1.18.48</lombok.version>
+        <wiremock-spring-boot.version>4.4.3</wiremock-spring-boot.version>
+        <commons-lang3.version>3.21.0</commons-lang3.version>
+        <revision>2.1.0-SNAPSHOT</revision>
+        <maven.deploy.plugin.version>3.2.0</maven.deploy.plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -147,7 +147,6 @@
     </dependencies>
 
     <build>
-        <finalName>${project.artifactId}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -203,7 +202,7 @@
             <plugin>
                 <groupId>io.qameta.allure</groupId>
                 <artifactId>allure-maven</artifactId>
-                <version>2.17.0</version>
+                <version>2.18.0</version>
                 <configuration>
                     <reportVersion>${allure-bom.version}</reportVersion>
                     <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
@@ -213,7 +212,7 @@
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.3.0</version>
+                <version>3.10.4</version>
                 <configuration>
                     <java>
                         <palantirJavaFormat/>
@@ -239,6 +238,31 @@
                 </executions>
             </plugin>
 
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.8.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                        <phase>process-resources</phase>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <phase>clean</phase>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
@@ -335,7 +359,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>3.5.4</version>
+                        <version>3.6.0</version>
                         <executions>
                             <execution>
                                 <goals>
@@ -394,7 +418,7 @@
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.9.0</version>
+                        <version>0.11.0</version>
                         <extensions>true</extensions>
                         <configuration>
                             <publishingServerId>maven-central</publishingServerId>
@@ -436,6 +460,7 @@
                                 <inputExclude>**/*.properties</inputExclude>
                                 <inputExclude>**/*.json</inputExclude>
                                 <inputExclude>**/pom.xml</inputExclude>
+                                <inputExclude>**/.flattened-pom.xml</inputExclude>
                                 <inputExclude>**/*.imports</inputExclude>
                                 <inputExclude>**/src/test/resources/**/*.txt</inputExclude>
                                 <inputExclude>configs/**</inputExclude>

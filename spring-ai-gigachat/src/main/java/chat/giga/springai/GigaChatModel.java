@@ -29,6 +29,8 @@ import chat.giga.springai.tool.definition.GigaToolDefinition;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
+import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,6 +69,7 @@ import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.support.UsageCalculator;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
@@ -410,12 +413,23 @@ public class GigaChatModel implements ChatModel {
         // иначе загружаем файл и получаем его id
         String mediaId = gigaChatApi.uploadFile(media).getBody().id().toString();
 
-        return Media.builder()
-                .id(mediaId)
-                .name(media.getName())
-                .data(media.getData())
-                .mimeType(media.getMimeType())
-                .build();
+        var builder = Media.builder().id(mediaId).name(media.getName()).mimeType(media.getMimeType());
+        Object data = media.getData();
+        if (data instanceof byte[] bytes) {
+            builder.data(bytes);
+        } else if (data instanceof String str) {
+            builder.data(str);
+        } else if (data instanceof URI uri) {
+            builder.data(uri);
+        } else if (data instanceof URL url) {
+            builder.data(url);
+        } else if (data instanceof Resource resource) {
+            builder.data(resource);
+        } else {
+            throw new IllegalArgumentException("Unsupported media data type: "
+                    + (data == null ? null : data.getClass().getName()));
+        }
+        return builder.build();
     }
 
     private @Nullable Object getFunctionCall(

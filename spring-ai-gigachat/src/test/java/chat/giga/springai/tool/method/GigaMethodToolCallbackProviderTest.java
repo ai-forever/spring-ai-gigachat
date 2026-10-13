@@ -62,9 +62,11 @@ public class GigaMethodToolCallbackProviderTest {
                 .inputType(String.class)
                 .build();
 
-        assertThrows(IllegalStateException.class, () -> GigaMethodToolCallbackProvider.builder()
-                .toolObjects(testToolCallback)
-                .build());
+        assertThrows(
+                IllegalStateException.class,
+                () -> GigaMethodToolCallbackProvider.builder()
+                        .toolObjects(testToolCallback)
+                        .build());
     }
 
     private static class TestGigaToolOnly {
