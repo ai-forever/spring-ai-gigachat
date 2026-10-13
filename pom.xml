@@ -4,6 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <parent>
+        <groupId>org.apache</groupId>
+        <artifactId>apache</artifactId>
+        <version>40</version>
+        <relativePath/>
+    </parent>
+
     <groupId>chat.giga</groupId>
     <artifactId>spring-ai-gigachat-parent</artifactId>
     <version>2.0.0</version>
@@ -394,6 +401,57 @@
                             <autoPublish>true</autoPublish>
                             <waitUntil>published</waitUntil>
                         </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>check-licenses</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.rat</groupId>
+                        <artifactId>apache-rat-plugin</artifactId>
+                        <version>0.18</version>
+                        <configuration>
+                            <parseSCMIgnoresAsExcludes>false</parseSCMIgnoresAsExcludes>
+                            <counterMax>Unapproved:0</counterMax>
+                            <counterMins>
+                                <value>LICENSE_CATEGORIES:0</value>
+                                <value>LICENSE_NAMES:0</value>
+                                <value>STANDARDS:0</value>
+                            </counterMins>
+                            <inputExcludes>
+                                <inputExclude>**/target/**</inputExclude>
+                                <inputExclude>.gitignore</inputExclude>
+                                <inputExclude>**/.git/**</inputExclude>
+                                <inputExclude>**/.idea/**</inputExclude>
+                                <inputExclude>**/*.iml</inputExclude>
+                                <inputExclude>**/.gigacode/**</inputExclude>
+                                <inputExclude>GIGACODE.md</inputExclude>
+                                <inputExclude>**/*.md</inputExclude>
+                                <inputExclude>**/*.yml</inputExclude>
+                                <inputExclude>**/*.yaml</inputExclude>
+                                <inputExclude>**/*.properties</inputExclude>
+                                <inputExclude>**/*.json</inputExclude>
+                                <inputExclude>**/pom.xml</inputExclude>
+                                <inputExclude>**/*.imports</inputExclude>
+                                <inputExclude>**/src/test/resources/**/*.txt</inputExclude>
+                                <inputExclude>configs/**</inputExclude>
+                                <inputExclude>.github/**</inputExclude>
+                                <inputExclude>NOTICE</inputExclude>
+                            </inputExcludes>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>check-licenses</id>
+                                <phase>validate</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
                     </plugin>
                 </plugins>
             </build>
