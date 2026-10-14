@@ -797,8 +797,9 @@ public class GigaChatModelTest {
                 gigaChatModel.stream(prompt).collectList().block();
 
         assertNotNull(chatResponses);
-        assertTrue(chatResponses.stream().allMatch(cr -> cr.getResults().stream()
-                .allMatch(g -> g.getOutput().getMedia().isEmpty())));
+        assertTrue(chatResponses.stream()
+                .allMatch(cr -> cr.getResults().stream()
+                        .allMatch(g -> g.getOutput().getMedia().isEmpty())));
 
         verify(gigaChatApi, never()).downloadFile(any());
     }
