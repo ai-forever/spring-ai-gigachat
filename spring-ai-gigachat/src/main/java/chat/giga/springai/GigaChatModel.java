@@ -1,3 +1,19 @@
+/*
+ * Copyright 2025 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package chat.giga.springai;
 
 import static chat.giga.springai.api.chat.GigaChatApi.X_REQUEST_ID;
@@ -7,11 +23,14 @@ import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
 import chat.giga.springai.api.chat.models.ModelDescription;
+import chat.giga.springai.image.GigaChatImageExtractorUtil;
 import chat.giga.springai.support.GigaRetryTemplate;
 import chat.giga.springai.tool.definition.GigaToolDefinition;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
 import io.micrometer.observation.contextpropagation.ObservationThreadLocalAccessor;
+import java.net.URI;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,11 +68,15 @@ import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.retry.RetryUtils;
 import org.springframework.ai.support.UsageCalculator;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.MimeType;
+import org.springframework.util.MimeTypeUtils;
 import reactor.core.publisher.Flux;
 
 @Slf4j
@@ -63,8 +86,11 @@ public class GigaChatModel implements ChatModel {
             new DefaultChatModelObservationConvention();
     public static final String INTERNAL_CONVERSATION_HISTORY = "GigaChatInternalConversationHistory";
     public static final String UPLOADED_MEDIA_IDS = "GigaChatUploadedMediaIds";
+    public static final String ASSISTANT_MEDIA_IDS = "GigaChatAssistantMediaIds";
     public static final ToolCallingManager DEFAULT_TOOL_CALLING_MANAGER =
             ToolCallingManager.builder().build();
+    // GigaChat всегда возвращает изображения только в формате JPEG
+    public static final MimeType GIGA_CHAT_IMAGE_MIME_TYPE = MimeTypeUtils.IMAGE_JPEG;
 
     /**
      * The lower-level API for the GigaChat service.
@@ -185,6 +211,8 @@ public class GigaChatModel implements ChatModel {
             ChatModelObservationContext observationContext = ChatModelObservationContext.builder()
                     .prompt(prompt)
                     .provider(GigaChatApi.PROVIDER_NAME)
+                    // ядро эмитит gen_ai.request.stream только при streaming=true — паритет с AnthropicChatModel
+                    .streaming(true)
                     .build();
 
             Observation observation = ChatModelObservationDocumentation.CHAT_MODEL_OPERATION
@@ -385,12 +413,23 @@ public class GigaChatModel implements ChatModel {
         // иначе загружаем файл и получаем его id
         String mediaId = gigaChatApi.uploadFile(media).getBody().id().toString();
 
-        return Media.builder()
-                .id(mediaId)
-                .name(media.getName())
-                .data(media.getData())
-                .mimeType(media.getMimeType())
-                .build();
+        var builder = Media.builder().id(mediaId).name(media.getName()).mimeType(media.getMimeType());
+        Object data = media.getData();
+        if (data instanceof byte[] bytes) {
+            builder.data(bytes);
+        } else if (data instanceof String str) {
+            builder.data(str);
+        } else if (data instanceof URI uri) {
+            builder.data(uri);
+        } else if (data instanceof URL url) {
+            builder.data(url);
+        } else if (data instanceof Resource resource) {
+            builder.data(resource);
+        } else {
+            throw new IllegalArgumentException("Unsupported media data type: "
+                    + (data == null ? null : data.getClass().getName()));
+        }
+        return builder.build();
     }
 
     private @Nullable Object getFunctionCall(
@@ -489,15 +528,45 @@ public class GigaChatModel implements ChatModel {
         } else {
             toolCalls = List.of();
         }
+        List<Media> medias = streaming ? List.of() : extractImageMediaFromTextContent(message.getContent());
+
         var assistantMessage = AssistantMessage.builder()
                 .content(message.getContent())
                 .toolCalls(toolCalls)
                 .properties(Collections.unmodifiableMap(metadata))
+                .media(medias)
                 .build();
-        var generationMetadata = ChatGenerationMetadata.builder()
-                .finishReason(choice.getFinishReason())
-                .build();
-        return new Generation(assistantMessage, generationMetadata);
+
+        var generationMetadataBuilder = ChatGenerationMetadata.builder().finishReason(choice.getFinishReason());
+
+        if (!medias.isEmpty()) {
+            generationMetadataBuilder.metadata(
+                    ASSISTANT_MEDIA_IDS, medias.stream().map(Media::getId).toList());
+        }
+
+        return new Generation(assistantMessage, generationMetadataBuilder.build());
+    }
+
+    private List<Media> extractImageMediaFromTextContent(@Nullable String content) {
+        List<Media> media = new ArrayList<>();
+
+        if (content != null) {
+            for (String fileId : GigaChatImageExtractorUtil.extract(content)) {
+                byte[] imageBytes = gigaChatApi.downloadFile(fileId);
+
+                if (imageBytes == null) {
+                    throw new IllegalStateException("Failed to download image for fileId: " + fileId);
+                }
+
+                media.add(Media.builder()
+                        .id(fileId)
+                        .mimeType(GIGA_CHAT_IMAGE_MIME_TYPE)
+                        .data(new ByteArrayResource(imageBytes))
+                        .build());
+            }
+        }
+
+        return media;
     }
 
     private ChatResponse buildChatResponseWithCustomMetadata(Prompt prompt, ChatResponse originalResponse) {
@@ -578,7 +647,12 @@ public class GigaChatModel implements ChatModel {
     }
 
     private DefaultUsage getDefaultUsage(CompletionResponse.Usage usage) {
-        return new DefaultUsage(usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens(), usage);
+        // precached_prompt_tokens -> cacheReadInputTokens; cacheWrite = null, т.к. GigaChat
+        // не отдаёт счётчик записи в кэш
+        Integer precached = usage.getPrecachedPromptTokens();
+        Long cacheRead = precached != null ? precached.longValue() : null;
+        return new DefaultUsage(
+                usage.getPromptTokens(), usage.getCompletionTokens(), usage.getTotalTokens(), usage, cacheRead, null);
     }
 
     // Ставит сообщение с системным промптом на первое место в списке сообщений (Из-за требований GigaChat API)
