@@ -61,7 +61,7 @@
     </developers>
 
     <properties>
-        <revision>2.0.1</revision>
+        <revision>2.1.0-SNAPSHOT</revision>
 
         <javaVersion>17</javaVersion>
         <java.version>17</java.version>
