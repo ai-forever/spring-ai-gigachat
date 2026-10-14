@@ -355,7 +355,8 @@ public class GigaChatModel implements ChatModel {
         return request;
     }
 
-    private CompletionRequest applyOptions(CompletionRequest request, @Nullable GigaChatOptions options) {
+    CompletionRequest applyOptions(CompletionRequest request, @Nullable GigaChatOptions options) {
+
         if (options == null) {
             return request;
         }
