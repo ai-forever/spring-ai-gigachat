@@ -372,6 +372,23 @@ public class GigaChatModel implements ChatModel {
         return request;
     }
 
+    CompletionRequest applyOptions(CompletionRequest request, @Nullable GigaChatOptions options) {
+
+        if (options == null) {
+            return request;
+        }
+
+        request.setModel(options.getModel());
+        request.setTemperature(options.getTemperature());
+        request.setTopP(options.getTopP());
+        request.setMaxTokens(options.getMaxTokens());
+        request.setRepetitionPenalty(options.getRepetitionPenalty());
+        request.setUpdateInterval(options.getUpdateInterval());
+        request.setProfanityCheck(options.getProfanityCheck());
+
+        return request;
+    }
+
     /**
      * Загружает медиа файлы, если они переданы в UserMessage, и проставляет к ним id.
      * @param messages - исходные сообщения
