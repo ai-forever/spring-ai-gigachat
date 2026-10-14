@@ -61,8 +61,11 @@
     </developers>
 
     <properties>
-        <java.version>21</java.version>
-        <maven.compiler.release>21</maven.compiler.release>
+        <revision>2.1.0-SNAPSHOT</revision>
+
+        <javaVersion>17</javaVersion>
+        <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.35.5</allure-bom.version>
         <aspectj.version>1.9.25.1</aspectj.version>
@@ -72,7 +75,7 @@
         <lombok.version>1.18.48</lombok.version>
         <wiremock-spring-boot.version>4.4.3</wiremock-spring-boot.version>
         <commons-lang3.version>3.21.0</commons-lang3.version>
-        <revision>2.1.0-SNAPSHOT</revision>
+
         <maven.deploy.plugin.version>3.2.0</maven.deploy.plugin.version>
     </properties>
 

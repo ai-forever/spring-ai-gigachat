@@ -7,7 +7,8 @@
     <parent>
         <groupId>chat.giga</groupId>
         <artifactId>spring-ai-gigachat-parent</artifactId>
-        <version>1.1.2</version>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>spring-ai-gigachat</artifactId>
