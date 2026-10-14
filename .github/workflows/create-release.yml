@@ -29,12 +29,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ai-forever
+          repositories: spring-ai-gigachat
+          permission-contents: write
+
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.currentBranch }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.release-app-token.outputs.token }}
 
       - name: Validate release inputs
         env:
