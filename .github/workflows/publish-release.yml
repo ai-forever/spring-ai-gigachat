@@ -2,15 +2,24 @@ name: Publish package to the Maven Central Repository
 on:
   release:
     types: [created]
+  workflow_call:
+    inputs:
+      releaseTag:
+        description: "Tag to publish (e.g. v2.0.1)"
+        required: true
+        type: string
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: write
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.releaseTag || github.event.release.tag_name }}
+
       - name: Set up Java for publishing to Maven Central Repository
         uses: actions/setup-java@v6
         with:
@@ -21,11 +30,25 @@ jobs:
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Test release
+        run: mvn clean verify --no-transfer-progress
+        env:
+          OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
+          OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
+
       - name: Publish to the Maven Central Repository
-        run: mvn clean deploy -DskipTests -P release
+        run: mvn deploy -DskipTests -P release --no-transfer-progress
         env:
           OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
           OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Create GitHub Release
+        if: ${{ inputs.releaseTag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.releaseTag }}
+        run: gh release create "${RELEASE_TAG}" --title "${RELEASE_TAG}" --generate-notes

@@ -1,0 +1,181 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      currentBranch:
+        description: "Current development branch"
+        required: false
+        type: string
+        default: main
+      releaseBranch:
+        description: "Release branch name (e.g. release/2.0.x)"
+        required: true
+        type: string
+      releaseVersion:
+        description: "Release version (e.g. 2.0.1)"
+        required: true
+        type: string
+      nextVersion:
+        description: "Next development version (e.g. 2.0.2-SNAPSHOT)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.currentBranch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate release inputs
+        env:
+          CURRENT_BRANCH: ${{ inputs.currentBranch }}
+          RELEASE_BRANCH: ${{ inputs.releaseBranch }}
+          RELEASE_VERSION: ${{ inputs.releaseVersion }}
+          NEXT_VERSION: ${{ inputs.nextVersion }}
+        run: |
+          if [[ ! "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::releaseVersion must have the form X.Y.Z"
+            exit 1
+          fi
+
+          if [[ ! "${NEXT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
+            echo "::error::nextVersion must have the form X.Y.Z-SNAPSHOT"
+            exit 1
+          fi
+
+          if [[ "${RELEASE_BRANCH}" != release/* ]] || ! git check-ref-format --branch "${RELEASE_BRANCH}" >/dev/null; then
+            echo "::error::releaseBranch must be a valid branch name starting with release/"
+            exit 1
+          fi
+
+          if ! git check-ref-format --branch "${CURRENT_BRANCH}" >/dev/null; then
+            echo "::error::currentBranch must be a valid branch name"
+            exit 1
+          fi
+
+      - name: Check tag and release do not already exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ inputs.releaseVersion }}
+        run: |
+          TAG="v${RELEASE_VERSION}"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "::error::Tag ${TAG} already exists; refusing to replace it"
+            exit 1
+          else
+            status=$?
+            if [[ "${status}" -ne 2 ]]; then
+              echo "::error::Could not check remote tag ${TAG} (git ls-remote exited with ${status})"
+              exit "${status}"
+            fi
+          fi
+
+          if output="$(gh release view "${TAG}" --json tagName 2>&1)"; then
+            echo "::error::GitHub Release for ${TAG} already exists; refusing to replace it"
+            exit 1
+          else
+            status=$?
+            if [[ "${output}" != *"HTTP 404"* && "${output}" != *"release not found"* ]]; then
+              echo "::error::Could not check GitHub Release ${TAG}: ${output}"
+              exit "${status}"
+            fi
+          fi
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set release version
+        env:
+          RELEASE_VERSION: ${{ inputs.releaseVersion }}
+        run: |
+          mvn versions:set-property -Dproperty=revision "-DnewVersion=${RELEASE_VERSION}" -DgenerateBackupPoms=false
+
+      - name: Commit and push release version to current branch
+        env:
+          CURRENT_BRANCH: ${{ inputs.currentBranch }}
+          RELEASE_VERSION: ${{ inputs.releaseVersion }}
+        run: |
+          git add pom.xml
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: set release version ${RELEASE_VERSION}"
+          fi
+          git push origin "${CURRENT_BRANCH}"
+
+      - name: Create or merge current branch into release branch
+        env:
+          CURRENT_BRANCH: ${{ inputs.currentBranch }}
+          RELEASE_BRANCH: ${{ inputs.releaseBranch }}
+        run: |
+          git fetch origin --prune
+          if git ls-remote --heads origin "${RELEASE_BRANCH}" | grep -q .; then
+            echo "Release branch exists, merging current branch into it"
+            git checkout -B "${RELEASE_BRANCH}" "origin/${RELEASE_BRANCH}"
+            git merge --no-edit "origin/${CURRENT_BRANCH}"
+          else
+            echo "Creating release branch from current branch"
+            git checkout -b "${RELEASE_BRANCH}" "origin/${CURRENT_BRANCH}"
+          fi
+          git push origin "${RELEASE_BRANCH}"
+
+      - name: Test release before creating tag
+        run: mvn clean verify --no-transfer-progress
+        env:
+          OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
+          OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
+
+      - name: Switch to current branch and set next development version
+        env:
+          CURRENT_BRANCH: ${{ inputs.currentBranch }}
+          NEXT_VERSION: ${{ inputs.nextVersion }}
+        run: |
+          git checkout "${CURRENT_BRANCH}"
+          git pull --rebase origin "${CURRENT_BRANCH}"
+          mvn versions:set-property -Dproperty=revision "-DnewVersion=${NEXT_VERSION}" -DgenerateBackupPoms=false
+          git add pom.xml
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: set next development version ${NEXT_VERSION}"
+          fi
+          git push origin "${CURRENT_BRANCH}"
+
+      - name: Create and push release tag
+        env:
+          RELEASE_BRANCH: ${{ inputs.releaseBranch }}
+          RELEASE_VERSION: ${{ inputs.releaseVersion }}
+        run: |
+          git checkout "${RELEASE_BRANCH}"
+          TAG="v${RELEASE_VERSION}"
+          git fetch origin --tags
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"
+
+  publish-release:
+    name: Publish release
+    needs: create-release
+    uses: ./.github/workflows/publish-release.yml
+    with:
+      releaseTag: v${{ inputs.releaseVersion }}
+    secrets: inherit
