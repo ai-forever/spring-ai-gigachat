@@ -355,25 +355,7 @@ public class GigaChatModel implements ChatModel {
         return request;
     }
 
-    CompletionRequest applyOptions(CompletionRequest request, @Nullable GigaChatOptions options) {
-
-        if (options == null) {
-            return request;
-        }
-
-        request.setModel(options.getModel());
-        request.setTemperature(options.getTemperature());
-        request.setTopP(options.getTopP());
-        request.setMaxTokens(options.getMaxTokens());
-        request.setRepetitionPenalty(options.getRepetitionPenalty());
-        request.setUpdateInterval(options.getUpdateInterval());
-        request.setProfanityCheck(options.getProfanityCheck());
-
-        return request;
-    }
-
-    CompletionRequest applyOptions(CompletionRequest request, @Nullable GigaChatOptions options) {
-
+    private CompletionRequest applyOptions(CompletionRequest request, @Nullable GigaChatOptions options) {
         if (options == null) {
             return request;
         }
