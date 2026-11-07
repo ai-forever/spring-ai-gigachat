@@ -61,7 +61,7 @@
     </developers>
 
     <properties>
-        <revision>2.1.0-SNAPSHOT</revision>
+        <revision>2.0.2</revision>
 
         <javaVersion>17</javaVersion>
         <java.version>17</java.version>
@@ -69,18 +69,26 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.35.5</allure-bom.version>
         <aspectj.version>1.9.25.1</aspectj.version>
-        <spring-boot.version>4.1.1</spring-boot.version>
-        <spring-ai.version>2.0.1</spring-ai.version>
+        <spring-boot.version>4.1.2</spring-boot.version>
+        <spring-ai.version>2.0.2</spring-ai.version>
         <ayza.version>10.1.0</ayza.version>
         <lombok.version>1.18.48</lombok.version>
         <wiremock-spring-boot.version>4.4.3</wiremock-spring-boot.version>
         <commons-lang3.version>3.21.0</commons-lang3.version>
+        <jackson.version>3.1.8</jackson.version>
 
         <maven.deploy.plugin.version>3.2.0</maven.deploy.plugin.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -307,30 +315,6 @@
             </plugin>
 
             <plugin>
-                <groupId>org.sonatype.ossindex.maven</groupId>
-                <artifactId>ossindex-maven-plugin</artifactId>
-                <version>3.2.0</version>
-                <configuration>
-                    <fail>false</fail>
-                    <clientConfiguration>
-                        <authConfiguration>
-                            <username>${env.OSSINDEX_SONATYPE_USERNAME}</username>
-                            <password>${env.OSSINDEX_SONATYPE_PASSWORD}</password>
-                        </authConfiguration>
-                    </clientConfiguration>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>audit-dependencies</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>audit-aggregate</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
                 <version>3.28.0</version>
@@ -373,6 +357,34 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>dependency-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>13.0.0</version>
+                        <configuration>
+                            <ossIndexAnalyzerEnabled>true</ossIndexAnalyzerEnabled>
+                            <ossIndexAnalyzerUrl>https://api.guide.sonatype.com</ossIndexAnalyzerUrl>
+                            <ossIndexUsername>${env.OSSINDEX_SONATYPE_USERNAME}</ossIndexUsername>
+                            <ossIndexPassword>${env.OSSINDEX_SONATYPE_PASSWORD}</ossIndexPassword>
+                            <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <profile>
             <id>integration-tests</id>
             <build>

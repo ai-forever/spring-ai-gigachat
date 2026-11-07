@@ -9,7 +9,7 @@ on:
         type: string
         default: main
       releaseBranch:
-        description: "Release branch name (e.g. release/2.0.x)"
+        description: "Release branch (e.g. release/2.0.x); may equal currentBranch"
         required: true
         type: string
       releaseVersion:
@@ -17,7 +17,7 @@ on:
         required: true
         type: string
       nextVersion:
-        description: "Next development version (e.g. 2.0.2-SNAPSHOT)"
+        description: "Next development version (e.g. 2.0.2-SNAPSHOT), or releaseVersion to keep the release version"
         required: true
         type: string
 
@@ -58,13 +58,18 @@ jobs:
             exit 1
           fi
 
-          if [[ ! "${NEXT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
-            echo "::error::nextVersion must have the form X.Y.Z-SNAPSHOT"
+          if [[ "${NEXT_VERSION}" != "${RELEASE_VERSION}" && ! "${NEXT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
+            echo "::error::nextVersion must have the form X.Y.Z-SNAPSHOT or equal releaseVersion"
             exit 1
           fi
 
-          if [[ "${RELEASE_BRANCH}" != release/* ]] || ! git check-ref-format --branch "${RELEASE_BRANCH}" >/dev/null; then
-            echo "::error::releaseBranch must be a valid branch name starting with release/"
+          if ! git check-ref-format --branch "${RELEASE_BRANCH}" >/dev/null; then
+            echo "::error::releaseBranch must be a valid branch name"
+            exit 1
+          fi
+
+          if [[ "${RELEASE_BRANCH}" != "${CURRENT_BRANCH}" && "${RELEASE_BRANCH}" != release/* ]]; then
+            echo "::error::releaseBranch must start with release/ when it differs from currentBranch"
             exit 1
           fi
 
@@ -130,10 +135,11 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore: set release version ${RELEASE_VERSION}"
+            git push origin "${CURRENT_BRANCH}"
           fi
-          git push origin "${CURRENT_BRANCH}"
 
       - name: Create or merge current branch into release branch
+        if: ${{ inputs.currentBranch != inputs.releaseBranch }}
         env:
           CURRENT_BRANCH: ${{ inputs.currentBranch }}
           RELEASE_BRANCH: ${{ inputs.releaseBranch }}
@@ -155,7 +161,20 @@ jobs:
           OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
           OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
 
+      # Tag the release before updating revision, including when both branches are the same.
+      - name: Create and push release tag
+        env:
+          RELEASE_BRANCH: ${{ inputs.releaseBranch }}
+          RELEASE_VERSION: ${{ inputs.releaseVersion }}
+        run: |
+          git checkout "${RELEASE_BRANCH}"
+          TAG="v${RELEASE_VERSION}"
+          git fetch origin --tags
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          git push origin "${TAG}"
+
       - name: Switch to current branch and set next development version
+        if: ${{ inputs.releaseVersion != inputs.nextVersion }}
         env:
           CURRENT_BRANCH: ${{ inputs.currentBranch }}
           NEXT_VERSION: ${{ inputs.nextVersion }}
@@ -168,19 +187,8 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore: set next development version ${NEXT_VERSION}"
+            git push origin "${CURRENT_BRANCH}"
           fi
-          git push origin "${CURRENT_BRANCH}"
-
-      - name: Create and push release tag
-        env:
-          RELEASE_BRANCH: ${{ inputs.releaseBranch }}
-          RELEASE_VERSION: ${{ inputs.releaseVersion }}
-        run: |
-          git checkout "${RELEASE_BRANCH}"
-          TAG="v${RELEASE_VERSION}"
-          git fetch origin --tags
-          git tag -a "${TAG}" -m "Release ${TAG}"
-          git push origin "${TAG}"
 
   publish-release:
     name: Publish release
