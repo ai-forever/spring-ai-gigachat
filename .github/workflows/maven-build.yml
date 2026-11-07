@@ -20,8 +20,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with Maven (unit tests only)
-        run: mvn clean verify --no-transfer-progress
+      - name: Build with Maven (unit tests and dependency check when credentials are available)
+        run: |
+          if [[ -n "$NVD_API_KEY" && -n "$OSSINDEX_SONATYPE_PASSWORD" ]]; then
+            mvn -Pdependency-check clean verify --no-transfer-progress
+          else
+            echo "Dependency check skipped because GitHub does not expose repository secrets to fork pull requests."
+            mvn clean verify --no-transfer-progress
+          fi
         env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
           OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
           OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
