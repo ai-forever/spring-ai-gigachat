@@ -315,30 +315,6 @@
             </plugin>
 
             <plugin>
-                <groupId>org.sonatype.ossindex.maven</groupId>
-                <artifactId>ossindex-maven-plugin</artifactId>
-                <version>3.2.0</version>
-                <configuration>
-                    <fail>false</fail>
-                    <clientConfiguration>
-                        <authConfiguration>
-                            <username>${env.OSSINDEX_SONATYPE_USERNAME}</username>
-                            <password>${env.OSSINDEX_SONATYPE_PASSWORD}</password>
-                        </authConfiguration>
-                    </clientConfiguration>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>audit-dependencies</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>audit-aggregate</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
                 <version>3.28.0</version>
@@ -381,6 +357,34 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>dependency-check</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>13.0.0</version>
+                        <configuration>
+                            <ossIndexAnalyzerEnabled>true</ossIndexAnalyzerEnabled>
+                            <ossIndexAnalyzerUrl>https://api.guide.sonatype.com</ossIndexAnalyzerUrl>
+                            <ossIndexUsername>${env.OSSINDEX_SONATYPE_USERNAME}</ossIndexUsername>
+                            <ossIndexPassword>${env.OSSINDEX_SONATYPE_PASSWORD}</ossIndexPassword>
+                            <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>aggregate</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
         <profile>
             <id>integration-tests</id>
             <build>
