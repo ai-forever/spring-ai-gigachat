@@ -188,8 +188,8 @@
                         <configuration>
                             <ossIndexAnalyzerEnabled>true</ossIndexAnalyzerEnabled>
                             <ossIndexAnalyzerUrl>https://api.guide.sonatype.com</ossIndexAnalyzerUrl>
-                            <ossIndexUsername>${env.OSS_INDEX_USERNAME}</ossIndexUsername>
-                            <ossIndexPassword>${env.OSS_INDEX_PASSWORD}</ossIndexPassword>
+                            <ossIndexUsername>${env.OSSINDEX_SONATYPE_USERNAME}</ossIndexUsername>
+                            <ossIndexPassword>${env.OSSINDEX_SONATYPE_PASSWORD}</ossIndexPassword>
                             <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
                         </configuration>
                         <executions>
