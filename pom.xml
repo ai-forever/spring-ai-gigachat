@@ -61,7 +61,7 @@
     </developers>
 
     <properties>
-        <revision>2.1.0-SNAPSHOT</revision>
+        <revision>2.0.2</revision>
 
         <javaVersion>17</javaVersion>
         <java.version>17</java.version>
@@ -69,18 +69,26 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <allure-bom.version>2.35.5</allure-bom.version>
         <aspectj.version>1.9.25.1</aspectj.version>
-        <spring-boot.version>4.1.1</spring-boot.version>
-        <spring-ai.version>2.0.1</spring-ai.version>
+        <spring-boot.version>4.1.2</spring-boot.version>
+        <spring-ai.version>2.0.2</spring-ai.version>
         <ayza.version>10.1.0</ayza.version>
         <lombok.version>1.18.48</lombok.version>
         <wiremock-spring-boot.version>4.4.3</wiremock-spring-boot.version>
         <commons-lang3.version>3.21.0</commons-lang3.version>
+        <jackson.version>3.1.8</jackson.version>
 
         <maven.deploy.plugin.version>3.2.0</maven.deploy.plugin.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>tools.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
