@@ -17,6 +17,7 @@
 package chat.giga.springai.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
 import chat.giga.springai.GigaChatModel;
@@ -32,10 +33,13 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.model.tool.autoconfigure.ToolCallingAutoConfiguration;
 import org.springframework.ai.retry.autoconfigure.SpringAiRetryAutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.ssl.SslAutoConfiguration;
+import org.springframework.boot.context.annotation.ImportCandidates;
 import org.springframework.boot.http.client.autoconfigure.reactive.ReactiveHttpClientAutoConfiguration;
 import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.ReactiveWebApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
@@ -43,11 +47,23 @@ import org.springframework.boot.webclient.autoconfigure.WebClientAutoConfigurati
 
 public class GigaChatAutoConfigurationTest {
 
-    AutoConfigurations gigaChatOnlyAutoConfigurations = AutoConfigurations.of(GigaChatAutoConfiguration.class);
+    AutoConfigurations gigaChatOnlyAutoConfigurations = AutoConfigurations.of(
+            GigaChatApiAutoConfiguration.class,
+            GigaChatChatModelAutoConfiguration.class,
+            GigaChatEmbeddingModelAutoConfiguration.class,
+            GigaChatImageModelAutoConfiguration.class);
     AutoConfigurations sslBundlesAutoConfigurations = AutoConfigurations.of(
-            GigaChatAutoConfiguration.class, SslAutoConfiguration.class, ReactiveHttpClientAutoConfiguration.class);
+            GigaChatApiAutoConfiguration.class,
+            GigaChatChatModelAutoConfiguration.class,
+            GigaChatEmbeddingModelAutoConfiguration.class,
+            GigaChatImageModelAutoConfiguration.class,
+            SslAutoConfiguration.class,
+            ReactiveHttpClientAutoConfiguration.class);
     AutoConfigurations gigaChatFullAutoConfigurations = AutoConfigurations.of(
-            GigaChatAutoConfiguration.class,
+            GigaChatApiAutoConfiguration.class,
+            GigaChatChatModelAutoConfiguration.class,
+            GigaChatEmbeddingModelAutoConfiguration.class,
+            GigaChatImageModelAutoConfiguration.class,
             SpringAiRetryAutoConfiguration.class,
             RestClientAutoConfiguration.class,
             WebClientAutoConfiguration.class,
@@ -95,7 +111,7 @@ public class GigaChatAutoConfigurationTest {
             assertThat(context).doesNotHaveBean(GigaChatEmbeddingModel.class);
             // chat и остальные бины при этом продолжают создаваться (развязаны по провайдеру)
             assertThat(context).hasSingleBean(GigaChatModel.class);
-            assertThat(context).hasSingleBean(GigaChatEmbeddingProperties.class);
+            assertThat(context).doesNotHaveBean(GigaChatEmbeddingProperties.class);
         });
     }
 
@@ -198,7 +214,11 @@ public class GigaChatAutoConfigurationTest {
     void webAutoConfigurationTest() {
         new WebApplicationContextRunner()
                 .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
-                .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(
+                        GigaChatApiAutoConfiguration.class,
+                        GigaChatChatModelAutoConfiguration.class,
+                        GigaChatEmbeddingModelAutoConfiguration.class,
+                        GigaChatImageModelAutoConfiguration.class))
                 .run(context -> {
                     assertThat(context).hasSingleBean(GigaChatApi.class);
                     assertThat(context).hasSingleBean(GigaChatModel.class);
@@ -219,7 +239,11 @@ public class GigaChatAutoConfigurationTest {
     void servletWebAutoConfigurationTest() {
         new WebApplicationContextRunner()
                 .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
-                .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(
+                        GigaChatApiAutoConfiguration.class,
+                        GigaChatChatModelAutoConfiguration.class,
+                        GigaChatEmbeddingModelAutoConfiguration.class,
+                        GigaChatImageModelAutoConfiguration.class))
                 .run(context -> {
                     assertThat(context).hasSingleBean(GigaChatApi.class);
                     assertThat(context).hasSingleBean(GigaChatModel.class);
@@ -260,7 +284,11 @@ public class GigaChatAutoConfigurationTest {
     void reactiveWebfluxAutoConfigurationTest() {
         new ReactiveWebApplicationContextRunner()
                 .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
-                .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(
+                        GigaChatApiAutoConfiguration.class,
+                        GigaChatChatModelAutoConfiguration.class,
+                        GigaChatEmbeddingModelAutoConfiguration.class,
+                        GigaChatImageModelAutoConfiguration.class))
                 .run(context -> {
                     assertThat(context).hasSingleBean(GigaChatApi.class);
                     assertThat(context).hasSingleBean(GigaChatModel.class);
@@ -313,5 +341,134 @@ public class GigaChatAutoConfigurationTest {
                     assertThat(context).hasSingleBean(GigaChatImageModel.class);
                     assertThat(context).hasSingleBean(GigaChatImageProperties.class);
                 });
+    }
+
+    @Test
+    void apiCanBeConfiguredWithoutModels() {
+        new ApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
+                .withConfiguration(AutoConfigurations.of(GigaChatApiAutoConfiguration.class))
+                .withClassLoader(new FilteredClassLoader(
+                        GigaChatModel.class, GigaChatEmbeddingModel.class, GigaChatImageModel.class))
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GigaChatApi.class);
+                    assertThat(context).doesNotHaveBean(GigaChatChatProperties.class);
+                    assertThat(context).doesNotHaveBean(GigaChatEmbeddingProperties.class);
+                    assertThat(context).doesNotHaveBean(GigaChatImageProperties.class);
+                });
+    }
+
+    @Test
+    void chatCanBeConfiguredIndependently() {
+        new ApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
+                .withConfiguration(AutoConfigurations.of(
+                        GigaChatChatModelAutoConfiguration.class, GigaChatApiAutoConfiguration.class))
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GigaChatApi.class);
+                    assertThat(context).hasSingleBean(GigaChatModel.class);
+                    assertThat(context).doesNotHaveBean(GigaChatEmbeddingModel.class);
+                    assertThat(context).doesNotHaveBean(GigaChatImageModel.class);
+                });
+    }
+
+    @Test
+    void embeddingCanBeConfiguredIndependently() {
+        new ApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
+                .withConfiguration(AutoConfigurations.of(
+                        GigaChatEmbeddingModelAutoConfiguration.class, GigaChatApiAutoConfiguration.class))
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GigaChatApi.class);
+                    assertThat(context).doesNotHaveBean(GigaChatModel.class);
+                    assertThat(context).hasSingleBean(GigaChatEmbeddingModel.class);
+                    assertThat(context).doesNotHaveBean(GigaChatImageModel.class);
+                });
+    }
+
+    @Test
+    void imageCanBeConfiguredIndependently() {
+        new ApplicationContextRunner()
+                .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
+                .withConfiguration(AutoConfigurations.of(
+                        GigaChatImageModelAutoConfiguration.class, GigaChatApiAutoConfiguration.class))
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GigaChatApi.class);
+                    assertThat(context).doesNotHaveBean(GigaChatModel.class);
+                    assertThat(context).doesNotHaveBean(GigaChatEmbeddingModel.class);
+                    assertThat(context).hasSingleBean(GigaChatImageModel.class);
+                });
+    }
+
+    @ParameterizedTest
+    @CsvSource({"none, false", "openai, false", "gigachat, true"})
+    void modelSelectionAppliesToPropertiesAndModels(String provider, boolean enabled) {
+        contextRunner
+                .withPropertyValues(
+                        "spring.ai.model.chat=" + provider,
+                        "spring.ai.model.embedding=" + provider,
+                        "spring.ai.model.image=" + provider)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GigaChatApi.class);
+                    assertThat(context.containsBean("gigaChatChatModel")).isEqualTo(enabled);
+                    assertThat(context.containsBean("gigaChatEmbeddingModel")).isEqualTo(enabled);
+                    assertThat(context.containsBean("gigaChatImageModel")).isEqualTo(enabled);
+                    assertThat(context.getBeansOfType(GigaChatChatProperties.class)
+                                    .size())
+                            .isEqualTo(enabled ? 1 : 0);
+                    assertThat(context.getBeansOfType(GigaChatEmbeddingProperties.class)
+                                    .size())
+                            .isEqualTo(enabled ? 1 : 0);
+                    assertThat(context.getBeansOfType(GigaChatImageProperties.class)
+                                    .size())
+                            .isEqualTo(enabled ? 1 : 0);
+                });
+    }
+
+    @Test
+    void customModelsAreNotReplaced() {
+        GigaChatModel chatModel = mock(GigaChatModel.class);
+        GigaChatEmbeddingModel embeddingModel = mock(GigaChatEmbeddingModel.class);
+        GigaChatImageModel imageModel = mock(GigaChatImageModel.class);
+        contextRunner
+                .withBean(GigaChatModel.class, () -> chatModel)
+                .withBean(GigaChatEmbeddingModel.class, () -> embeddingModel)
+                .withBean(GigaChatImageModel.class, () -> imageModel)
+                .run(context -> {
+                    assertThat(context).hasSingleBean(GigaChatModel.class);
+                    assertThat(context).hasSingleBean(GigaChatEmbeddingModel.class);
+                    assertThat(context).hasSingleBean(GigaChatImageModel.class);
+                    assertThat(context.getBean(GigaChatModel.class)).isSameAs(chatModel);
+                    assertThat(context.getBean(GigaChatEmbeddingModel.class)).isSameAs(embeddingModel);
+                    assertThat(context.getBean(GigaChatImageModel.class)).isSameAs(imageModel);
+                });
+    }
+
+    @Test
+    void modelsBackOffWhenApiConfigurationIsExcluded() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(
+                        GigaChatChatModelAutoConfiguration.class,
+                        GigaChatEmbeddingModelAutoConfiguration.class,
+                        GigaChatImageModelAutoConfiguration.class))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).doesNotHaveBean(GigaChatApi.class);
+                    assertThat(context).doesNotHaveBean(GigaChatModel.class);
+                    assertThat(context).doesNotHaveBean(GigaChatEmbeddingModel.class);
+                    assertThat(context).doesNotHaveBean(GigaChatImageModel.class);
+                });
+    }
+
+    @Test
+    void splitConfigurationsAreRegisteredAsAutoConfigurationCandidates() {
+        assertThat(ImportCandidates.load(AutoConfiguration.class, getClass().getClassLoader())
+                        .getCandidates())
+                .contains(
+                        GigaChatApiAutoConfiguration.class.getName(),
+                        GigaChatChatModelAutoConfiguration.class.getName(),
+                        GigaChatEmbeddingModelAutoConfiguration.class.getName(),
+                        GigaChatImageModelAutoConfiguration.class.getName())
+                .doesNotContain("chat.giga.springai.autoconfigure.GigaChatAutoConfiguration");
     }
 }
