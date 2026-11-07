@@ -20,8 +20,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with Maven (unit tests only)
-        run: mvn clean verify --no-transfer-progress
+      - name: Build with Maven (unit tests and dependency check)
+        run: mvn -Pdependency-check clean verify --no-transfer-progress
         env:
-          OSSINDEX_SONATYPE_USERNAME: ${{ secrets.OSSINDEX_SONATYPE_USERNAME }}
-          OSSINDEX_SONATYPE_PASSWORD: ${{ secrets.OSSINDEX_SONATYPE_PASSWORD }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          OSS_INDEX_USERNAME: ${{ secrets.OSS_INDEX_USERNAME }}
+          OSS_INDEX_PASSWORD: ${{ secrets.OSS_INDEX_PASSWORD }}
