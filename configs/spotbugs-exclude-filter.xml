@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<FindBugsFilter>
+    <Match><Bug pattern="NP_METHOD_PARAMETER_TIGHTENS_ANNOTATION"/></Match>
+    <Match><Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/></Match>
+    <Match><Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE"/></Match>
+    <Match><Bug pattern="EI_EXPOSE_REP"/></Match>
+    <Match><Bug pattern="EI_EXPOSE_REP2"/></Match>
+    <Match><Bug pattern="EI_EXPOSE_STATIC_REP2"/></Match>
+    <Match><Bug pattern="MS_EXPOSE_REP"/></Match>
+
+    <!-- Найденные баги - будут исправлены в отдельном PR -->
+    <Match><Bug pattern="DM_DEFAULT_ENCODING"/></Match>
+    <Match><Bug pattern="RANGE_STRING_INDEX"/></Match>
+    <Match><Bug pattern="CT_CONSTRUCTOR_THROW"/></Match>
+</FindBugsFilter>
