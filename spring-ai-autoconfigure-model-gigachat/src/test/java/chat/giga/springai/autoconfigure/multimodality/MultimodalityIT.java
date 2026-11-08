@@ -23,8 +23,9 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 
 import chat.giga.springai.GigaChatModel;
+import chat.giga.springai.autoconfigure.GigaChatApiAutoConfiguration;
 import chat.giga.springai.autoconfigure.GigaChatAuthTestProperties;
-import chat.giga.springai.autoconfigure.GigaChatAutoConfiguration;
+import chat.giga.springai.autoconfigure.GigaChatChatModelAutoConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -39,7 +40,8 @@ import org.springframework.util.MimeTypeUtils;
 public class MultimodalityIT {
 
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(GigaChatAutoConfiguration.class))
+            .withConfiguration(
+                    AutoConfigurations.of(GigaChatApiAutoConfiguration.class, GigaChatChatModelAutoConfiguration.class))
             .withPropertyValues(GigaChatAuthTestProperties.fromEnv())
             .withPropertyValues(
                     "spring.ai.gigachat.auth.unsafe-ssl=true", "spring.ai.gigachat.chat.options.model=GigaChat-2");

@@ -208,3 +208,45 @@ spring:
 <artifactId>spring-ai-vector-store-advisor</artifactId>
 ```
 
+## Разделение автоконфигурации (2.0.3+)
+
+Начиная с версии **2.0.3**, `GigaChatAutoConfiguration` заменён четырьмя независимыми классами в пакете
+`chat.giga.springai.autoconfigure`:
+
+|                   Класс                   |                  Назначение                  |
+|-------------------------------------------|----------------------------------------------|
+| `GigaChatApiAutoConfiguration`            | API-клиент, аутентификация и общие настройки |
+| `GigaChatChatModelAutoConfiguration`      | Chat-модель и её настройки                   |
+| `GigaChatEmbeddingModelAutoConfiguration` | Embedding-модель и её настройки              |
+| `GigaChatImageModelAutoConfiguration`     | Image-модель и её настройки                  |
+
+Все четыре класса подключаются автоматически. При явном импорте старого класса
+(например, через `@ImportAutoConfiguration` в тестах) замените его на конфигурации
+нужных моделей вместе с API-конфигурацией:
+
+```java
+@ImportAutoConfiguration({
+    GigaChatApiAutoConfiguration.class,
+    GigaChatChatModelAutoConfiguration.class
+})
+```
+
+Для исключения конкретной модели через `spring.autoconfigure.exclude` укажите
+соответствующий новый класс. Прямые вызовы `@Bean`-методов старого класса также нужно
+перенести на новый класс. Имена бинов и классы `GigaChat*Properties` сохранены.
+
+Свойства `spring.ai.model.chat`, `spring.ai.model.embedding` и `spring.ai.model.image`
+по-прежнему выбирают провайдера независимо. Значение `gigachat` или отсутствие свойства
+включает соответствующую модель; `none` или другой провайдер отключает её вместе с
+регистрацией её `GigaChat*Properties`. Например:
+
+```yaml
+spring:
+  ai:
+    model:
+      chat: gigachat
+      embedding: openai
+      image: none
+```
+
+Общая API-конфигурация остаётся активной независимо от выбора моделей.
