@@ -65,6 +65,9 @@ public class CompletionRequest {
     @JsonProperty("update_interval")
     private Double updateInterval;
 
+    @JsonProperty("response_format")
+    private ResponseFormat responseFormat;
+
     /**
      * Флаг для включения/отключения цензуры
      * */

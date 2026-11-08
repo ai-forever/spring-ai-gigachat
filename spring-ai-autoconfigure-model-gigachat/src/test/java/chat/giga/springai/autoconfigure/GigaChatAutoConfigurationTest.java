@@ -21,10 +21,12 @@ import static org.mockito.Mockito.mock;
 
 import chat.giga.springai.GigaChatEmbeddingModel;
 import chat.giga.springai.GigaChatModel;
+import chat.giga.springai.GigaChatOptions;
 import chat.giga.springai.api.GigaChatApiProperties;
 import chat.giga.springai.api.GigaChatInternalProperties;
 import chat.giga.springai.api.auth.GigaChatAuthProperties;
 import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.api.chat.completion.ResponseFormat;
 import chat.giga.springai.image.GigaChatImageModel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,6 +76,26 @@ public class GigaChatAutoConfigurationTest {
     ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withPropertyValues("spring.ai.gigachat.auth.bearer.api-key=test")
             .withConfiguration(gigaChatFullAutoConfigurations);
+
+    @Test
+    void nativeResponseFormatPropertiesReachModelDefaults() {
+        contextRunner
+                .withPropertyValues(
+                        "spring.ai.gigachat.chat.response-format.type=json_schema",
+                        "spring.ai.gigachat.chat.response-format.schema={\"type\":\"object\"}",
+                        "spring.ai.gigachat.chat.response-format.strict=false")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    var options = (GigaChatOptions)
+                            context.getBean(GigaChatModel.class).getOptions();
+                    assertThat(options.getResponseFormat())
+                            .isEqualTo(ResponseFormat.builder()
+                                    .type(ResponseFormat.Type.JSON_SCHEMA)
+                                    .schema("{\"type\":\"object\"}")
+                                    .strict(false)
+                                    .build());
+                });
+    }
 
     @Test
     @DisplayName("Тест проверяет корректную сборку всех бинов автоконфигурации с дефолтными параметрами")

@@ -19,6 +19,7 @@ package chat.giga.springai;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import chat.giga.springai.api.chat.completion.ResponseFormat;
 import chat.giga.springai.api.chat.param.FunctionCallParam;
 import chat.giga.springai.tool.function.GigaFunctionToolCallback;
 import java.util.List;
@@ -26,6 +27,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.model.tool.StructuredOutputChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 
 /**
@@ -36,6 +38,54 @@ import org.springframework.ai.tool.ToolCallback;
  * GigaChat-специфичные — {@link GigaChatOptions.Builder#combineWith}.
  */
 class GigaChatOptionsMergeTest {
+
+    @Test
+    void structuredFormatSurvivesCopyMutateCloneAndUnrelatedOverrides() {
+        var format = ResponseFormat.builder()
+                .type(ResponseFormat.Type.JSON_SCHEMA)
+                .schema("{\"type\":\"object\"}")
+                .strict(false)
+                .build();
+        var original = GigaChatOptions.builder().responseFormat(format).build();
+        assertThat(original.copy().getResponseFormat()).isEqualTo(format);
+        assertThat(original.mutate().build().getResponseFormat()).isEqualTo(format);
+        assertThat(original.mutate().clone().build().getResponseFormat()).isEqualTo(format);
+        assertThat(original.mutate()
+                        .combineWith(ChatOptions.builder().temperature(0.2))
+                        .build()
+                        .getResponseFormat())
+                .isEqualTo(format);
+        assertThat(original.getOutputSchema()).isEqualTo(format.schema());
+    }
+
+    @Test
+    void structuredFormatCanBeReplacedByGenericSchemaOrExplicitText() {
+        var defaults = GigaChatOptions.builder().outputSchema("{}").build();
+        var schema = "{\"type\":\"object\"}";
+        var merged = defaults.mutate()
+                .combineWith(StructuredOutputChatOptions.builder().outputSchema(schema))
+                .build();
+        assertThat(merged.getResponseFormat())
+                .isEqualTo(ResponseFormat.builder()
+                        .type(ResponseFormat.Type.JSON_SCHEMA)
+                        .schema(schema)
+                        .strict(true)
+                        .build());
+
+        var text = merged.mutate()
+                .combineWith(GigaChatOptions.builder()
+                        .responseFormat(ResponseFormat.builder()
+                                .type(ResponseFormat.Type.TEXT)
+                                .build()))
+                .build();
+        assertThat(text.getResponseFormat())
+                .isEqualTo(
+                        ResponseFormat.builder().type(ResponseFormat.Type.TEXT).build());
+        assertThat(text.getOutputSchema()).isNull();
+        assertThat(defaults.mutate().outputSchema(null).build().getResponseFormat())
+                .isNull();
+        assertThat(defaults.getOutputSchema()).isEqualTo("{}");
+    }
 
     @Test
     @DisplayName("PATH A: combineWith накладывает runtime на defaults, сохраняя все заявленные поля")

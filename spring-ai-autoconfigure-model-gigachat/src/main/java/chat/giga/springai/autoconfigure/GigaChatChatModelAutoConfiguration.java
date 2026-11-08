@@ -68,6 +68,7 @@ public class GigaChatChatModelAutoConfiguration {
                 .maxTokens(chatProperties.getMaxTokens())
                 .repetitionPenalty(chatProperties.getRepetitionPenalty())
                 .updateInterval(chatProperties.getUpdateInterval())
+                .responseFormat(chatProperties.getResponseFormat())
                 .profanityCheck(chatProperties.getProfanityCheck())
                 .functionCallMode(chatProperties.getFunctionCallMode())
                 .functionCallParam(chatProperties.getFunctionCallParam())

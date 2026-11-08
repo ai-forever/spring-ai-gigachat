@@ -47,6 +47,17 @@ curl "localhost:8080/actor-films" -d "Назови 5 популярных фил
 
 Пример ответа: `{"actor":"Сергей Безруков","movies":["Бригада","Есенин","Адмиралъ","Высоцкий. Спасибо, что живой","Участок"]}`
 
+## Нативный структурированный вывод
+
+Метод `nativeStructuredOutput` в
+[StructuredEntityController](src/main/java/chat/giga/springai/example/StructuredEntityController.java)
+использует `.entity(ActorFilms.class, spec -> spec.useProviderStructuredOutput())`.
+Spring AI строит JSON Schema из `ActorFilms` и передаёт её в `response_format` GigaChat API.
+
+```shell
+curl "localhost:8080/native-structured-output" -d "Назови 5 популярных фильмов с Сергеем Безруковым" -H "content-type:application/json"
+```
+
 ## Примеры со стримингом ответа
 
 [StreamAnswerController](src/main/java/chat/giga/springai/example/StreamAnswerController.java)

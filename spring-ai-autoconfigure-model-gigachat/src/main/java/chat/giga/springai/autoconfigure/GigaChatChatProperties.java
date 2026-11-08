@@ -18,6 +18,7 @@ package chat.giga.springai.autoconfigure;
 
 import chat.giga.springai.GigaChatModel;
 import chat.giga.springai.GigaChatOptions;
+import chat.giga.springai.api.chat.completion.ResponseFormat;
 import chat.giga.springai.api.chat.param.FunctionCallParam;
 import java.util.HashMap;
 import java.util.Map;
@@ -51,6 +52,9 @@ public class GigaChatChatProperties {
 
     @Nullable
     private Double updateInterval;
+
+    @Nullable
+    private ResponseFormat responseFormat;
 
     @Nullable
     private Boolean profanityCheck;
