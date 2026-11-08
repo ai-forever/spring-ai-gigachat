@@ -208,9 +208,9 @@ spring:
 <artifactId>spring-ai-vector-store-advisor</artifactId>
 ```
 
-## Разделение автоконфигурации
+## Разделение автоконфигурации (2.0.3+)
 
-`GigaChatAutoConfiguration` заменён четырьмя независимыми классами в пакете
+Начиная с версии **2.0.3**, `GigaChatAutoConfiguration` заменён четырьмя независимыми классами в пакете
 `chat.giga.springai.autoconfigure`:
 
 |                   Класс                   |                  Назначение                  |
