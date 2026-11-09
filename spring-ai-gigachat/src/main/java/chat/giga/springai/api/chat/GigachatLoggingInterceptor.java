@@ -65,7 +65,7 @@ public class GigachatLoggingInterceptor implements ClientHttpRequestInterceptor 
                         """,
                 request.getURI(),
                 formatHeaders(request.getHeaders()),
-                formatJson(new String(body)),
+                formatJson(new String(body, StandardCharsets.UTF_8)),
                 formatHeaders(response.getHeaders()),
                 formatJson(new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8)));
 
@@ -100,11 +100,11 @@ public class GigachatLoggingInterceptor implements ClientHttpRequestInterceptor 
                 .append(": ")
                 .append(isSensitiveHeader(k) ? "***REDACTED***" : v)
                 .append("\n"));
-        String string = stringBuilder.toString();
-        if (string.endsWith("\n")) {
-            string = string.substring(0, string.length() - 1);
+
+        if (!stringBuilder.isEmpty() && stringBuilder.charAt(stringBuilder.length() - 1) == '\n') {
+            stringBuilder.setLength(stringBuilder.length() - 1);
         }
-        return string;
+        return stringBuilder.toString();
     }
 
     /**

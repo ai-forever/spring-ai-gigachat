@@ -44,7 +44,7 @@ import org.springframework.util.ReflectionUtils;
  * @author Linar Abzaltdinov
  */
 @Slf4j
-public class GigaMethodToolCallbackProvider implements ToolCallbackProvider {
+public final class GigaMethodToolCallbackProvider implements ToolCallbackProvider {
 
     private final List<Object> toolObjects;
 
