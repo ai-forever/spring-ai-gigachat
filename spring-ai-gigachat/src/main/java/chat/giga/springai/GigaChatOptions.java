@@ -17,6 +17,7 @@
 package chat.giga.springai;
 
 import chat.giga.springai.api.chat.GigaChatApi;
+import chat.giga.springai.api.chat.completion.ResponseFormat;
 import chat.giga.springai.api.chat.param.FunctionCallParam;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +30,7 @@ import lombok.ToString;
 import org.jspecify.annotations.Nullable;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.model.tool.DefaultToolCallingChatOptions;
+import org.springframework.ai.model.tool.StructuredOutputChatOptions;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.util.Assert;
@@ -36,7 +38,7 @@ import org.springframework.util.Assert;
 @Getter
 @ToString
 @EqualsAndHashCode
-public class GigaChatOptions implements ToolCallingChatOptions {
+public class GigaChatOptions implements ToolCallingChatOptions, StructuredOutputChatOptions {
 
     private @Nullable String model;
 
@@ -49,6 +51,8 @@ public class GigaChatOptions implements ToolCallingChatOptions {
     private @Nullable Double repetitionPenalty;
 
     private @Nullable Double updateInterval;
+
+    private @Nullable ResponseFormat responseFormat;
 
     /**
      * Collection of {@link ToolCallback}s to be used for tool calling in the chat
@@ -81,6 +85,15 @@ public class GigaChatOptions implements ToolCallingChatOptions {
      */
     @ToString.Exclude
     private @Nullable Map<String, String> httpHeaders;
+
+    public @Nullable ResponseFormat getResponseFormat() {
+        return this.responseFormat;
+    }
+
+    @Override
+    public @Nullable String getOutputSchema() {
+        return this.responseFormat != null ? this.responseFormat.schema() : null;
+    }
 
     @Nullable
     @Override
@@ -154,6 +167,7 @@ public class GigaChatOptions implements ToolCallingChatOptions {
                 .maxTokens(this.getMaxTokens())
                 .repetitionPenalty(this.getRepetitionPenalty())
                 .updateInterval(this.getUpdateInterval())
+                .responseFormat(this.getResponseFormat())
                 .toolCallbacks(this.getToolCallbacks())
                 .toolContext(this.getToolContext())
                 .functionCallMode(this.getFunctionCallMode())
@@ -173,10 +187,7 @@ public class GigaChatOptions implements ToolCallingChatOptions {
     public static class Builder extends AbstractBuilder<Builder> {}
 
     protected abstract static class AbstractBuilder<B extends AbstractBuilder<B>>
-            extends DefaultToolCallingChatOptions.Builder<B>
-    // Реализация StructuredOutputChatOptions.Builder<B> вынесена в отдельную задачу
-    // (native structured output, см. ветку feature/native-structured-output).
-    {
+            extends DefaultToolCallingChatOptions.Builder<B> implements StructuredOutputChatOptions.Builder<B> {
 
         @Override
         public B clone() {
@@ -184,6 +195,7 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
             copy.repetitionPenalty = this.repetitionPenalty;
             copy.updateInterval = this.updateInterval;
+            copy.responseFormat = this.responseFormat;
             copy.functionCallMode = this.functionCallMode;
             copy.functionCallParam = this.functionCallParam;
             copy.profanityCheck = this.profanityCheck;
@@ -196,6 +208,8 @@ public class GigaChatOptions implements ToolCallingChatOptions {
 
         private @Nullable Double updateInterval;
 
+        private @Nullable ResponseFormat responseFormat;
+
         private @Nullable FunctionCallMode functionCallMode;
 
         private @Nullable FunctionCallParam functionCallParam;
@@ -203,6 +217,24 @@ public class GigaChatOptions implements ToolCallingChatOptions {
         private @Nullable Boolean profanityCheck;
 
         private @Nullable Map<String, String> httpHeaders;
+
+        public B responseFormat(@Nullable ResponseFormat responseFormat) {
+            this.responseFormat = responseFormat;
+            return self();
+        }
+
+        /** Sets a native JSON schema with strict mode enabled, or clears the format when null. */
+        @Override
+        public B outputSchema(@Nullable String outputSchema) {
+            return responseFormat(
+                    outputSchema == null
+                            ? null
+                            : ResponseFormat.builder()
+                                    .type(ResponseFormat.Type.JSON_SCHEMA)
+                                    .schema(outputSchema)
+                                    .strict(true)
+                                    .build());
+        }
 
         public B model(GigaChatApi.ChatModel model) {
             if (model != null) {
@@ -288,6 +320,7 @@ public class GigaChatOptions implements ToolCallingChatOptions {
             options.maxTokens = this.maxTokens;
             options.repetitionPenalty = this.repetitionPenalty;
             options.updateInterval = this.updateInterval;
+            options.responseFormat = this.responseFormat;
 
             // ChatOptions fields: stopSequences/frequencyPenalty/presencePenalty/topK
             // не поддерживаются GigaChat API и намеренно не заполняются (см. геттеры выше).
@@ -321,6 +354,9 @@ public class GigaChatOptions implements ToolCallingChatOptions {
                 if (that.updateInterval != null) {
                     this.updateInterval = that.updateInterval;
                 }
+                if (that.responseFormat != null) {
+                    this.responseFormat = that.responseFormat;
+                }
                 if (that.functionCallMode != null) {
                     this.functionCallMode = that.functionCallMode;
                 }
@@ -335,6 +371,11 @@ public class GigaChatOptions implements ToolCallingChatOptions {
                         this.httpHeaders = new HashMap<>();
                     }
                     this.httpHeaders.putAll(that.httpHeaders);
+                }
+            } else if (other instanceof StructuredOutputChatOptions.Builder<?> structured) {
+                if (structured.build() instanceof StructuredOutputChatOptions options
+                        && options.getOutputSchema() != null) {
+                    outputSchema(options.getOutputSchema());
                 }
             }
             return self();

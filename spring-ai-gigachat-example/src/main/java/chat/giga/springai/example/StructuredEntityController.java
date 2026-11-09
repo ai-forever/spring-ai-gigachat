@@ -46,4 +46,13 @@ public class StructuredEntityController {
                 .call()
                 .entity(ActorFilms.class);
     }
+
+    @PostMapping("/native-structured-output")
+    public ActorFilms nativeStructuredOutput(@RequestBody String question) {
+        return chatClient
+                .prompt()
+                .user(question)
+                .call()
+                .entity(ActorFilms.class, spec -> spec.useProviderStructuredOutput());
+    }
 }

@@ -367,6 +367,7 @@ public class GigaChatModel implements ChatModel {
         request.setMaxTokens(options.getMaxTokens());
         request.setRepetitionPenalty(options.getRepetitionPenalty());
         request.setUpdateInterval(options.getUpdateInterval());
+        request.setResponseFormat(options.getResponseFormat());
         request.setProfanityCheck(options.getProfanityCheck());
 
         return request;
