@@ -191,9 +191,8 @@ public class GigaChatOAuthClient {
                     byte[] bodyBytes = response.getBody().readAllBytes();
                     String body = new String(bodyBytes, StandardCharsets.UTF_8);
                     String truncatedBody = truncate(body, MAX_LOGGED_BODY_LENGTH);
-                    String contentType = response.getHeaders().getContentType() != null
-                            ? response.getHeaders().getContentType().toString()
-                            : "unknown";
+                    MediaType responseContentType = response.getHeaders().getContentType();
+                    String contentType = responseContentType != null ? responseContentType.toString() : "unknown";
 
                     if (response.getStatusCode().isError() && !contentType.contains("json")) {
                         log.warn(
