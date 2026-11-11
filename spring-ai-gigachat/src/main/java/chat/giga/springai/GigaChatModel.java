@@ -22,7 +22,10 @@ import chat.giga.springai.api.GigaChatInternalProperties;
 import chat.giga.springai.api.chat.GigaChatApi;
 import chat.giga.springai.api.chat.completion.CompletionRequest;
 import chat.giga.springai.api.chat.completion.CompletionResponse;
+import chat.giga.springai.api.chat.file.UploadFileResponse;
 import chat.giga.springai.api.chat.models.ModelDescription;
+import chat.giga.springai.api.chat.models.ModelsResponse;
+import chat.giga.springai.api.chat.param.FunctionCallParam;
 import chat.giga.springai.image.GigaChatImageExtractorUtil;
 import chat.giga.springai.support.GigaRetryTemplate;
 import chat.giga.springai.tool.definition.GigaToolDefinition;
@@ -250,7 +253,12 @@ public class GigaChatModel implements ChatModel {
 
     @SuppressWarnings("DataFlowIssue")
     public List<ModelDescription> models() {
-        return gigaChatApi.models().getBody().getData();
+        ResponseEntity<ModelsResponse> response = gigaChatApi.models();
+        ModelsResponse body = response.getBody();
+        if (body == null) {
+            return List.of();
+        }
+        return body.getData();
     }
 
     /**
@@ -271,12 +279,16 @@ public class GigaChatModel implements ChatModel {
      * {@link #createRequest(Prompt, boolean)} упадёт на {@code UUID.fromString(null)}.
      */
     private Prompt buildRequestPrompt(Prompt prompt) {
-        GigaChatOptions requestOptions = (prompt.getOptions() == null)
-                ? this.defaultOptions
-                : this.defaultOptions
-                        .mutate()
-                        .combineWith(prompt.getOptions().mutate())
-                        .build();
+        ChatOptions promptOptions = prompt.getOptions();
+        GigaChatOptions requestOptions;
+        if (promptOptions == null) {
+            requestOptions = this.defaultOptions;
+        } else {
+            requestOptions = this.defaultOptions
+                    .mutate()
+                    .combineWith(promptOptions.mutate())
+                    .build();
+        }
         return new Prompt(uploadMedia(prompt.getInstructions()), requestOptions);
     }
 
@@ -286,7 +298,13 @@ public class GigaChatModel implements ChatModel {
                     if (message instanceof UserMessage userMessage) {
                         if (!CollectionUtils.isEmpty(userMessage.getMedia())) {
                             List<UUID> filesIds = userMessage.getMedia().stream()
-                                    .map(media -> UUID.fromString(media.getId()))
+                                    .map(media -> {
+                                        String mediaId = media.getId();
+                                        if (mediaId == null) {
+                                            throw new IllegalArgumentException("Media id must not be null");
+                                        }
+                                        return UUID.fromString(mediaId);
+                                    })
                                     .toList();
 
                             return List.of(new CompletionRequest.Message(
@@ -411,7 +429,12 @@ public class GigaChatModel implements ChatModel {
             return media;
         }
         // иначе загружаем файл и получаем его id
-        String mediaId = gigaChatApi.uploadFile(media).getBody().id().toString();
+        ResponseEntity<UploadFileResponse> response = gigaChatApi.uploadFile(media);
+        UploadFileResponse body = response.getBody();
+        if (body == null) {
+            throw new IllegalStateException("GigaChat returned empty file upload response");
+        }
+        String mediaId = body.id().toString();
 
         var builder = Media.builder().id(mediaId).name(media.getName()).mimeType(media.getMimeType());
         Object data = media.getData();
@@ -439,17 +462,19 @@ public class GigaChatModel implements ChatModel {
         }
         var callMode = requestOptions.getFunctionCallMode();
 
-        if (callMode == GigaChatOptions.FunctionCallMode.CUSTOM_FUNCTION
-                && requestOptions.getFunctionCallParam() != null) {
-            var functionCallName = requestOptions.getFunctionCallParam().getName();
+        if (callMode == GigaChatOptions.FunctionCallMode.CUSTOM_FUNCTION) {
+            FunctionCallParam functionCallParam = requestOptions.getFunctionCallParam();
+            if (functionCallParam != null) {
+                var functionCallName = functionCallParam.getName();
 
-            if (functionCallName != null
-                    && toolDefinitions.stream().noneMatch(it -> it.name().equals(functionCallName))) {
+                if (functionCallName != null
+                        && toolDefinitions.stream().noneMatch(it -> it.name().equals(functionCallName))) {
 
-                log.warn("Specified function '{}' not found among available functions", functionCallName);
+                    log.warn("Specified function '{}' not found among available functions", functionCallName);
+                }
+
+                return functionCallParam;
             }
-
-            return requestOptions.getFunctionCallParam();
         }
 
         if (callMode == null) {

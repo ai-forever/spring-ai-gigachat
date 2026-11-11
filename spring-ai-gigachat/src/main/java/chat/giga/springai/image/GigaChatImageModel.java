@@ -164,7 +164,9 @@ public class GigaChatImageModel implements ImageModel {
             return empty;
         }
 
-        String responseFormat = prompt.getOptions().getResponseFormat();
+        ImageOptions options = prompt.getOptions();
+        String responseFormat =
+                options != null ? options.getResponseFormat() : GigaChatImageOptions.RESPONSE_FORMAT_B64_JSON;
         if (GigaChatImageOptions.RESPONSE_FORMAT_URL.equals(responseFormat)) {
             ImageResponse response = buildUrlImageResponse(fileId, completion.getModel());
             observationContext.setResponse(response);
@@ -189,12 +191,12 @@ public class GigaChatImageModel implements ImageModel {
      * @return a prompt that is guaranteed to have non-null options
      */
     private ImagePrompt normalizePrompt(ImagePrompt prompt) {
-        if (prompt.getOptions() == null) { // safeguard against changes in Spring AI logic
+        ImageOptions promptOptions = prompt.getOptions();
+        if (promptOptions == null) { // safeguard against changes in Spring AI logic
             return new ImagePrompt(prompt.getInstructions(), defaultOptions);
         }
 
         // Merge options: use values from prompt if present, otherwise use defaults
-        ImageOptions promptOptions = prompt.getOptions();
         GigaChatImageOptions mergedOptions = GigaChatImageOptions.builder()
                 .model(promptOptions.getModel() != null ? promptOptions.getModel() : defaultOptions.getModel())
                 .style(promptOptions.getStyle() != null ? promptOptions.getStyle() : defaultOptions.getStyle())
@@ -313,14 +315,17 @@ public class GigaChatImageModel implements ImageModel {
 
         CompletionRequest req = new CompletionRequest();
 
-        req.setModel(prompt.getOptions().getModel());
+        ImageOptions promptOptions = prompt.getOptions();
+        Assert.notNull(promptOptions, "ImagePrompt options must not be null (normalizePrompt was skipped?)");
+
+        req.setModel(promptOptions.getModel());
         req.setStream(false);
         req.setFunctionCall(FUNCTION_CALL_AUTO);
 
         List<CompletionRequest.Message> messages = new ArrayList<>();
 
         // Add system message only if style is provided
-        String style = prompt.getOptions().getStyle();
+        String style = promptOptions.getStyle();
         if (style != null) {
             CompletionRequest.Message sys = new CompletionRequest.Message();
             sys.setRole(CompletionRequest.Role.system);

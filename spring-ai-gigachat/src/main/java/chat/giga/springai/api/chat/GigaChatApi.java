@@ -218,6 +218,10 @@ public class GigaChatApi {
                             .map(content -> {
                                 CompletionResponse completionResponse =
                                         JsonParser.fromJson(content, CompletionResponse.class);
+                                if (completionResponse == null) {
+                                    throw new IllegalStateException(
+                                            "GigaChat returned unparseable SSE chunk: " + content);
+                                }
                                 completionResponse.setId(id);
                                 return completionResponse;
                             });

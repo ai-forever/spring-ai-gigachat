@@ -803,4 +803,22 @@ public class GigaChatModelTest {
 
         verify(gigaChatApi, never()).downloadFile(any());
     }
+
+    @Test
+    @DisplayName("uploadMediaAndSetId: пустое тело ответа uploadFile -> IllegalStateException")
+    void testUploadFile_withNullBody() {
+        Media media = Media.builder()
+                .data("документ")
+                .mimeType(MimeTypeUtils.TEXT_PLAIN)
+                .build();
+
+        Prompt prompt = new Prompt(
+                List.of(UserMessage.builder().text("Кто ты?").media(media).build()));
+
+        when(gigaChatApi.uploadFile(any())).thenReturn(ResponseEntity.ok(null));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> gigaChatModel.call(prompt));
+
+        assertEquals("GigaChat returned empty file upload response", ex.getMessage());
+    }
 }

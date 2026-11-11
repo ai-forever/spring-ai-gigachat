@@ -34,6 +34,7 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.embedding.AbstractEmbeddingModel;
 import org.springframework.ai.embedding.Embedding;
+import org.springframework.ai.embedding.EmbeddingOptions;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.embedding.EmbeddingResponseMetadata;
@@ -91,8 +92,8 @@ public class GigaChatEmbeddingModel extends AbstractEmbeddingModel {
         log.debug("Embedding call request: {}", String.join("\n", request.getInstructions()));
         // EmbeddingRequest.getOptions() объявлен @Nullable в Spring AI 2.x — обращаемся через null-guard,
         // иначе model.call(new EmbeddingRequest(list, null)) падал бы с NPE вместо подстановки default-модели.
-        String requestModel =
-                request.getOptions() != null ? request.getOptions().getModel() : null;
+        EmbeddingOptions requestOptions = request.getOptions();
+        String requestModel = requestOptions != null ? requestOptions.getModel() : null;
         String model = StringUtils.hasText(requestModel) ? requestModel : defaultOptions.getModel();
         EmbeddingsRequest embeddingsRequest = new EmbeddingsRequest(model, request.getInstructions());
 
@@ -168,8 +169,15 @@ public class GigaChatEmbeddingModel extends AbstractEmbeddingModel {
         Assert.notNull(document, "Document must not be null");
         EmbeddingRequest embeddingRequest =
                 new EmbeddingRequest(List.of(getEmbeddingContent(document)), this.defaultOptions);
-        EmbeddingResponse embeddingResponse = this.call(embeddingRequest);
-        return embeddingResponse.getResult().getOutput();
+        Embedding result = this.call(embeddingRequest).getResult();
+        if (result == null) {
+            throw new IllegalStateException("GigaChat returned empty embedding result");
+        }
+        float[] output = result.getOutput();
+        if (output == null) {
+            throw new IllegalStateException("GigaChat returned null embedding output");
+        }
+        return output;
     }
 
     /**
